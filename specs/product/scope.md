@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Pekopeko is currently in the FOUNDATION / DISCOVERY phase. This means:
+Pekopeko is currently in the FOUNDATION / DISCOVERY phase, transitioning into the PRODUCT DEFINITION phase. This means:
 
 - No production feature is considered implemented
 - No final database technology has been selected
@@ -11,6 +11,14 @@ Pekopeko is currently in the FOUNDATION / DISCOVERY phase. This means:
 - No final frontend framework decision should be assumed unless already present in the repository
 - No final LLM provider architecture should be assumed
 - No final agent architecture should be assumed
+
+## Product Definition Phase
+
+The project is now entering the Product Definition phase, where we will rigorously define:
+- Core product model and user needs
+- Specific capabilities and their value propositions
+- Clear boundaries and non-goals
+- Detailed scope for future implementation
 
 ## Confirmed Goals
 
