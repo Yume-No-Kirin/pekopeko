@@ -28,7 +28,7 @@ Conflicting information must remain representable until appropriately resolved b
 Recording time and claimed validity/effective time must remain distinguishable. The system must track when information was ingested or recorded separately from when it claims to be true or applicable.
 
 ### INV-008 — Domain Isolation
-Knowledge does not silently cross domain boundaries. Different knowledge domains (PERSONAL, FICTION, LEARNING, RESEARCH) must maintain conceptual isolation by default, with explicit operations required for cross-domain access.
+Knowledge does not silently cross domain boundaries. Different knowledge domains (PERSONAL, FICTION, LEARNING, RESEARCH, PUBLISHING) must maintain conceptual isolation by default, with explicit operations required for cross-domain access.
 
 ### INV-009 — Explicit Cross-Domain Operations
 Cross-domain reasoning must be explicitly authorized as an operation. Any integration or analysis across domains must be a deliberate, authorized process rather than automatic behavior.
