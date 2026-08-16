@@ -6,6 +6,7 @@
 # One-off context dump generated once at the start of a session; not meant
 # to be kept up to date. See docs/ROADMAP.md instead.
 docs/PROJECT_HANDOFF.md
+docs/qwen-reports/*.md
 
 # Per-phase prompt packages handed to a coding LLM (qwen, etc.) to execute
 # a batch of fixes/tasks. Disposable once that phase is done. Covers

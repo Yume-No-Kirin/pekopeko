@@ -672,3 +672,34 @@ def test_atomic_write_behavior():
             assert "---" in content
             # Should not contain temp file patterns that would indicate incomplete write
             assert "temp_" not in content or ".tmp" not in content
+
+
+def test_long_item_id_raises_validation_error():
+    """Test that item_id longer than 200 characters raises ValidationError."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        long_id = 'a' * 250  # 250 character ID (> 200 limit)
+        try:
+            write_canonical_item(
+                vault_root=tmp_dir,
+                domain="PERSONAL",
+                item_type="entity",
+                item_id=long_id,
+                frontmatter={
+                    "id": long_id,
+                    "type": "entity",
+                    "domain": "PERSONAL",
+                    "lifecycle_status": "ACTIVE",
+                    "epistemic_status": "direct",
+                    "version": 1,
+                    "created_at": "2026-08-16T10:00:00",
+                    "valid_from": None,
+                    "valid_until": None,
+                    "provenance": "test"
+                },
+                body="# Test Entity\n\nContent."
+            )
+            assert False, "Expected ValidationError to be raised"
+        except ValidationError as e:
+            assert "exceeds maximum length" in str(e)
+            assert "200" in str(e)
+            assert str(len(long_id)) in str(e)

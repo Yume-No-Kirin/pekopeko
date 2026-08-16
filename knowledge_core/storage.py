@@ -176,6 +176,10 @@ def write_canonical_item(
     if item_type not in ITEM_TYPES_SINGULAR:
         raise ValidationError(f"Invalid item type: {item_type}")
 
+    # Validate item_id length - must be <= 200 characters to prevent filesystem errors
+    if len(item_id) > 200:
+        raise ValidationError(f"item_id exceeds maximum length of 200 characters (got {len(item_id)})")
+
     # Determine plural form for folder structure
     item_type_plural = {
         "entity": "entities",
