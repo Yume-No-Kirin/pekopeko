@@ -71,7 +71,11 @@ Les 6 questions ouvertes dans `technical-requirements.md` (section « Architectu
 
 Découper `specs/tasks/backlog/` en tickets suffisamment petits et autonomes pour être traités par qwen3-coder:30b sans relire tout le corpus : fichiers concernés, schéma/interface attendu, critères d'acceptation testables, et les 2-3 invariants pertinents cités explicitement dans le ticket (pas par renvoi global). Choisir en priorité un scope V1 minimal plutôt que de vouloir adresser les 18 cas d'usage d'un coup.
 
-**Statut : prête à démarrer** — la dépendance sur la Phase 1 est levée (les 6 ADI sont `Accepted`). Pas encore commencée : à cadrer avec Cleo avant de découper les premiers tickets.
+**Gap trouvé en démarrant cette phase (2026-08-16) :** aucun langage/stack d'implémentation n'était décidé nulle part dans les specs (`scope.md` le listait explicitement comme ouvert ; le dépôt ne contenait aucun code). Ce n'était pas une des 6 questions ADI de la Phase 1, mais c'est devenu bloquant pour écrire un ticket implémentable. Tranché avec Cleo et rédigé comme **ADI-007** (`specs/decisions/ADI-007-implementation-language.md`, `Accepted`) : Python pour le Knowledge Core / backend, décision qui ne présume pas d'un choix de frontend/GUI (séparé, à trancher plus tard).
+
+**Premier ticket rédigé :** `specs/tasks/backlog/KC-001-canonical-item-storage.md` — la primitive de stockage du Knowledge Core (écriture/lecture d'un item canonique + versioning dans un sous-dossier d'historique), fondation dont dépendent l'index (ADI-002), les relations (ADI-003) et le futur workflow de proposition/validation (AP-002). Écrit en Python (ADI-007), testé par `pytest` sur un répertoire temporaire — jamais sur le vault réel. Prochaine étape : le faire implémenter par qwen3-coder:30b, puis vérification par Claude (relecture du code + exécution des tests + vérification manuelle des critères d'acceptation, en particulier l'absence de git et l'atomicité des écritures).
+
+**Statut : démarrée** — premier ticket (KC-001) rédigé et prêt pour implémentation. ADI-007 ajoutée en cours de route (non prévue en Phase 1, mais nécessaire ici).
 
 ### Phase 3 — Implémentation
 
@@ -93,7 +97,7 @@ qwen3-coder:30b (ou autre) traite les tickets un par un. Chaque ticket terminé 
 
 ## Prochaine action exacte
 
-**Phase 1 est terminée : les 6 ADI (ADI-001 à ADI-006) sont `Accepted`.** Prochaine étape : Phase 2 — découper les premiers tickets concrets dans `specs/tasks/backlog/`, en commençant par un scope V1 minimal plutôt que de vouloir adresser les 18 cas d'usage d'un coup. Avant de commencer, relire la « Lecture requise » de la Phase 1 ci-dessus (toutes les ADR `Accepted` + `specs/modules/module-architecture.md` + `specs/tasks/README.md`), et cadrer avec Cleo quel(s) ticket(s) prioriser avant de rédiger quoi que ce soit.
+**Phase 1 est terminée (6 ADI Accepted). Phase 2 est démarrée.** Le premier ticket, `KC-001` (`specs/tasks/backlog/KC-001-canonical-item-storage.md` — primitive de stockage du Knowledge Core en Python, cf. ADI-007), est rédigé et prêt. Prochaine étape concrète : le faire implémenter par qwen3-coder:30b, puis Claude doit vérifier le résultat (relecture du code, exécution de `pytest`, vérification manuelle de chaque critère d'acceptation du ticket — en particulier absence de git et atomicité des écritures) avant de faire passer le ticket de `backlog/` à `completed/`. Après KC-001, prochain(s) ticket(s) candidat(s) à cadrer avec Cleo : l'index de retrieval (ADI-002) ou la structure de relations (ADI-003), tous deux dépendants de KC-001.
 
 ---
 
