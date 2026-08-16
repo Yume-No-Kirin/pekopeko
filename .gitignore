@@ -17,3 +17,9 @@ docs/qwen-*-prompts.md
 # manual .gitignore update).
 *-scratch.md
 _tmp_*
+
+# Intermediate reasoning drafts from qwen's abandoned Task E attempt
+# (audit_summary.md, capabilities_mapping.md, incorrect_citations.md,
+# requirements_analysis.md) — dead working files, not part of the corpus.
+# See docs/ROADMAP.md Phase 0 for what actually happened with Task E.
+temp/

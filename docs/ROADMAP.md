@@ -7,11 +7,19 @@
 - Après chaque session qui change quelque chose (spec, décision, code), mettre à jour les sections « État actuel » et « Prochaine action » avant de terminer. Ne jamais les laisser désynchronisées de la réalité du dépôt.
 - `docs/PROJECT_HANDOFF.md` est un dump ponctuel de contexte généré une seule fois — ce n'est pas un fichier vivant, il n'est pas mis à jour, ne t'y fie pas pour l'état courant. `ROADMAP.md` est le seul document de continuité à tenir à jour.
 
+## Démarrage de session (dans cet ordre, à chaque nouvelle conversation)
+
+1. Lire ce fichier en entier.
+2. Repérer la phase en cours dans « Prochaine action exacte » (fin de fichier).
+3. Dans la section de cette phase ci-dessous, lire la liste **« Lecture requise »** en entier — les fichiers eux-mêmes, pas un résumé de conversation précédente. Ne rien proposer avant d'avoir fait cette lecture.
+4. Lire les ADR déjà présentes dans `specs/decisions/` qui concernent cette phase (statut `Proposed` ou `Accepted`) — elles contiennent la décision ET sa justification, pas seulement le résultat.
+5. Ne poser une question de cadrage à Cleo que si cette lecture ne suffit pas à y répondre. Le corpus existe précisément pour éviter d'avoir à reposer ces questions.
+
 ## État actuel (résumé)
 
-Phase : Foundation / Discovery → Product Definition (en cours). Aucune ligne de code écrite — tout le travail à ce jour porte sur les documents de spec eux-mêmes, pas sur le système. Phase 0 (nettoyage de cohérence des identifiants) est terminée et vérifiée. Prochaine étape : Phase 1, les 6 décisions d'architecture (ADI-001 à 006) — ce sont de vrais choix produit/architecture, pas du travail mécanique délégable ; ils demandent l'arbitrage de Cleo, Claude aide à peser les options.
+Phase : Foundation / Discovery → Product Definition (en cours). Aucune ligne de code écrite — tout le travail à ce jour porte sur les documents de spec eux-mêmes, pas sur le système. Phase 0 (nettoyage de cohérence des identifiants) est terminée et vérifiée. Phase 1 (décisions d'architecture) est terminée : les 6 ADI (ADI-001 à ADI-006) sont `Accepted` — voir Phase 1 ci-dessous. Phase 2 (premiers tickets concrets) n'a pas encore commencé.
 
-Dernière revue complète : 2026-08-16, lecture intégrale de `specs/**`, `README.md` et `docs/PROJECT_HANDOFF.md`, en deux passes (nettoyage initial A-E, puis une passe de vérification finale demandée explicitement par Cleo — voir F ci-dessous). Détail des corrections : voir Phase 0 ci-dessous.
+Dernière revue complète : 2026-08-16, lecture intégrale de `specs/**`, `README.md` et `docs/PROJECT_HANDOFF.md`, en trois passes (nettoyage initial A-E, une passe de vérification finale F, puis une relecture ciblée de `specs/product/*.md` avant de rédiger les premières ADR — voir Phase 1). Détail des corrections : voir Phase 0 ci-dessous.
 
 ## Plan en phases
 
@@ -33,42 +41,60 @@ Dernière revue complète : 2026-08-16, lecture intégrale de `specs/**`, `READM
   - `specs/architecture/principles.md`, ligne 11 : après le renommage INV-→AP- (tâche A), la phrase continuait à appeler les items AP-001..009 "the conceptual invariants", recréant l'ambiguïté que le renommage devait justement éliminer. Reformulée pour distinguer explicitement AP- (principes d'architecture) et INV- (invariants de domaine, définis dans `knowledge-invariants.md`).
   - Vérifications qui n'ont rien trouvé d'anormal (donc rien à corriger) : intégrité `UC-001..018` (séquentiel, sans trou ni doublon), `MOD-001..010` (namespace isolé et cohérent), séquence des sections 1-26 de `technical-requirements.md` (sans trou ni doublon), et absence de contradiction terminologique entre `specs/product/glossary.md` et `specs/domain/knowledge-model.md` (les deux se recoupent sans se contredire, avec des niveaux de détail différents — le glossaire est plus haut niveau).
   - Deux points restent volontairement non résolus (jugement éditorial, pas une erreur factuelle, hors scope d'un nettoyage mécanique) : `specs/product/capabilities.md` définit `CAP-001..003` (capacités produit) qui ne sont jamais reliées par ID aux 16 `CAP-CORE-XXX` ni aux 18 `UC-XXX` — contrairement au reste du corpus, très cross-référencé ; et `specs/product/glossary.md` ne définit pas "Domain", terme pourtant central et très utilisé dans les specs (alors qu'il liste des termes de niveau système comme Module, Agent, Provider). À trancher en Phase 1/2 si besoin.
+- **G. Test de reprise en conversation fraîche** — FAIT (2026-08-16), demandé explicitement par Cleo pour valider que ce fichier permet effectivement à une nouvelle instance de reprendre le travail sans dérive. Une conversation Claude fraîche a suivi « Démarrage de session », lu la « Lecture requise » de la Phase 1, puis (sur consigne explicite de Cleo) lu le reste du dépôt (`use-cases.md`, `product/capabilities.md`, `glossary.md`, `PROJECT_HANDOFF.md`, `module-architecture.md`, README, `temp/`). Résultat globalement positif : compte-rendu honnête de ce qu'elle n'avait pas encore lu quand on le lui a demandé (pas de survalorisation de sa propre compréhension), vérification indépendante — pas juste répétée — de l'obsolescence de `PROJECT_HANDOFF.md` (encore `INV-001..009`, encore "279 exigences"), aucune contradiction trouvée avec les 4 brouillons d'ADR déjà écrits. Deux problèmes réels trouvés et corrigés à cette occasion :
+  - `specs/product/use-cases.md` contenait un tableau "Dependency Matrix" (UC-001..018 × 10 catégories) entièrement composé de coches, sans aucune information discriminante — même défaut que les citations copiées-collées corrigées en tâche E. Supprimé (décision de Cleo).
+  - Les fichiers de travail intermédiaires de qwen dans `temp/` (`audit_summary.md`, `capabilities_mapping.md`, `incorrect_citations.md`, `requirements_analysis.md`, résidus de la tentative abandonnée sur la tâche E) n'étaient pas couverts par le `.gitignore`. `temp/` ajouté au `.gitignore`. Cleo doit encore supprimer le dossier lui-même (Claude n'a pas d'accès de suppression sur le disque via le pont).
+  - En relisant `use-cases.md` en entier pour ce test, une lacune a été trouvée dans les ADR déjà rédigées : la section "Architectural Pressure Points" du document cite "Managing hundreds of thousands of proposals efficiently" comme point de tension architecturale — un signal de volume que `ADI-001-canonical-persistence-model.md` et `ADI-002-retrieval-system.md` ne reflétaient pas encore, faute d'avoir lu `use-cases.md` en entier avant de les rédiger. Les deux ADR ont été corrigées en conséquence (voir Phase 1) : ça ne change pas la décision de fond d'ADI-001, mais ça renforce l'exigence d'un vrai index dès le V1 dans ADI-002 plutôt qu'un simple scan de fichiers. `use-cases.md` ajouté à la « Lecture requise » de la Phase 1 pour que cette lacune ne se reproduise pas.
 
-**Statut : Phase 0 terminée (A-F faits et vérifiés).**
+**Statut : Phase 0 terminée (A-G faits et vérifiés).**
 
 ### Phase 1 — Décisions d'architecture (ADI-001 à ADI-006)
-Les 6 questions ouvertes dans `technical-requirements.md` (section « Architectural Decision Inputs ») doivent être tranchées et écrites comme de vraies ADR dans `specs/decisions/` (le dossier ne contient aujourd'hui qu'un README de format, aucune décision réelle) :
-- ADI-001 : modèle de persistance canonique
-- ADI-002 : retrieval sémantique intégré ou système dédié
-- ADI-003 : le modèle de relations nécessite-t-il une base graphe ou de simples structures graph-like
-- ADI-004 : rôle d'Obsidian vis-à-vis de la connaissance canonique
-- ADI-005 : quelles opérations synchrones vs asynchrones
-- ADI-006 : quoi persister vs recalculer
 
-**Statut : à faire** (dépend de la Phase 0 pour ne pas référencer des ID cassés dans les ADR).
+**Lecture requise avant de continuer cette phase :** `specs/product/vision.md`, `specs/product/user-needs.md`, `specs/product/scope.md`, `specs/product/non-goals.md`, `specs/product/product-model.md`, `specs/product/use-cases.md` (ajouté le 2026-08-16 suite au test G — cité comme justification derrière presque chaque exigence, et contient des signaux de volume absents des autres docs produit), `specs/domain/knowledge-model.md`, `specs/domain/knowledge-invariants.md`, `specs/architecture/principles.md`, `specs/architecture/capabilities.md`, section 23 (« Architectural Decision Inputs ») de `specs/architecture/technical-requirements.md`, et toutes les ADR déjà écrites dans `specs/decisions/`.
+
+Erreur commise le 2026-08-16 sur cette phase, à ne pas reproduire : premier brouillon d'options pour ADI-001 rédigé depuis des connaissances générales de bases de données, avec des questions de cadrage posées à Cleo, sans avoir relu `specs/product/*.md` d'abord — qui répondait déjà à la plupart des questions posées (utilisateur unique, refus explicite de choisir une techno prématurément). Voir la règle correspondante dans « Discipline de continuité » ci-dessous.
+
+Les 6 questions ouvertes dans `technical-requirements.md` (section « Architectural Decision Inputs ») doivent être tranchées et écrites comme de vraies ADR dans `specs/decisions/` :
+
+- **ADI-001 : modèle de persistance canonique** — `specs/decisions/ADI-001-canonical-persistence-model.md`. **Statut `Accepted` (confirmé par Cleo le 2026-08-16).** Décision : fichiers structurés (pas de base de données) comme store canonique. **Point important : pas d'historisation via git.** Cleo a un usage de second cerveau (vault Obsidian synchronisé en continu sur plusieurs appareils, milliers de notes) — git en parallèle d'un outil de synchro tiers actif est un vrai risque de conflit. L'historisation (AP-004, HIR-001..010) est donc faite au niveau des fichiers eux-mêmes : chaque item a un sous-dossier d'historique contenant les versions complètes précédentes (`lifecycle_status: SUPERSEDED`), pas de diff-only — choix justifié directement par UC-010 (« marked as superseded ») et UC-015 (retrouver un état complet passé, pas rejouer des diffs). Sauvegarde/redondance = la synchro Obsidian existante de Cleo, hors du scope de Pekopeko.
+- **ADI-002 : retrieval sémantique intégré ou système dédié** — `specs/decisions/ADI-002-retrieval-system.md`. **Statut `Accepted` (confirmé par Cleo le 2026-08-16).** Décision : index dérivé et reconstructible, jamais canonique, jamais stocké dans le vault Obsidian (pour éviter les conflits avec sa synchro — même logique que le refus de git en ADI-001). Chemin de montée en charge décidé par Claude à la demande explicite de Cleo (« tu sais quels sont mes endgoals et mes contraintes, propose ») : V1 = index en mémoire au démarrage ; puis SQLite/FTS5 local hors vault, incrémental ; puis index vectoriel local en plus si la recherche sémantique devient nécessaire ; un serveur de recherche partagé multi-appareils reste explicitement hors scope (aucun cas d'usage ne le demande aujourd'hui).
+- **ADI-003 : le modèle de relations nécessite-t-il une base graphe ou de simples structures graph-like** — `specs/decisions/ADI-003-relationship-model.md`. **Statut `Accepted` (confirmé par Cleo le 2026-08-16).** Décision : relations comme enregistrements structurés dans les fichiers (références par ID stable, jamais de contenu dupliqué), traversal via structure d'adjacence dérivée — même règle de stockage qu'ADI-002 (jamais dans le vault, reconstruite par appareil).
+- **ADI-004 : rôle d'Obsidian vis-à-vis de la connaissance canonique** — `specs/decisions/ADI-004-obsidian-role.md`. **Statut `Accepted` (confirmé par Cleo le 2026-08-16).** Décision : le vault Obsidian de Cleo EST la racine du stockage canonique (pas un miroir) ; organisation interne par domaine puis par type d'item, choisie pour des raisons techniques (isolation de domaine, localité de l'historique) et non pour le confort de consultation — Cleo a explicitement priorisé la solution technique correcte plutôt qu'une navigation agréable. Frontmatter non allégé. Pekopeko n'utilise jamais les fonctionnalités natives d'Obsidian (graphe, backlinks, recherche) comme mécanisme de fonctionnement — retrieval/traversal restent ceux d'ADI-002/003. Pas de duplication des relations en wikilinks. Écritures canoniques atomiques (fichier temporaire + renommage) car le vault est surveillé simultanément par Obsidian, l'outil de synchro, et Pekopeko lui-même.
+- **ADI-005 : quelles opérations synchrones vs asynchrones** — `specs/decisions/ADI-005-sync-vs-async.md`. **Statut `Accepted` (confirmé par Cleo le 2026-08-16).** Décision, en 3 règles : (1) tout ce qui demande du traitement AI/LLM ou du calcul non trivial sur le graphe (ingestion UC-001/UC-007, analyse d'impact d'une correction UC-010) est asynchrone et produit une Proposal dans la file de revue (UC-011), sans jamais bloquer l'utilisatrice ; (2) toute lecture locale contre des fichiers canoniques ou index dérivés déjà persistés (recherche, navigation, historique, relations) est synchrone ; (3) accepter/rejeter une proposition (AP-002) est synchrone pour l'écriture elle-même, mais toute analyse d'impact déclenchée en aval repart comme une nouvelle tâche asynchrone. L'état des tâches asynchrones en cours est persisté localement, hors du vault Obsidian et par appareil (même logique de placement qu'ADI-002/003) — non canonique, donc une perte d'état signifie juste devoir resoumettre la tâche, jamais une corruption silencieuse du canonique.
+- **ADI-006 : quoi persister vs recalculer** — `specs/decisions/ADI-006-persistence-vs-recomputation.md`. **Statut `Accepted` (confirmé par Cleo le 2026-08-16).** Décision : seuls les fichiers canoniques (y compris leurs sous-dossiers d'historique) sont persistés — pas de git — tout le reste est dérivé/reconstructible. Contient une section explicite « Why this scales » qui explique pourquoi et à quelles conditions (discipline d'identifiants stables en Phase 3) cette architecture reste évolutive vers DB/graphe/recherche vectorielle sans redesign.
+
+**Statut : Phase 1 terminée (2026-08-16) — ADI-001 à ADI-006 tous `Accepted`.**
 
 ### Phase 2 — Premiers tickets concrets
+
+**Lecture requise avant de commencer cette phase :** toutes les ADR `Accepted` dans `specs/decisions/`, `specs/modules/module-architecture.md`, `specs/tasks/README.md` (format de ticket attendu).
+
 Découper `specs/tasks/backlog/` en tickets suffisamment petits et autonomes pour être traités par qwen3-coder:30b sans relire tout le corpus : fichiers concernés, schéma/interface attendu, critères d'acceptation testables, et les 2-3 invariants pertinents cités explicitement dans le ticket (pas par renvoi global). Choisir en priorité un scope V1 minimal plutôt que de vouloir adresser les 18 cas d'usage d'un coup.
 
-**Statut : à faire** (dépend de la Phase 1 pour avoir un schéma minimal à partir duquel écrire des tickets concrets).
+**Statut : prête à démarrer** — la dépendance sur la Phase 1 est levée (les 6 ADI sont `Accepted`). Pas encore commencée : à cadrer avec Cleo avant de découper les premiers tickets.
 
 ### Phase 3 — Implémentation
+
+**Lecture requise avant de commencer un ticket :** uniquement le ticket lui-même (`specs/tasks/active/<ticket>.md`) et les invariants qu'il cite explicitement — pas l'ensemble de `specs/`. Si un ticket ne peut pas être traité sans relire tout le corpus, il est mal découpé (voir Phase 2 et « Discipline de continuité »).
+
 qwen3-coder:30b (ou autre) traite les tickets un par un. Chaque ticket terminé passe de `specs/tasks/backlog/` à `active/` puis `completed/`.
 
 **Statut : pas commencé.**
 
 ## Discipline de continuité (pour humain ou IA, quelle qu'elle soit)
 
-- Toujours lire ce fichier avant de commencer une session de travail sur Pekopeko.
-- Ne jamais assumer qu'une décision « PROPOSED » a été acceptée sans confirmation explicite dans `specs/decisions/`.
-- Mettre à jour « État actuel » et « Prochaine action » à la fin de chaque session.
+- Toujours lire ce fichier avant de commencer une session de travail sur Pekopeko, puis suivre « Démarrage de session » ci-dessus.
+- Ne jamais assumer qu'une décision « Proposed » a été acceptée sans confirmation explicite de Cleo — même si une ADR existe déjà en brouillon. Une ADR `Proposed` documente une proposition, pas une décision actée.
+- Mettre à jour « État actuel » et « Prochaine action exacte » à la fin de chaque session.
 - Préférer des commits git atomiques avec messages clairs plutôt que de compter sur la mémoire de qui que ce soit — `git log` doit rester une source fiable du « pourquoi » d'une décision.
 - Un ticket de `specs/tasks/` doit être traitable sans avoir besoin de relire l'intégralité de `specs/` — s'il ne l'est pas, il est mal découpé.
+- Avant de proposer des options d'architecture ou de poser une question de cadrage à Cleo (échelle, déploiement, contraintes...), relire la « Lecture requise » de la phase en cours en entier d'abord — ne pas raisonner depuis des connaissances générales ou une mémoire résumée de conversation. Ces documents existent précisément pour répondre à ce type de question sans avoir à la reposer. Erreur commise le 2026-08-16 (Phase 1, ADI-001, détaillée dans la section Phase 1 ci-dessus) : ne pas reproduire.
+- Une décision d'architecture significative doit exister comme fichier dans `specs/decisions/` (format : voir `specs/decisions/README.md`), pas seulement comme paragraphe dans ce fichier ou comme conclusion d'une conversation. Ce fichier (`ROADMAP.md`) pointe vers les ADR, il ne les remplace pas.
 
 ## Prochaine action exacte
 
-Phase 0 terminée et revérifiée (A-F). Cleo relit le `git diff` complet et commit (rien n'a été commité automatiquement). Ensuite : Phase 1 — trancher les 6 questions ADI-001 à 006 avec Claude (discussion des options, pas une délégation ni à qwen ni à Claude seul), puis les écrire comme de vraies ADR dans `specs/decisions/`.
+**Phase 1 est terminée : les 6 ADI (ADI-001 à ADI-006) sont `Accepted`.** Prochaine étape : Phase 2 — découper les premiers tickets concrets dans `specs/tasks/backlog/`, en commençant par un scope V1 minimal plutôt que de vouloir adresser les 18 cas d'usage d'un coup. Avant de commencer, relire la « Lecture requise » de la Phase 1 ci-dessus (toutes les ADR `Accepted` + `specs/modules/module-architecture.md` + `specs/tasks/README.md`), et cadrer avec Cleo quel(s) ticket(s) prioriser avant de rédiger quoi que ce soit.
 
 ---
 
-Note honnête sur la mémoire : ce fichier n'est fiable que si on le tient vraiment à jour. Aucun modèle — Claude y compris — ne « se souvient » de ce projet d'une conversation à l'autre. La mémoire, c'est ce fichier et le dépôt git, pas une session de chat.
+Note honnête sur la mémoire : ce fichier n'est fiable que si on le tient vraiment à jour. Aucun modèle — Claude y compris — ne « se souvient » de ce projet d'une conversation à l'autre. La mémoire, c'est ce fichier, les ADR dans `specs/decisions/`, et le dépôt git — pas une session de chat.
