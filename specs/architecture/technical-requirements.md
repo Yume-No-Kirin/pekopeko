@@ -68,7 +68,7 @@ The system must enforce conceptual boundaries between different domains (PERSONA
 
 Source:
 - AP-005
-- CAP-CORE-009
+- CAP-CORE-005
 - UC-001
 - UC-002
 - UC-003
@@ -93,7 +93,7 @@ The system must support explicit cross-domain operations with authorization.
 
 Source:
 - AP-006
-- CAP-CORE-010
+- CAP-CORE-014
 - UC-009
 
 ### TR-006: Derived Knowledge Tracking
@@ -101,7 +101,7 @@ The system must track dependencies and staleness of derived knowledge.
 
 Source:
 - AP-007
-- CAP-CORE-008
+- CAP-CORE-006
 - UC-002
 - UC-003
 - UC-010
@@ -112,7 +112,7 @@ The system must support temporal reasoning for knowledge items.
 
 Source:
 - AP-008
-- CAP-CORE-006
+- CAP-CORE-007
 - UC-003
 - UC-004
 - UC-005
@@ -125,7 +125,7 @@ The system must preserve uncertainty levels in knowledge items.
 
 Source:
 - AP-009
-- CAP-CORE-017
+- CAP-CORE-008
 - UC-002
 - UC-003
 - UC-004
@@ -249,7 +249,7 @@ Storage must support structured representations of knowledge relationships inclu
 
 Source:
 - AP-001
-- CAP-CORE-005
+- CAP-CORE-001
 - UC-001
 - UC-002
 - UC-003
@@ -278,7 +278,7 @@ Storage must support domain and context identification for knowledge items inclu
 
 Source:
 - AP-005
-- CAP-CORE-009
+- CAP-CORE-005
 - UC-001
 - UC-002
 - UC-003
@@ -366,7 +366,7 @@ Storage must support structured epistemic status including:
 
 Source:
 - AP-009
-- CAP-CORE-017
+- CAP-CORE-008
 - UC-001
 - UC-002
 - UC-003
@@ -396,7 +396,7 @@ Storage must support temporal information including:
 
 Source:
 - AP-008
-- CAP-CORE-006
+- CAP-CORE-007
 - UC-001
 - UC-002
 - UC-003
@@ -456,7 +456,7 @@ Storage must support structured derived knowledge including:
 
 Source:
 - AP-007
-- CAP-CORE-008
+- CAP-CORE-006
 - UC-001
 - UC-002
 - UC-003
@@ -486,7 +486,7 @@ Storage must support structured dependency relationships including:
 
 Source:
 - AP-007
-- CAP-CORE-008
+- CAP-CORE-006
 - UC-001
 - UC-002
 - UC-003
@@ -546,7 +546,7 @@ Storage must support complete audit information including:
 
 Source:
 - AP-002
-- CAP-CORE-002
+- CAP-CORE-003
 - UC-001
 - UC-002
 - UC-003
@@ -628,7 +628,7 @@ The system must maintain consistency in domain boundary enforcement:
 
 Source:
 - AP-005
-- CAP-CORE-009
+- CAP-CORE-005
 - UC-001
 - UC-002
 - UC-003
@@ -726,7 +726,7 @@ The system must track evolution of derived knowledge over time.
 
 Source:
 - AP-007
-- CAP-CORE-008
+- CAP-CORE-006
 - UC-002
 - UC-003
 - UC-010
@@ -736,7 +736,7 @@ The system must maintain complete history of proposal processing.
 
 Source:
 - AP-002
-- CAP-CORE-002
+- CAP-CORE-003
 - UC-001
 - UC-002
 - UC-003
@@ -761,7 +761,7 @@ The system must maintain complete review history for all proposals.
 
 Source:
 - AP-002
-- CAP-CORE-002
+- CAP-CORE-003
 - UC-001
 - UC-002
 - UC-003
@@ -786,7 +786,7 @@ The system must maintain complete audit history for all knowledge operations.
 
 Source:
 - AP-002
-- CAP-CORE-002
+- CAP-CORE-003
 - UC-001
 - UC-002
 - UC-003
@@ -811,7 +811,7 @@ The system must track temporal state evolution of knowledge items.
 
 Source:
 - AP-008
-- CAP-CORE-006
+- CAP-CORE-007
 - UC-003
 - UC-004
 - UC-005
@@ -826,7 +826,7 @@ The system must support arbitrary relationships between knowledge elements.
 
 Source:
 - AP-001
-- CAP-CORE-005
+- CAP-CORE-009
 - UC-001
 - UC-002
 - UC-003
@@ -855,7 +855,7 @@ The system must support metadata for relationships including:
 
 Source:
 - AP-001
-- CAP-CORE-005
+- CAP-CORE-009
 - UC-001
 - UC-002
 - UC-003
@@ -880,7 +880,7 @@ The system must preserve provenance for relationships.
 
 Source:
 - AP-003
-- CAP-CORE-003
+- CAP-CORE-009
 - UC-001
 - UC-002
 - UC-003
@@ -905,7 +905,7 @@ The system must support temporal validity for relationships.
 
 Source:
 - AP-008
-- CAP-CORE-006
+- CAP-CORE-009
 - UC-001
 - UC-002
 - UC-003
@@ -930,7 +930,7 @@ The system must support efficient traversal of relationship networks.
 
 Source:
 - AP-001
-- CAP-CORE-005
+- CAP-CORE-009
 - UC-001
 - UC-002
 - UC-003
@@ -955,7 +955,7 @@ The system must support staleness detection for relationships.
 
 Source:
 - AP-007
-- CAP-CORE-008
+- CAP-CORE-009
 - UC-002
 - UC-003
 - UC-010
@@ -967,7 +967,7 @@ The system must support structured representation of temporal events.
 
 Source:
 - AP-008
-- CAP-CORE-006
+- CAP-CORE-007
 - UC-003
 - UC-004
 - UC-005
@@ -980,7 +980,7 @@ The system must support handling of temporal intervals.
 
 Source:
 - AP-008
-- CAP-CORE-006
+- CAP-CORE-007
 - UC-003
 - UC-004
 - UC-005
@@ -993,7 +993,7 @@ The system must support recurring temporal patterns.
 
 Source:
 - AP-008
-- CAP-CORE-006
+- CAP-CORE-007
 - UC-013
 
 ### TMR-004: Temporal Consistency Checking
@@ -1001,7 +1001,7 @@ The system must support temporal consistency checking.
 
 Source:
 - AP-008
-- CAP-CORE-006
+- CAP-CORE-007
 - UC-003
 - UC-004
 - UC-005
@@ -1014,7 +1014,7 @@ The system must track temporal evolution of knowledge items.
 
 Source:
 - AP-008
-- CAP-CORE-006
+- CAP-CORE-007
 - UC-003
 - UC-004
 - UC-005
@@ -1033,7 +1033,7 @@ The system must support comprehensive search and retrieval capabilities includin
 - Domain-specific filtering
 
 Source:
-- CAP-CORE-011
+- CAP-CORE-010
 - UC-001
 - UC-002
 - UC-003
@@ -1057,7 +1057,7 @@ Source:
 The system must support ranking of search results based on relevance and context.
 
 Source:
-- CAP-CORE-011
+- CAP-CORE-010
 - UC-001
 - UC-002
 - UC-003
@@ -1081,7 +1081,7 @@ Source:
 The system must maintain acceptable performance for search operations.
 
 Source:
-- CAP-CORE-011
+- CAP-CORE-010
 - UC-001
 - UC-002
 - UC-003
@@ -1111,7 +1111,7 @@ The system must support reasoning over interconnected knowledge including:
 - Temporal reasoning capabilities
 
 Source:
-- CAP-CORE-012
+- CAP-CORE-011
 - UC-002
 - UC-003
 - UC-004
@@ -1134,7 +1134,7 @@ Source:
 The system must provide explanations for reasoning results with traceability to source information.
 
 Source:
-- CAP-CORE-012
+- CAP-CORE-011
 - UC-002
 - UC-003
 - UC-004
@@ -1160,7 +1160,7 @@ The system must enforce conceptual boundaries between domains.
 
 Source:
 - AP-005
-- CAP-CORE-009
+- CAP-CORE-005
 - UC-001
 - UC-002
 - UC-003
@@ -1185,7 +1185,7 @@ The system must support explicit authorization for cross-domain operations.
 
 Source:
 - AP-006
-- CAP-CORE-010
+- CAP-CORE-014
 - UC-009
 
 ## 10. TASK REQUIREMENTS
@@ -1194,7 +1194,7 @@ Source:
 The system must support asynchronous task processing for knowledge ingestion and processing.
 
 Source:
-- CAP-CORE-014
+- CAP-CORE-012
 - UC-001
 - UC-002
 - UC-003
@@ -1218,7 +1218,7 @@ Source:
 The system must persist task state information for recovery and audit purposes.
 
 Source:
-- CAP-CORE-014
+- CAP-CORE-012
 - UC-001
 - UC-002
 - UC-003
@@ -1297,7 +1297,7 @@ The system must support structured representation of uncertainty in knowledge it
 
 Source:
 - AP-009
-- CAP-CORE-017
+- CAP-CORE-008
 - UC-001
 - UC-002
 - UC-003
@@ -1322,7 +1322,7 @@ The system must preserve uncertainty throughout the knowledge lifecycle.
 
 Source:
 - AP-009
-- CAP-CORE-017
+- CAP-CORE-008
 - UC-001
 - UC-002
 - UC-003
@@ -1364,7 +1364,6 @@ Source:
 - CAP-CORE-014
 - CAP-CORE-015
 - CAP-CORE-016
-- CAP-CORE-017
 - UC-001
 - UC-002
 - UC-003
@@ -1503,7 +1502,7 @@ Source:
 The system must support efficient review of large numbers of proposals.
 
 Source:
-- CAP-CORE-002
+- CAP-CORE-015
 - UC-011
 
 ## 19. INTEGRATION POINTS
@@ -1565,7 +1564,7 @@ The system must manage complex dependency graphs for knowledge items.
 
 Source:
 - AP-007
-- CAP-CORE-008
+- CAP-CORE-006
 - UC-002
 - UC-003
 - UC-010
@@ -1610,7 +1609,7 @@ Source:
 The system must determine whether semantic retrieval should be integrated within primary database or use dedicated system.
 
 Source:
-- CAP-CORE-011
+- CAP-CORE-010
 - UC-001
 - UC-002
 - UC-003
@@ -1635,7 +1634,7 @@ The system must determine if conceptual relationship model requires graph databa
 
 Source:
 - AP-001
-- CAP-CORE-005
+- CAP-CORE-009
 - UC-001
 - UC-002
 - UC-003
@@ -1684,7 +1683,7 @@ Source:
 The system must determine which operations should be synchronous vs asynchronous.
 
 Source:
-- CAP-CORE-014
+- CAP-CORE-012
 - UC-001
 - UC-002
 - UC-003
