@@ -8,7 +8,7 @@ Every architectural decision must be traceable to specific use cases, capabiliti
 
 ## 2. Invariance Compliance Principle
 
-All architectural decisions must preserve and enforce the conceptual invariants:
+All architectural decisions must preserve and enforce the following architecture principles (AP-001 through AP-009 — these are distinct from the domain-level knowledge invariants INV-001 through INV-021 defined in specs/domain/knowledge-invariants.md, which remain the authoritative source for conceptual invariants):
 - AP-001: Knowledge representation must support structured entities, assertions, events, relationships, and temporal information
 - AP-002: Canonical knowledge changes require human validation
 - AP-003: Complete provenance tracking is required for all knowledge items and changes

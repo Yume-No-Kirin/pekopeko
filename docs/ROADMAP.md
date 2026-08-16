@@ -11,7 +11,7 @@
 
 Phase : Foundation / Discovery → Product Definition (en cours). Aucune ligne de code écrite — tout le travail à ce jour porte sur les documents de spec eux-mêmes, pas sur le système. Phase 0 (nettoyage de cohérence des identifiants) est terminée et vérifiée. Prochaine étape : Phase 1, les 6 décisions d'architecture (ADI-001 à 006) — ce sont de vrais choix produit/architecture, pas du travail mécanique délégable ; ils demandent l'arbitrage de Cleo, Claude aide à peser les options.
 
-Dernière revue complète : 2026-08-16, lecture intégrale de `specs/**`, `README.md` et `docs/PROJECT_HANDOFF.md`. Détail des corrections : voir Phase 0 ci-dessous.
+Dernière revue complète : 2026-08-16, lecture intégrale de `specs/**`, `README.md` et `docs/PROJECT_HANDOFF.md`, en deux passes (nettoyage initial A-E, puis une passe de vérification finale demandée explicitement par Cleo — voir F ci-dessous). Détail des corrections : voir Phase 0 ci-dessous.
 
 ## Plan en phases
 
@@ -23,10 +23,18 @@ Dernière revue complète : 2026-08-16, lecture intégrale de `specs/**`, `READM
 - **C. Double section "## 23."** — FAIT (2026-08-16). Renumérotation en cascade : 23 (Architectural Decision Inputs, inchangé) → 24 (Final Validation) → 25 (Summary) → 26 (Contradictions or Gaps Discovered). Séquence 1-26 vérifiée sans trou ni doublon.
 - **D. Dérive domaines** — FAIT (2026-08-16). `knowledge-invariants.md` INV-008 (domain isolation) mis à jour pour inclure PUBLISHING. Vérifié par grep.
 - **E. Audit exhaustif des renvois CAP-CORE-XXX** — FAIT (2026-08-16), par Claude directement (relecture complète de `technical-requirements.md` croisée avec les listes "Technical Requirements" officielles de `capabilities.md`, utilisées comme source de vérité plutôt que de deviner par mot-clé). 45 réattributions + 1 valeur invalide supprimée (CAP-CORE-017 dans MQR-001, redondante avec CAP-CORE-016 déjà présent dans la même liste). Vérifié : plus aucune valeur hors 001-016 dans le fichier.
-  - Restent volontairement non tranchés (ambigus, pas de mapping autoritaire dans `capabilities.md`, valeur actuelle laissée telle quelle) : TCR-001, TCR-002, SQR-001, FHR-001, FHR-002, CPR-001, ADI-001, ADI-004, ADI-006 ; et deux items où `capabilities.md` liste la même exigence sous deux capacités différentes (KSR-009 sous capacités 1 et 7 → tranché en faveur de 007 ; TR-005/DMR-002 sous capacités 5 et 14 → tranché en faveur de 014, correspondance de titre).
-  - Repérés comme incomplets plutôt que faux (aucune citation CAP-CORE du tout, non ajoutée car hors périmètre de cette tâche) : PRQ-001, IQR-001, SSR-001, IPR-001.
+  - Restent volontairement non tranchés (aucun mapping autoritaire dans `capabilities.md`, donc non confirmables par le script de recomparaison — 14 au total, revérifié le 2026-08-16) :
+    - Réassignés pendant la tâche E par raisonnement thématique (pas confirmé par `capabilities.md`, donc à revoir si un jour `capabilities.md` est complété) : TCR-003 (→ CAP-CORE-005), ADI-002 (→ CAP-CORE-010), ADI-003 (→ CAP-CORE-009), ADI-005 (→ CAP-CORE-012).
+    - Laissés tels quels (valeur d'origine du document, jamais vérifiée par un mapping explicite) : TCR-001, TCR-002, TCR-004, SQR-001, FHR-001, FHR-002, CPR-001, ADI-001, ADI-004, ADI-006.
+  - Deux items où `capabilities.md` liste la même exigence sous deux capacités différentes (KSR-009 sous capacités 1 et 7 → tranché en faveur de 007 ; TR-005/DMR-002 sous capacités 5 et 14 → tranché en faveur de 014, correspondance de titre).
+  - 4 citations manquantes ajoutées après coup, sur demande de Cleo (une absence de traçabilité est aussi "faux" au sens de cette tâche, pas seulement une valeur erronée) : PRQ-001 → CAP-CORE-013, SSR-001 → CAP-CORE-013, IQR-001 → CAP-CORE-016, IPR-001 → CAP-CORE-016 (IPR-001 est listé sous deux capacités dans `capabilities.md`, 14 et 16 — tranché en faveur de 016, correspondance de titre avec "Module Integration").
+- **F. Passe de vérification finale** — FAIT (2026-08-16), demandée explicitement par Cleo après A-E ("vérifie encore une fois tous les fichiers... que la base soit solide"). Relecture complète de tout `specs/**` + script Python indépendant recomparant chaque citation CAP-CORE-XXX de `technical-requirements.md` au mapping autoritaire construit depuis `capabilities.md` (0 écart sur les 63 exigences avec mapping explicite). Deux problèmes trouvés et corrigés à cette occasion :
+  - `technical-requirements.md`, section 25 (Summary) : le chiffre "Number of technical requirements identified: 279" ne correspondait à aucune quantité vérifiable dans le fichier (ni les 81 blocs `### ID: Title`, ni les 1212 lignes "Source:"). Probablement une erreur de la rédaction d'origine, antérieure au travail de Claude/qwen. Corrigé en "81", avec note expliquant la méthode de comptage et la correction.
+  - `specs/architecture/principles.md`, ligne 11 : après le renommage INV-→AP- (tâche A), la phrase continuait à appeler les items AP-001..009 "the conceptual invariants", recréant l'ambiguïté que le renommage devait justement éliminer. Reformulée pour distinguer explicitement AP- (principes d'architecture) et INV- (invariants de domaine, définis dans `knowledge-invariants.md`).
+  - Vérifications qui n'ont rien trouvé d'anormal (donc rien à corriger) : intégrité `UC-001..018` (séquentiel, sans trou ni doublon), `MOD-001..010` (namespace isolé et cohérent), séquence des sections 1-26 de `technical-requirements.md` (sans trou ni doublon), et absence de contradiction terminologique entre `specs/product/glossary.md` et `specs/domain/knowledge-model.md` (les deux se recoupent sans se contredire, avec des niveaux de détail différents — le glossaire est plus haut niveau).
+  - Deux points restent volontairement non résolus (jugement éditorial, pas une erreur factuelle, hors scope d'un nettoyage mécanique) : `specs/product/capabilities.md` définit `CAP-001..003` (capacités produit) qui ne sont jamais reliées par ID aux 16 `CAP-CORE-XXX` ni aux 18 `UC-XXX` — contrairement au reste du corpus, très cross-référencé ; et `specs/product/glossary.md` ne définit pas "Domain", terme pourtant central et très utilisé dans les specs (alors qu'il liste des termes de niveau système comme Module, Agent, Provider). À trancher en Phase 1/2 si besoin.
 
-**Statut : Phase 0 terminée (A-E faits et vérifiés).**
+**Statut : Phase 0 terminée (A-F faits et vérifiés).**
 
 ### Phase 1 — Décisions d'architecture (ADI-001 à ADI-006)
 Les 6 questions ouvertes dans `technical-requirements.md` (section « Architectural Decision Inputs ») doivent être tranchées et écrites comme de vraies ADR dans `specs/decisions/` (le dossier ne contient aujourd'hui qu'un README de format, aucune décision réelle) :
@@ -59,7 +67,7 @@ qwen3-coder:30b (ou autre) traite les tickets un par un. Chaque ticket terminé 
 
 ## Prochaine action exacte
 
-Phase 0 terminée. Cleo relit le `git diff` complet et commit (rien n'a été commité automatiquement). Ensuite : Phase 1 — trancher les 6 questions ADI-001 à 006 avec Claude (discussion des options, pas une délégation ni à qwen ni à Claude seul), puis les écrire comme de vraies ADR dans `specs/decisions/`.
+Phase 0 terminée et revérifiée (A-F). Cleo relit le `git diff` complet et commit (rien n'a été commité automatiquement). Ensuite : Phase 1 — trancher les 6 questions ADI-001 à 006 avec Claude (discussion des options, pas une délégation ni à qwen ni à Claude seul), puis les écrire comme de vraies ADR dans `specs/decisions/`.
 
 ---
 

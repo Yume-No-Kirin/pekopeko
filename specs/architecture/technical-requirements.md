@@ -1389,6 +1389,7 @@ Source:
 The system must support scalable processing for large knowledge bases and high-volume ingestion.
 
 Source:
+- CAP-CORE-013
 - UC-011
 - UC-012
 
@@ -1398,6 +1399,7 @@ Source:
 The system must define clear integration points between modules and shared capabilities.
 
 Source:
+- CAP-CORE-016
 - UC-001
 - UC-002
 - UC-003
@@ -1511,6 +1513,7 @@ Source:
 The system must define communication mechanisms between modules beyond shared capabilities.
 
 Source:
+- CAP-CORE-016
 - UC-001
 - UC-002
 - UC-003
@@ -1575,6 +1578,7 @@ Source:
 The system must handle large-scale knowledge bases without performance degradation.
 
 Source:
+- CAP-CORE-013
 - UC-011
 - UC-012
 
@@ -1764,7 +1768,7 @@ This document defines comprehensive technical architecture requirements for Peko
 4. **No Premature Technology Choices**: No technologies or products are selected
 5. **No Application Code**: This remains a requirements specification only
 
-Number of technical requirements identified: 279
+Number of distinct technical requirement definitions in this document: 81 (counted directly from the number of `### ID: Title` blocks; a prior version of this document claimed 279, which did not correspond to any countable quantity in the file and has been corrected).
 
 Highest-risk technical areas:
 1. Provenance tracking and historical state preservation
