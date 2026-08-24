@@ -1,0 +1,8 @@
+# Pekopeko Ingestion Module Dependencies
+
+# Core dependencies
+pyyaml>=6.0.0
+requests>=2.28.0
+
+# For testing (if needed)
+pytest>=7.0.0

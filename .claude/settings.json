@@ -20,5 +20,11 @@
         ]
       }
     ]
+  },
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://192.168.178.125:11434",
+    "ANTHROPIC_AUTH_TOKEN": "ollama",
+    "ANTHROPIC_API_KEY": "",
+    "ANTHROPIC_MODEL": "qwen3-coder:30b"
   }
 }

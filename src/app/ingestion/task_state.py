@@ -1,0 +1,131 @@
+"""
+Task state management for ingestion pipeline.
+"""
+import json
+import os
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, Any, Optional
+import uuid
+
+
+class TaskState:
+    """Represents the state of an ingestion task."""
+
+    def __init__(
+        self,
+        task_id: str,
+        source_path: str,
+        domain: str,
+        status: str = "pending",
+        started_at: Optional[str] = None,
+        completed_at: Optional[str] = None,
+        error: Optional[str] = None,
+        source_id: Optional[str] = None,
+        proposal_ids: Optional[list[str]] = None
+    ):
+        self.task_id = task_id
+        self.source_path = source_path
+        self.domain = domain
+        self.status = status  # pending, running, completed, failed, skipped_duplicate
+        self.started_at = started_at or datetime.now().isoformat()
+        self.completed_at = completed_at
+        self.error = error
+        self.source_id = source_id
+        self.proposal_ids = proposal_ids or []
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert task state to dictionary."""
+        return {
+            'task_id': self.task_id,
+            'source_path': self.source_path,
+            'domain': self.domain,
+            'status': self.status,
+            'started_at': self.started_at,
+            'completed_at': self.completed_at,
+            'error': self.error,
+            'source_id': self.source_id,
+            'proposal_ids': self.proposal_ids
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'TaskState':
+        """Create task state from dictionary."""
+        return cls(**data)
+
+    def save(self, state_dir: Path):
+        """
+        Save task state to disk.
+
+        Args:
+            state_dir: Directory where task state should be saved
+        """
+        # Create directory if it doesn't exist
+        state_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate filename from task_id
+        filename = f"{self.task_id}.json"
+        file_path = state_dir / filename
+
+        # Write to file atomically using JSON
+        data = self.to_dict()
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def load_task_state(state_dir: Path, task_id: str) -> Optional[TaskState]:
+    """
+    Load task state from disk.
+
+    Args:
+        state_dir: Directory where task state is saved
+        task_id: ID of the task to load
+
+    Returns:
+        TaskState object or None if not found
+    """
+    filename = f"{task_id}.json"
+    file_path = state_dir / filename
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return TaskState.from_dict(data)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def create_task_state(
+    source_path: str,
+    domain: str,
+    state_dir: Path
+) -> TaskState:
+    """
+    Create a new task state.
+
+    Args:
+        source_path: Path to the source file
+        domain: Domain name
+        state_dir: Directory for task state storage
+
+    Returns:
+        New TaskState object
+    """
+    task_id = f"ingest-{uuid.uuid4()}"
+    return TaskState(
+        task_id=task_id,
+        source_path=source_path,
+        domain=domain,
+        status="pending"
+    )
+
+
+def update_task_state(task_state: TaskState, state_dir: Path):
+    """
+    Update task state on disk.
+
+    Args:
+        task_state: TaskState object to save
+        state_dir: Directory for task state storage
+    """
+    task_state.save(state_dir)

@@ -45,6 +45,7 @@ Read `docs/ROADMAP.md` in full before touching anything in this repo. It is the 
 - No `requirements.txt` or `pyproject.toml` exists yet; the only dependency in use so far is `pyyaml`.
 - Tests use `pytest` and must run against a temp directory (`tmp_path` or equivalent) — never against a real Obsidian vault or any path outside the test's own temp directory.
 - No git-based historization anywhere in the implementation. Canonical item history is per-item folders on disk (ADI-001, `specs/decisions/ADI-001-canonical-persistence-model.md`) — this was an explicit, firm decision; do not reintroduce git for it.
+- Test coverage : at least 80%
 
 ## Language
 
@@ -59,3 +60,13 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+## Windows Encoding Rules
+
+This environment is Windows. Silent encoding mismatches between Python, PowerShell, and git are the #1 source of mangled accented characters and corrupted files — always write UTF-8 without a BOM, explicitly.
+
+- **Python tools**: always open files with an explicit `encoding="utf-8"` — never rely on the Windows default locale (cp1252/mbcs), which mangles accented/French characters.
+- **Never write a BOM**: use `encoding="utf-8"` (not `"utf-8-sig"`) when writing files meant for git, JSON, or APIs to consume. `utf-8-sig` is only for *reading* files that may already carry a BOM (Excel exports, some PowerShell output).
+- **CSV**: open with `newline=""` on Windows to avoid blank rows from the csv module.
+- **PowerShell**: `Out-File`, `Set-Content`, and `>` default to UTF-8 **with BOM** on Windows PowerShell 5.1. Don't route data destined for Python/JSON through them — write files from Python instead, or if PowerShell must write text, use `[System.IO.File]::WriteAllText($path, $content, (New-Object System.Text.UTF8Encoding $false))`.
+- **When unsure**, check a file's first bytes for `EF BB BF` before trusting it downstream.
