@@ -2,7 +2,7 @@
 
 This document maps the conceptual capabilities of Pekopeko to the architectural components that support them. Each capability is traceable to specific technical requirements and architectural principles.
 
-## 1. Knowledge Representation Capability
+## CAP-CORE-001 — Knowledge Representation Capability
 
 ### Description
 Support for structured representation of knowledge entities, assertions, events, relationships, and temporal information.
@@ -23,7 +23,7 @@ Support for structured representation of knowledge entities, assertions, events,
 - Invariance Compliance Principle (AP-001)
 - Traceability Principle
 
-## 2. Human Validation Capability
+## CAP-CORE-002 — Human Validation Capability
 
 ### Description
 Enforcement that all canonical knowledge changes require human validation.
@@ -45,7 +45,7 @@ Enforcement that all canonical knowledge changes require human validation.
 - Auditability Principle
 - Traceability Principle
 
-## 3. Complete Provenance Tracking Capability
+## CAP-CORE-003 — Complete Provenance Tracking Capability
 
 ### Description
 Maintenance of complete provenance for all knowledge items and changes including source references, processing steps, human review history, and change impact analysis.
@@ -68,7 +68,7 @@ Maintenance of complete provenance for all knowledge items and changes including
 - Traceability Principle
 - Auditability Principle
 
-## 4. Historical State Preservation Capability
+## CAP-CORE-004 — Historical State Preservation Capability
 
 ### Description
 Preservation of historical states of canonical knowledge including complete previous states, change history, and impact analysis documentation.
@@ -92,7 +92,7 @@ Preservation of historical states of canonical knowledge including complete prev
 - Traceability Principle
 - Auditability Principle
 
-## 5. Domain Isolation Capability
+## CAP-CORE-005 — Domain Isolation Capability
 
 ### Description
 Enforcement of conceptual boundaries between different knowledge domains (PERSONAL, FICTION, LEARNING, RESEARCH, PUBLISHING) with support for explicit cross-domain operations.
@@ -114,7 +114,7 @@ Enforcement of conceptual boundaries between different knowledge domains (PERSON
 - Traceability Principle
 - Security Requirement Principle
 
-## 6. Derived Knowledge Tracking Capability
+## CAP-CORE-006 — Derived Knowledge Tracking Capability
 
 ### Description
 Tracking of dependencies and staleness of derived knowledge including impact analysis results and recomputation proposals.
@@ -136,7 +136,7 @@ Tracking of dependencies and staleness of derived knowledge including impact ana
 - Traceability Principle
 - Relationship Modeling Principle
 
-## 7. Temporal Reasoning Capability
+## CAP-CORE-007 — Temporal Reasoning Capability
 
 ### Description
 Support for temporal reasoning for knowledge items including point-in-time events, temporal intervals, recurring patterns, and historical validity states.
@@ -161,7 +161,7 @@ Support for temporal reasoning for knowledge items including point-in-time event
 - Traceability Principle
 - Temporal Reasoning Principle
 
-## 8. Uncertainty Preservation Capability
+## CAP-CORE-008 — Uncertainty Preservation Capability
 
 ### Description
 Preservation of uncertainty levels in knowledge items including certainty levels, confidence scores, uncertainty metadata, and dispute tracking.
@@ -182,7 +182,7 @@ Preservation of uncertainty levels in knowledge items including certainty levels
 - Traceability Principle
 - Uncertainty Preservation Principle
 
-## 9. Relationship Traversal Capability
+## CAP-CORE-009 — Relationship Traversal Capability
 
 ### Description
 Support for efficient traversal of relationship networks including arbitrary relationships, relationship metadata, and staleness detection.
@@ -205,7 +205,7 @@ Support for efficient traversal of relationship networks including arbitrary rel
 - Traceability Principle
 - Relationship Modeling Principle
 
-## 10. Knowledge Search and Retrieval Capability
+## CAP-CORE-010 — Knowledge Search and Retrieval Capability
 
 ### Description
 Comprehensive search and retrieval capabilities including full-text search, semantic search, relationship-based navigation, temporal filtering, and domain-specific filtering.
@@ -224,7 +224,7 @@ Comprehensive search and retrieval capabilities including full-text search, sema
 - Traceability Principle
 - Performance Requirement Principle
 
-## 11. Knowledge Reasoning Capability
+## CAP-CORE-011 — Knowledge Reasoning Capability
 
 ### Description
 Reasoning over interconnected knowledge including inference generation, contradiction detection, impact analysis for changes, and temporal reasoning capabilities.
@@ -242,7 +242,7 @@ Reasoning over interconnected knowledge including inference generation, contradi
 - Traceability Principle
 - Knowledge Reasoning Principle
 
-## 12. Asynchronous Task Management Capability
+## CAP-CORE-012 — Asynchronous Task Management Capability
 
 ### Description
 Support for asynchronous task processing for knowledge ingestion and processing with state persistence for recovery and audit purposes.
@@ -260,7 +260,7 @@ Support for asynchronous task processing for knowledge ingestion and processing 
 - Traceability Principle
 - Module Decoupling Principle
 
-## 13. Large-Scale Knowledge Handling Capability
+## CAP-CORE-013 — Large-Scale Knowledge Handling Capability
 
 ### Description
 Ability to handle large-scale knowledge bases without performance degradation with support for scalable processing.
@@ -278,7 +278,7 @@ Ability to handle large-scale knowledge bases without performance degradation wi
 - Scalability Principle
 - Performance Requirement Principle
 
-## 14. Cross-Domain Authorization Capability
+## CAP-CORE-014 — Cross-Domain Authorization Capability
 
 ### Description
 Support for explicit authorization for cross-domain operations with controlled access between different knowledge domains.
@@ -298,7 +298,7 @@ Support for explicit authorization for cross-domain operations with controlled a
 - Traceability Principle
 - Security Requirement Principle
 
-## 15. Review Queue Efficiency Capability
+## CAP-CORE-015 — Review Queue Efficiency Capability
 
 ### Description
 Efficient review of large numbers of proposals with support for batch operations and streamlined workflows.
@@ -315,7 +315,7 @@ Efficient review of large numbers of proposals with support for batch operations
 - Traceability Principle
 - User Experience Requirement Principle
 
-## 16. Module Integration Capability
+## CAP-CORE-016 — Module Integration Capability
 
 ### Description
 Clear integration points between modules and shared capabilities with decoupled architecture.

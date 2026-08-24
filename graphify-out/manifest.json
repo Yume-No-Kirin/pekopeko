@@ -1,0 +1,206 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1787487921.586948,
+    "seen": 1787487945.02155,
+    "ast_hash": "159ec2bdab2f2315559b1efe5889b79b",
+    "semantic_hash": "159ec2bdab2f2315559b1efe5889b79b"
+  },
+  "knowledge_core/__init__.py": {
+    "mtime": 1786987128.0610614,
+    "seen": 1787487945.0215535,
+    "ast_hash": "2785ad38b6ce90816ff3d213719f57da",
+    "semantic_hash": "2785ad38b6ce90816ff3d213719f57da"
+  },
+  "knowledge_core/storage.py": {
+    "mtime": 1786987128.0625713,
+    "seen": 1787487945.0215552,
+    "ast_hash": "3fabcec351e81427e9790d0278c4996f",
+    "semantic_hash": "3fabcec351e81427e9790d0278c4996f"
+  },
+  "tests/knowledge_core/test_storage.py": {
+    "mtime": 1786987128.0752053,
+    "seen": 1787487945.0215561,
+    "ast_hash": "36803d9e54feedd99309ccefb9306dc0",
+    "semantic_hash": "36803d9e54feedd99309ccefb9306dc0"
+  },
+  "CLAUDE.md": {
+    "mtime": 1787491175.4626691,
+    "seen": 1787501699.836991,
+    "ast_hash": "d72b6d3fdc2c2a185ff3b132b3c4b61c",
+    "semantic_hash": "d72b6d3fdc2c2a185ff3b132b3c4b61c"
+  },
+  "README.md": {
+    "mtime": 1786987128.059541,
+    "seen": 1787488692.4369895,
+    "ast_hash": "e30698c8293004b40bc89cfdffd162f1",
+    "semantic_hash": "e30698c8293004b40bc89cfdffd162f1"
+  },
+  "docs/ROADMAP.md": {
+    "mtime": 1787500595.0029383,
+    "seen": 1787501699.836993,
+    "ast_hash": "0c99a7c67850e1935bd54c8e0d178333",
+    "semantic_hash": "0c99a7c67850e1935bd54c8e0d178333"
+  },
+  "specs/architecture/README.md": {
+    "mtime": 1786987128.0625713,
+    "seen": 1787488692.4369912,
+    "ast_hash": "6461de089dbe549b9aeb931a1b24fca8",
+    "semantic_hash": "6461de089dbe549b9aeb931a1b24fca8"
+  },
+  "specs/architecture/capabilities.md": {
+    "mtime": 1787490385.703432,
+    "seen": 1787501699.836994,
+    "ast_hash": "9ffe17ebc589cf178acfff359be2091f",
+    "semantic_hash": "9ffe17ebc589cf178acfff359be2091f"
+  },
+  "specs/architecture/principles.md": {
+    "mtime": 1786987128.0640826,
+    "seen": 1787488692.436993,
+    "ast_hash": "e67713ef90e5e90275cf8286204000f3",
+    "semantic_hash": "e67713ef90e5e90275cf8286204000f3"
+  },
+  "specs/architecture/technical-requirements.md": {
+    "mtime": 1787500475.5165734,
+    "seen": 1787501699.8369951,
+    "ast_hash": "c746ace37ac3f6735d98f3d0a8476ef0",
+    "semantic_hash": "c746ace37ac3f6735d98f3d0a8476ef0"
+  },
+  "specs/decisions/ADI-001-canonical-persistence-model.md": {
+    "mtime": 1786987128.0640826,
+    "seen": 1787488692.4369943,
+    "ast_hash": "9f1e52d2645e3e19ad1b26e68ce120fd",
+    "semantic_hash": "9f1e52d2645e3e19ad1b26e68ce120fd"
+  },
+  "specs/decisions/ADI-002-retrieval-system.md": {
+    "mtime": 1786987128.0655951,
+    "seen": 1787488692.436995,
+    "ast_hash": "d9936860684879b9f1f6636973289bbf",
+    "semantic_hash": "d9936860684879b9f1f6636973289bbf"
+  },
+  "specs/decisions/ADI-003-relationship-model.md": {
+    "mtime": 1786987128.0655951,
+    "seen": 1787488692.4369957,
+    "ast_hash": "bf636cca6e433e8190637c3ea115256b",
+    "semantic_hash": "bf636cca6e433e8190637c3ea115256b"
+  },
+  "specs/decisions/ADI-004-obsidian-role.md": {
+    "mtime": 1786987128.0655951,
+    "seen": 1787488692.4369967,
+    "ast_hash": "6d56f89f79db49ed3985be1d0e1cd06e",
+    "semantic_hash": "6d56f89f79db49ed3985be1d0e1cd06e"
+  },
+  "specs/decisions/ADI-005-sync-vs-async.md": {
+    "mtime": 1786987128.0655951,
+    "seen": 1787488692.4369972,
+    "ast_hash": "69a851fc0dbab77edff977df493fb083",
+    "semantic_hash": "69a851fc0dbab77edff977df493fb083"
+  },
+  "specs/decisions/ADI-006-persistence-vs-recomputation.md": {
+    "mtime": 1786987128.0655951,
+    "seen": 1787488692.436998,
+    "ast_hash": "1710bc812136c391bdb525fc8756587b",
+    "semantic_hash": "1710bc812136c391bdb525fc8756587b"
+  },
+  "specs/decisions/ADI-007-implementation-language.md": {
+    "mtime": 1786987128.0671077,
+    "seen": 1787488692.4369986,
+    "ast_hash": "f355702ea420f024baa27c3306ab83cd",
+    "semantic_hash": "f355702ea420f024baa27c3306ab83cd"
+  },
+  "specs/decisions/ADI-008-llm-provider-architecture.md": {
+    "mtime": 1786987128.0671077,
+    "seen": 1787488692.436999,
+    "ast_hash": "bf4910f37c6acc7b8a985995ab3f556b",
+    "semantic_hash": "bf4910f37c6acc7b8a985995ab3f556b"
+  },
+  "specs/decisions/README.md": {
+    "mtime": 1786987128.0671077,
+    "seen": 1787488692.4369998,
+    "ast_hash": "5866715dc7ec43363f5c6d19fdc8a7f1",
+    "semantic_hash": "5866715dc7ec43363f5c6d19fdc8a7f1"
+  },
+  "specs/domain/knowledge-invariants.md": {
+    "mtime": 1786987128.0671077,
+    "seen": 1787488692.4370005,
+    "ast_hash": "d8da34c5e03be7696685a30314958cb0",
+    "semantic_hash": "d8da34c5e03be7696685a30314958cb0"
+  },
+  "specs/domain/knowledge-model.md": {
+    "mtime": 1786987128.068618,
+    "seen": 1787488692.4370012,
+    "ast_hash": "58de78a0ad8ea5bca527d0e7025504b0",
+    "semantic_hash": "58de78a0ad8ea5bca527d0e7025504b0"
+  },
+  "specs/modules/README.md": {
+    "mtime": 1786987128.068618,
+    "seen": 1787488692.437002,
+    "ast_hash": "322dd4df3a7f47161fb449a73b2a35d4",
+    "semantic_hash": "322dd4df3a7f47161fb449a73b2a35d4"
+  },
+  "specs/modules/module-architecture.md": {
+    "mtime": 1786987128.0691462,
+    "seen": 1787488692.4370027,
+    "ast_hash": "e1444dce66e5ad87faf61d1cd901d245",
+    "semantic_hash": "e1444dce66e5ad87faf61d1cd901d245"
+  },
+  "specs/product/capabilities.md": {
+    "mtime": 1786987128.0696604,
+    "seen": 1787488692.4370036,
+    "ast_hash": "0f85e168e4080e761b88bf4b4e36e516",
+    "semantic_hash": "0f85e168e4080e761b88bf4b4e36e516"
+  },
+  "specs/product/glossary.md": {
+    "mtime": 1787499912.9844985,
+    "seen": 1787501699.836996,
+    "ast_hash": "c3e864de0aec1f44c0133d52ff4a263f",
+    "semantic_hash": "c3e864de0aec1f44c0133d52ff4a263f"
+  },
+  "specs/product/non-goals.md": {
+    "mtime": 1786987128.0696604,
+    "seen": 1787488692.4370048,
+    "ast_hash": "0de327fb3a9a5c8bd3c95a676760846a",
+    "semantic_hash": "0de327fb3a9a5c8bd3c95a676760846a"
+  },
+  "specs/product/product-model.md": {
+    "mtime": 1786987128.0711792,
+    "seen": 1787488692.4370053,
+    "ast_hash": "4a03ff814269fc1819242911164f5e11",
+    "semantic_hash": "4a03ff814269fc1819242911164f5e11"
+  },
+  "specs/product/scope.md": {
+    "mtime": 1786987128.0711792,
+    "seen": 1787488692.437006,
+    "ast_hash": "981fd3c4b8b2e047dae1b401d0e09c74",
+    "semantic_hash": "981fd3c4b8b2e047dae1b401d0e09c74"
+  },
+  "specs/product/use-cases.md": {
+    "mtime": 1787500140.5744567,
+    "seen": 1787501699.836997,
+    "ast_hash": "a8d2cf42a63ce657a43ba033e4fe5fff",
+    "semantic_hash": "a8d2cf42a63ce657a43ba033e4fe5fff"
+  },
+  "specs/product/user-needs.md": {
+    "mtime": 1786987128.0721867,
+    "seen": 1787488692.4370077,
+    "ast_hash": "214a03f37bd44ce343715eb11cf2ef3c",
+    "semantic_hash": "214a03f37bd44ce343715eb11cf2ef3c"
+  },
+  "specs/product/vision.md": {
+    "mtime": 1786987128.0726922,
+    "seen": 1787488692.4370081,
+    "ast_hash": "34ba3e6a77872c3edccb15aae48bf996",
+    "semantic_hash": "34ba3e6a77872c3edccb15aae48bf996"
+  },
+  "specs/tasks/README.md": {
+    "mtime": 1786987128.0726922,
+    "seen": 1787488692.4370089,
+    "ast_hash": "5df5643a5558cb2a044b9ffaba66bfe4",
+    "semantic_hash": "5df5643a5558cb2a044b9ffaba66bfe4"
+  },
+  "specs/tasks/completed/KC-001-canonical-item-storage.md": {
+    "mtime": 1786987128.0736976,
+    "seen": 1787488692.4370103,
+    "ast_hash": "3f201c4b6565e8655ec7fd604c6add65",
+    "semantic_hash": "3f201c4b6565e8655ec7fd604c6add65"
+  }
+}

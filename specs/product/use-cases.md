@@ -39,13 +39,13 @@ Process a novel manuscript and extract relevant knowledge for future analysis an
 10. Provenance preservation
 
 ### Capabilities Involved
-- CAP-CORE-014 — Source and Ingestion Management
+- A définir — Source and Ingestion Management
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-002 — Human Review
 - CAP-CORE-003 — Provenance
-- CAP-CORE-005 — Relationship Management
-- CAP-CORE-006 — Temporal Reasoning
-- CAP-CORE-011 — Knowledge Search and Retrieval
+- CAP-CORE-009 — Relationship Management
+- CAP-CORE-007 — Temporal Reasoning
+- CAP-CORE-010 — Knowledge Search and Retrieval
 
 ### Modules Involved
 - Fiction module (for domain-specific analysis)
@@ -153,11 +153,11 @@ Generate a comprehensive profile for a specific character from fictional works.
 ### Capabilities Involved
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-003 — Provenance
-- CAP-CORE-005 — Relationship Management
-- CAP-CORE-006 — Temporal Reasoning
-- CAP-CORE-011 — Knowledge Search and Retrieval
-- CAP-CORE-012 — Reasoning and Analysis
-- CAP-CORE-008 — Derived Knowledge Management
+- CAP-CORE-009 — Relationship Management
+- CAP-CORE-007 — Temporal Reasoning
+- CAP-CORE-010 — Knowledge Search and Retrieval
+- CAP-CORE-011 — Reasoning and Analysis
+- CAP-CORE-006 — Derived Knowledge Management
 
 ### Modules Involved
 - Fiction module (for domain-specific analysis)
@@ -264,15 +264,14 @@ Handle changes to a previously processed manuscript and identify affected knowle
 10. History preservation
 
 ### Capabilities Involved
-- CAP-CORE-014 — Source and Ingestion Management
+- A définir — Source and Ingestion Management
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-003 — Provenance
 - CAP-CORE-004 — Knowledge History
-- CAP-CORE-005 — Relationship Management
-- CAP-CORE-006 — Temporal Reasoning
-- CAP-CORE-007 — Contradiction Detection
-- CAP-CORE-008 — Derived Knowledge Management
-- CAP-CORE-012 — Reasoning and Analysis
+- CAP-CORE-009 — Relationship Management
+- CAP-CORE-007 — Temporal Reasoning
+- CAP-CORE-006 — Derived Knowledge Management
+- CAP-CORE-011 — Reasoning and Analysis and Contradiction Detection
 
 ### Modules Involved
 - Fiction module (for domain-specific analysis)
@@ -383,10 +382,10 @@ Record personal events and detect potential scheduling conflicts.
 ### Capabilities Involved
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-002 — Human Review
-- CAP-CORE-006 — Temporal Reasoning
-- CAP-CORE-005 — Relationship Management
-- CAP-CORE-011 — Knowledge Search and Retrieval
-- CAP-CORE-012 — Reasoning and Analysis
+- CAP-CORE-007 — Temporal Reasoning
+- CAP-CORE-009 — Relationship Management
+- CAP-CORE-010 — Knowledge Search and Retrieval
+- CAP-CORE-011 — Reasoning and Analysis
 
 ### Modules Involved
 - Personal Planning module (for domain-specific capabilities)
@@ -491,8 +490,8 @@ Understand the reasoning behind a past decision.
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-003 — Provenance
 - CAP-CORE-004 — Knowledge History
-- CAP-CORE-011 — Knowledge Search and Retrieval
-- CAP-CORE-012 — Reasoning and Analysis
+- CAP-CORE-010 — Knowledge Search and Retrieval
+- CAP-CORE-011 — Reasoning and Analysis
 
 ### Modules Involved
 - Personal Planning module (for domain-specific analysis)
@@ -601,9 +600,9 @@ Manage Japanese language learning with vocabulary, grammar, and progress trackin
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-002 — Human Review
 - CAP-CORE-003 — Provenance
-- CAP-CORE-006 — Temporal Reasoning
-- CAP-CORE-008 — Derived Knowledge Management
-- CAP-CORE-014 — Source and Ingestion Management
+- CAP-CORE-007 — Temporal Reasoning
+- CAP-CORE-006 — Derived Knowledge Management
+- A définir — Source and Ingestion Management
 
 ### Modules Involved
 - Japanese Learning module (for domain-specific capabilities)
@@ -718,11 +717,11 @@ Process various types of content (PDF, image, audio, video, web pages) for knowl
 8. Provenance preservation
 
 ### Capabilities Involved
-- CAP-CORE-014 — Source and Ingestion Management
+- A définir — Source and Ingestion Management
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-002 — Human Review
 - CAP-CORE-003 — Provenance
-- CAP-CORE-011 — Knowledge Search and Retrieval
+- CAP-CORE-010 — Knowledge Search and Retrieval
 
 ### Modules Involved
 - Generic Knowledge Core (for shared capabilities)
@@ -830,13 +829,12 @@ Conduct research on a specific topic and synthesize findings.
 10. Integration with canonical knowledge (if selected)
 
 ### Capabilities Involved
-- CAP-CORE-014 — Source and Ingestion Management
+- A définir — Source and Ingestion Management
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-002 — Human Review
 - CAP-CORE-003 — Provenance
-- CAP-CORE-011 — Knowledge Search and Retrieval
-- CAP-CORE-012 — Reasoning and Analysis
-- CAP-CORE-007 — Contradiction Detection
+- CAP-CORE-010 — Knowledge Search and Retrieval
+- CAP-CORE-011 — Reasoning and Analysis and Contradiction Detection
 
 ### Modules Involved
 - Research module (for domain-specific capabilities)
@@ -947,14 +945,14 @@ Analyze information across multiple domains to identify relationships and compat
 8. Integration with canonical knowledge (if selected)
 
 ### Capabilities Involved
-- CAP-CORE-010 — Explicit Cross-Domain Operations
+- CAP-CORE-014 — Explicit Cross-Domain Operations
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-002 — Human Review
 - CAP-CORE-003 — Provenance
-- CAP-CORE-005 — Relationship Management
-- CAP-CORE-006 — Temporal Reasoning
-- CAP-CORE-011 — Knowledge Search and Retrieval
-- CAP-CORE-012 — Reasoning and Analysis
+- CAP-CORE-009 — Relationship Management
+- CAP-CORE-007 — Temporal Reasoning
+- CAP-CORE-010 — Knowledge Search and Retrieval
+- CAP-CORE-011 — Reasoning and Analysis
 
 ### Modules Involved
 - Generic Knowledge Core (for shared capabilities)
@@ -1066,9 +1064,9 @@ Handle corrections to canonical knowledge and identify affected dependent knowle
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-003 — Provenance
 - CAP-CORE-004 — Knowledge History
-- CAP-CORE-005 — Relationship Management
-- CAP-CORE-008 — Derived Knowledge Management
-- CAP-CORE-012 — Reasoning and Analysis
+- CAP-CORE-009 — Relationship Management
+- CAP-CORE-006 — Derived Knowledge Management
+- CAP-CORE-011 — Reasoning and Analysis
 
 ### Modules Involved
 - Generic Knowledge Core (for shared capabilities)
@@ -1179,8 +1177,10 @@ Efficiently manage and review a large number of knowledge proposals.
 ### Capabilities Involved
 - CAP-CORE-002 — Human Review
 - CAP-CORE-003 — Provenance
-- CAP-CORE-011 — Knowledge Search and Retrieval
-- CAP-CORE-012 — Reasoning and Analysis
+- CAP-CORE-010 — Knowledge Search and Retrieval
+- CAP-CORE-011 — Reasoning and Analysis
+- CAP-CORE-013 — Large-Scale Knowledge Handling
+- CAP-CORE-015 — Review Queue Efficiency
 
 ### Modules Involved
 - All modules that submit proposals
@@ -1290,12 +1290,12 @@ Identify and address potential problems in the knowledge system.
 8. Action planning and implementation
 
 ### Capabilities Involved
-- CAP-CORE-016 — Knowledge Health / Integrity Monitoring
+- A définir — Knowledge Health / Integrity Monitoring
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-003 — Provenance
 - CAP-CORE-004 — Knowledge History
-- CAP-CORE-005 — Relationship Management
-- CAP-CORE-012 — Reasoning and Analysis
+- CAP-CORE-009 — Relationship Management
+- CAP-CORE-011 — Reasoning and Analysis
 
 ### Modules Involved
 - Generic Knowledge Core (for shared capabilities)
@@ -1403,9 +1403,9 @@ Manage recurring obligations with temporal tracking and reminders.
 
 ### Capabilities Involved
 - CAP-CORE-001 — Knowledge Management
-- CAP-CORE-006 — Temporal Reasoning
+- CAP-CORE-007 — Temporal Reasoning
 - CAP-CORE-004 — Knowledge History
-- CAP-CORE-012 — Reasoning and Analysis
+- CAP-CORE-011 — Reasoning and Analysis
 
 ### Modules Involved
 - Personal Planning module (for domain-specific capabilities)
@@ -1514,9 +1514,9 @@ Answer questions about specific source materials while preserving provenance.
 ### Capabilities Involved
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-003 — Provenance
-- CAP-CORE-011 — Knowledge Search and Retrieval
-- CAP-CORE-012 — Reasoning and Analysis
-- CAP-CORE-006 — Temporal Reasoning
+- CAP-CORE-010 — Knowledge Search and Retrieval
+- CAP-CORE-011 — Reasoning and Analysis
+- CAP-CORE-007 — Temporal Reasoning
 
 ### Modules Involved
 - Generic Knowledge Core (for shared capabilities)
@@ -1626,7 +1626,7 @@ Retrieve and analyze historical state of knowledge items.
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-003 — Provenance
 - CAP-CORE-004 — Knowledge History
-- CAP-CORE-012 — Reasoning and Analysis
+- CAP-CORE-011 — Reasoning and Analysis
 
 ### Modules Involved
 - Generic Knowledge Core (for shared capabilities)
@@ -1732,11 +1732,11 @@ Process the same or similar source content without creating duplicate knowledge.
 8. Human review of duplicate handling
 
 ### Capabilities Involved
-- CAP-CORE-014 — Source and Ingestion Management
+- A définir — Source and Ingestion Management
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-003 — Provenance
 - CAP-CORE-004 — Knowledge History
-- CAP-CORE-012 — Reasoning and Analysis
+- CAP-CORE-011 — Reasoning and Analysis
 
 ### Modules Involved
 - Generic Knowledge Core (for shared capabilities)
@@ -1846,8 +1846,9 @@ Preserve and manage uncertainty in knowledge processing.
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-002 — Human Review
 - CAP-CORE-003 — Provenance
-- CAP-CORE-012 — Reasoning and Analysis
-- CAP-CORE-008 — Derived Knowledge Management
+- CAP-CORE-011 — Reasoning and Analysis
+- CAP-CORE-006 — Derived Knowledge Management
+- CAP-CORE-008 — Uncertainty Preservation
 
 ### Modules Involved
 - Generic Knowledge Core (for shared capabilities)
@@ -1954,11 +1955,11 @@ Prevent accidental mixing of characters or information between different fiction
 8. Isolation preservation in canonical state
 
 ### Capabilities Involved
-- CAP-CORE-009 — Domain and Context Isolation
+- CAP-CORE-005 — Domain and Context Isolation
 - CAP-CORE-001 — Knowledge Management
 - CAP-CORE-003 — Provenance
-- CAP-CORE-010 — Explicit Cross-Domain Operations
-- CAP-CORE-005 — Relationship Management
+- CAP-CORE-014 — Explicit Cross-Domain Operations
+- CAP-CORE-009 — Relationship Management
 
 ### Modules Involved
 - Fiction module (for domain-specific analysis)
@@ -2099,9 +2100,6 @@ While the conceptual architecture supports large-scale processing, there's no ex
 
 ### Gap 3: User Experience Consistency
 The workflows describe conceptual operations but don't explicitly address how user experience consistency should be maintained across different modules and capabilities.
-
-### Gap 4: Integration Points
-There's limited definition of how specific integration points between modules and shared capabilities should be managed for future implementation.
 
 ## Quality Assurance
 

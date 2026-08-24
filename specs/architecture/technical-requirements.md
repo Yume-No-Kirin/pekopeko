@@ -1348,40 +1348,8 @@ Source:
 The system must maintain decoupling between modules while allowing shared capabilities.
 
 Source:
-- CAP-CORE-001
-- CAP-CORE-002
-- CAP-CORE-003
-- CAP-CORE-004
-- CAP-CORE-005
-- CAP-CORE-006
-- CAP-CORE-007
-- CAP-CORE-008
-- CAP-CORE-009
-- CAP-CORE-010
-- CAP-CORE-011
-- CAP-CORE-012
-- CAP-CORE-013
-- CAP-CORE-014
-- CAP-CORE-015
-- CAP-CORE-016
-- UC-001
-- UC-002
-- UC-003
-- UC-004
-- UC-005
-- UC-006
-- UC-007
-- UC-008
-- UC-009
-- UC-010
-- UC-011
-- UC-012
-- UC-013
-- UC-014
-- UC-015
-- UC-016
-- UC-017
-- UC-018
+- CAP-CORE-016 (canonical mapping per capabilities.md)
+- Applies transversally to every use case's "Modules Involved" section in use-cases.md — no single UC discriminates this requirement more than another, so none is singled out here.
 
 ## 14. PERFORMANCE REQUIREMENTS
 
@@ -1400,24 +1368,7 @@ The system must define clear integration points between modules and shared capab
 
 Source:
 - CAP-CORE-016
-- UC-001
-- UC-002
-- UC-003
-- UC-004
-- UC-005
-- UC-006
-- UC-007
-- UC-008
-- UC-009
-- UC-010
-- UC-011
-- UC-012
-- UC-013
-- UC-014
-- UC-015
-- UC-016
-- UC-017
-- UC-018
+- Applies transversally to every use case's "Modules Involved" section in use-cases.md — no single UC discriminates this requirement more than another, so none is singled out here.
 
 ## 16. SECURITY REQUIREMENTS
 
@@ -1791,7 +1742,6 @@ Important unresolved architectural questions:
 
 ## 26. CONTRADICTIONS OR GAPS DISCOVERED
 
-No contradictions were discovered in the requirements analysis.
 Potential gaps:
 1. Cross-module communication patterns are not explicitly defined
 2. Performance scaling requirements for very large datasets are not detailed
