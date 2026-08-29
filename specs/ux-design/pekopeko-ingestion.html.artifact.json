@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "pekopeko-ingestion.html",
+  "entry": "pekopeko-ingestion.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-25T06:48:15.048Z",
+  "updatedAt": "2026-08-25T06:48:15.048Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

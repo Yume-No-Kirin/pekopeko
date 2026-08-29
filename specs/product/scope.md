@@ -8,7 +8,7 @@ Pekopeko is currently in the FOUNDATION / DISCOVERY phase, transitioning into th
 - No final database technology has been selected
 - No final vector database has been selected
 - No graph database has been selected
-- No final frontend framework decision should be assumed unless already present in the repository
+- Frontend framework decided: ReactJS (see `specs/decisions/ADI-009-frontend-framework.md`) — implementation scope and tickets still to be defined
 - No final LLM provider architecture should be assumed
 - No final agent architecture should be assumed
 

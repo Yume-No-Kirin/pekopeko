@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pekopeko — Validation</title>
+    <link rel="icon" type="image/svg+xml" href="pekopeko-icon.svg">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #fff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sidebar-logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 0;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            padding: 8px 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #999;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 10px 20px;
+            color: #666;
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #f8f8f8;
+            color: #333;
+        }
+
+        .nav-item.active {
+            background: #f0f0f0;
+            color: #000;
+            border-left-color: #333;
+            font-weight: 500;
+        }
+
+        .nav-item.disabled {
+            color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 240px;
+            min-height: 100vh;
+        }
+
+        .page-header {
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #f8f8f8;
+            border-color: #333;
+        }
+
+        .btn-primary {
+            background: #333;
+            color: #fff;
+            border-color: #333;
+        }
+
+        .btn-primary:hover {
+            background: #000;
+            border-color: #000;
+        }
+
+        .content-wrapper {
+            padding: 32px;
+        }
+
+        /* Filters Bar */
+        .filters-bar {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+            min-width: 160px;
+        }
+
+        /* Table */
+        .table-container {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table thead {
+            background: #f8f8f8;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #666;
+        }
+
+        .table td {
+            padding: 16px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+            vertical-align: top;
+        }
+
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Source group header */
+        .source-header-row {
+            background: #f8f8f8;
+            border-top: 2px solid #d0d0d0;
+        }
+
+        .source-header-row td {
+            padding: 14px 16px !important;
+            font-weight: 600;
+            border-bottom: 1px solid #e0e0e0 !important;
+        }
+
+        .source-name {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .source-file {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .source-id {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 11px;
+            color: #999;
+        }
+
+        .source-meta {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .source-count {
+            color: #666;
+            font-weight: 400;
+        }
+
+        .source-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .source-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .btn-small {
+            padding: 6px 14px;
+            font-size: 12px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-small:hover {
+            background: #f8f8f8;
+        }
+
+        .btn-small.accept-all {
+            background: #2e7d32;
+            color: #fff;
+            border-color: #2e7d32;
+        }
+
+        .btn-small.accept-all:hover {
+            background: #1b5e20;
+        }
+
+        .btn-small.reject-all {
+            color: #c62828;
+            border-color: #c62828;
+        }
+
+        .btn-small.reject-all:hover {
+            background: #c62828;
+            color: #fff;
+        }
+
+        /* Note row */
+        .note-row {
+            background: #fff;
+        }
+
+        .note-row:hover {
+            background: #fafafa;
+        }
+
+        .note-row td {
+            padding: 16px !important;
+            border-bottom: 1px solid #f5f5f5 !important;
+        }
+
+        .note-content-cell {
+            max-width: 500px;
+        }
+
+        .note-content-display {
+            width: 100%;
+            min-height: 70px;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: inherit;
+            line-height: 1.6;
+            background: #f9f9f9;
+            color: #333;
+        }
+
+        .note-id {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 11px;
+            color: #999;
+            margin-top: 6px;
+        }
+
+        .domain-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #666;
+        }
+
+        .epistemic-badge {
+            display: inline-block;
+            background: #fff3e0;
+            color: #e65100;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 6px;
+        }
+
+        .epistemic-badge.direct {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .folder-cell {
+            min-width: 320px;
+        }
+
+        /* Folder path builder */
+        .folder-path-builder {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+            padding: 6px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: #fff;
+            min-height: 36px;
+        }
+
+        .folder-segment {
+            position: relative;
+            display: inline-block;
+        }
+
+        .folder-segment-btn {
+            padding: 4px 8px;
+            background: #f0f0f0;
+            border: 1px solid #d0d0d0;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .folder-segment-btn:hover {
+            background: #e0e0e0;
+            border-color: #999;
+        }
+
+        .folder-segment-btn.active {
+            background: #333;
+            color: #fff;
+            border-color: #333;
+        }
+
+        .folder-separator {
+            color: #999;
+            font-size: 12px;
+            margin: 0 2px;
+        }
+
+        .folder-add-btn {
+            padding: 4px 8px;
+            background: #fff;
+            border: 1px dashed #999;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .folder-add-btn:hover {
+            background: #f8f8f8;
+            border-color: #333;
+            color: #333;
+        }
+
+        /* Dropdown menu */
+        .folder-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: #fff;
+            border: 1px solid #d0d0d0;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+            min-width: 180px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .folder-dropdown.active {
+            display: block;
+        }
+
+        .folder-dropdown-item {
+            padding: 8px 12px;
+            font-size: 12px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .folder-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .folder-dropdown-item:hover {
+            background: #f8f8f8;
+        }
+
+        .folder-dropdown-item.create-new {
+            color: #2e7d32;
+            font-weight: 600;
+        }
+
+        .folder-dropdown-item.create-new:hover {
+            background: #e8f5e9;
+        }
+
+        .note-actions {
+            display: flex;
+            gap: 6px;
+            flex-direction: column;
+            min-width: 100px;
+        }
+
+        .btn-mini {
+            padding: 6px 12px;
+            font-size: 12px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .btn-mini:hover {
+            background: #f8f8f8;
+        }
+
+        .btn-mini.accept {
+            background: #2e7d32;
+            color: #fff;
+            border-color: #2e7d32;
+        }
+
+        .btn-mini.accept:hover {
+            background: #1b5e20;
+        }
+
+        .btn-mini.reject {
+            color: #c62828;
+            border-color: #c62828;
+        }
+
+        .btn-mini.reject:hover {
+            background: #c62828;
+            color: #fff;
+        }
+
+        .btn-mini.detail {
+            color: #666;
+            font-size: 11px;
+        }
+
+        .date-text {
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: #fff;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pagination-btn {
+            padding: 8px 16px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: #f8f8f8;
+            border-color: #333;
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background: #333;
+            color: #fff;
+            border-color: #333;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" data-od-id="sidebar-nav">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">Pekopeko</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Principal</div>
+                <a href="pekopeko-dashboard.html" class="nav-item">Dashboard</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Modules actifs</div>
+                <a href="pekopeko-workflow.html" class="nav-item active">Validation</a>
+                <a href="pekopeko-ingestion.html" class="nav-item">Logs d'ingestion</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Modules à venir</div>
+                <a href="#" class="nav-item disabled">Analytics</a>
+                <a href="#" class="nav-item disabled">Configuration</a>
+                <a href="#" class="nav-item disabled">Export</a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="page-header" data-od-id="page-header">
+            <div class="header-left">
+                <h1 class="page-title">Validation</h1>
+                <p class="page-subtitle">Toutes les notes canoniques proposées, groupées par source</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn" onclick="refresh()">
+                    ↻ Rafraîchir
+                </button>
+                <button class="btn btn-primary" onclick="alert('Nouvelle ingestion à implémenter')">
+                    + Nouvelle ingestion
+                </button>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            <!-- Filters -->
+            <div class="filters-bar" data-od-id="filters">
+                <div class="filter-group">
+                    <label class="filter-label">Statut ingestion</label>
+                    <select class="filter-select">
+                        <option value="all">Tous les statuts</option>
+                        <option value="completed" selected>Complété (prêt à valider)</option>
+                        <option value="running">En cours</option>
+                        <option value="pending">En attente</option>
+                        <option value="failed">Échoué</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Domaine</label>
+                    <select class="filter-select">
+                        <option value="all">Tous les domaines</option>
+                        <option value="PERSONAL">Personal</option>
+                        <option value="FICTION">Fiction</option>
+                        <option value="LEARNING">Learning</option>
+                        <option value="RESEARCH">Research</option>
+                        <option value="PUBLISHING">Publishing</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Période</label>
+                    <select class="filter-select">
+                        <option value="today">Aujourd'hui</option>
+                        <option value="week">Cette semaine</option>
+                        <option value="month">Ce mois</option>
+                        <option value="all">Toute période</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Workflow Table -->
+            <div class="table-container" data-od-id="workflow-table">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50%;">Contenu de la note</th>
+                            <th style="width: 10%;">Type</th>
+                            <th style="width: 30%;">Dossier proposé</th>
+                            <th style="width: 10%;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- SOURCE GROUP 1: mythologie-japonaise.md -->
+                        <tr class="source-header-row" data-source-id="src-a8f3d2e1b4c5">
+                            <td colspan="3">
+                                <div class="source-name">
+                                    <div>
+                                        <div class="source-file">📄 mythologie-japonaise.md</div>
+                                        <div class="source-id">src-a8f3d2e1b4c5 · 25/08 14:23</div>
+                                    </div>
+                                    <div class="source-meta">
+                                        <span class="domain-badge">FICTION</span>
+                                        <span class="source-status">COMPLÉTÉ</span>
+                                        <span class="source-count">8 notes proposées</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="source-actions">
+                                    <button class="btn-small accept-all" onclick="acceptAllFromSource('src-a8f3d2e1b4c5')">
+                                        ✓ Tout accepter
+                                    </button>
+                                    <button class="btn-small reject-all" onclick="rejectAllFromSource('src-a8f3d2e1b4c5')">
+                                        ✕ Tout rejeter
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Note 1 from this source -->
+                        <tr class="note-row" data-note-id="prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d" data-source-id="src-a8f3d2e1b4c5">
+                            <td class="note-content-cell">
+                                <div class="note-content-display" data-note-id="prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d">Les kitsune dans la mythologie japonaise possèdent la capacité de se transformer en forme humaine après avoir atteint un certain âge, généralement cent ans. Plus un kitsune vieillit, plus il acquiert de queues, jusqu'à un maximum de neuf queues, symbolisant sa sagesse et son pouvoir.</div>
+                            </td>
+                            <td>
+                                <span class="epistemic-badge">Inféré</span>
+                            </td>
+                            <td class="folder-cell">
+                                <div class="folder-path-builder" data-note-id="prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d" data-path="mythologie/japonaise/créatures/kitsune-transformation">
+                                    <div class="folder-segment">
+                                        <button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 0)">
+                                            mythologie <span>▼</span>
+                                        </button>
+                                        <div class="folder-dropdown">
+                                            <div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'mythologie')">mythologie</div>
+                                            <div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'créations')">créations</div>
+                                            <div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 0)">+ Créer nouveau...</div>
+                                        </div>
+                                    </div>
+                                    <span class="folder-separator">/</span>
+                                    <div class="folder-segment">
+                                        <button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 1)">
+                                            japonaise <span>▼</span>
+                                        </button>
+                                        <div class="folder-dropdown">
+                                            <div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'japonaise')">japonaise</div>
+                                            <div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'nordique')">nordique</div>
+                                            <div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'grecque')">grecque</div>
+                                            <div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 1)">+ Créer nouveau...</div>
+                                        </div>
+                                    </div>
+                                    <span class="folder-separator">/</span>
+                                    <div class="folder-segment">
+                                        <button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 2)">
+                                            créatures <span>▼</span>
+                                        </button>
+                                        <div class="folder-dropdown">
+                                            <div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'créatures')">créatures</div>
+                                            <div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'dieux')">dieux</div>
+                                            <div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'héros')">héros</div>
+                                            <div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 2)">+ Créer nouveau...</div>
+                                        </div>
+                                    </div>
+                                    <span class="folder-separator">/</span>
+                                    <div class="folder-segment">
+                                        <button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 3)">
+                                            kitsune-transformation <span>▼</span>
+                                        </button>
+                                        <div class="folder-dropdown">
+                                            <div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'kitsune-transformation')">kitsune-transformation</div>
+                                            <div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'kitsune-pouvoir')">kitsune-pouvoir</div>
+                                            <div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 3)">+ Créer nouveau...</div>
+                                        </div>
+                                    </div>
+                                    <button class="folder-add-btn" onclick="addFolderSegment(this)">+ Ajouter</button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="note-actions">
+                                    <button class="btn-mini accept" onclick="acceptNote('prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d')">
+                                        ✓ Accepter
+                                    </button>
+                                    <button class="btn-mini reject" onclick="rejectNote('prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d')">
+                                        ✕ Rejeter
+                                    </button>
+                                    <button class="btn-mini detail" onclick="viewNoteDetail('prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d')">
+                                        Détails
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Note 2 from this source -->
+                        <tr class="note-row" data-note-id="prop-1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p" data-source-id="src-a8f3d2e1b4c5">
+                            <td class="note-content-cell">
+                                <div class="note-content-display" data-note-id="prop-1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p">Les kitsune à neuf queues (kyūbi no kitsune) sont considérés comme les plus puissants et sages de tous les esprits renards, capables de voir et entendre tout ce qui se passe dans le monde.</div>
+                                <!-- note-id: prop-1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p -->
+                            </td>
+                            <td>
+                                <span class="epistemic-badge">Inféré</span>
+                            </td>
+                            <td class="folder-cell">
+                                <div class="folder-path-builder" data-note-id="prop-1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p" data-path="mythologie/japonaise/créatures/kitsune-neuf-queues">
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 0)">mythologie <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'mythologie')">mythologie</div><div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'créations')">créations</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 0)">+ Créer nouveau...</div></div></div>
+                                    <span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 1)">japonaise <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'japonaise')">japonaise</div><div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'nordique')">nordique</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 1)">+ Créer nouveau...</div></div></div>
+                                    <span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 2)">créatures <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'créatures')">créatures</div><div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'dieux')">dieux</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 2)">+ Créer nouveau...</div></div></div>
+                                    <span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 3)">kitsune-neuf-queues <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'kitsune-neuf-queues')">kitsune-neuf-queues</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 3)">+ Créer nouveau...</div></div></div>
+                                    <button class="folder-add-btn" onclick="addFolderSegment(this)">+ Ajouter</button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="note-actions">
+                                    <button class="btn-mini accept" onclick="acceptNote('prop-1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p')">
+                                        ✓ Accepter
+                                    </button>
+                                    <button class="btn-mini reject" onclick="rejectNote('prop-1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p')">
+                                        ✕ Rejeter
+                                    </button>
+                                    <button class="btn-mini detail" onclick="viewNoteDetail('prop-1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p')">
+                                        Détails
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Note 3 from this source -->
+                        <tr class="note-row" data-note-id="prop-2b3c4d5e-6f7g-8h9i-0j1k-2l3m4n5o6p7q" data-source-id="src-a8f3d2e1b4c5">
+                            <td class="note-content-cell">
+                                <div class="note-content-display" data-note-id="prop-2b3c4d5e-6f7g-8h9i-0j1k-2l3m4n5o6p7q">Il existe principalement deux types de kitsune : les Zenko (善狐) qui sont bienveillants et souvent associés au dieu Inari, et les Yako (野狐) qui sont malicieux ou malveillants.</div>
+                                <!-- note-id: prop-2b3c4d5e-6f7g-8h9i-0j1k-2l3m4n5o6p7q -->
+                            </td>
+                            <td>
+                                <span class="epistemic-badge direct">Direct</span>
+                            </td>
+                            <td class="folder-cell">
+                                <div class="folder-path-builder" data-note-id="prop-2b3c4d5e-6f7g-8h9i-0j1k-2l3m4n5o6p7q" data-path="mythologie/japonaise/créatures/types-kitsune">
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 0)">mythologie <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'mythologie')">mythologie</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 0)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 1)">japonaise <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'japonaise')">japonaise</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 1)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 2)">créatures <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'créatures')">créatures</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 2)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 3)">types-kitsune <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'types-kitsune')">types-kitsune</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 3)">+ Créer nouveau...</div></div></div>
+                                    <button class="folder-add-btn" onclick="addFolderSegment(this)">+ Ajouter</button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="note-actions">
+                                    <button class="btn-mini accept" onclick="acceptNote('prop-2b3c4d5e-6f7g-8h9i-0j1k-2l3m4n5o6p7q')">
+                                        ✓ Accepter
+                                    </button>
+                                    <button class="btn-mini reject" onclick="rejectNote('prop-2b3c4d5e-6f7g-8h9i-0j1k-2l3m4n5o6p7q')">
+                                        ✕ Rejeter
+                                    </button>
+                                    <button class="btn-mini detail" onclick="viewNoteDetail('prop-2b3c4d5e-6f7g-8h9i-0j1k-2l3m4n5o6p7q')">
+                                        Détails
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- SOURCE GROUP 2: notes-lecture-sapiens.md -->
+                        <tr class="source-header-row" data-source-id="src-7c2d9f1e8a3b">
+                            <td colspan="3">
+                                <div class="source-name">
+                                    <div>
+                                        <div class="source-file">📄 notes-lecture-sapiens.md</div>
+                                        <div class="source-id">src-7c2d9f1e8a3b · 25/08 13:45</div>
+                                    </div>
+                                    <div class="source-meta">
+                                        <span class="domain-badge">LEARNING</span>
+                                        <span class="source-status">COMPLÉTÉ</span>
+                                        <span class="source-count">12 notes proposées</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="source-actions">
+                                    <button class="btn-small accept-all" onclick="acceptAllFromSource('src-7c2d9f1e8a3b')">
+                                        ✓ Tout accepter
+                                    </button>
+                                    <button class="btn-small reject-all" onclick="rejectAllFromSource('src-7c2d9f1e8a3b')">
+                                        ✕ Tout rejeter
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Note 1 from source 2 -->
+                        <tr class="note-row" data-note-id="prop-3c4d5e6f-7g8h-9i0j-1k2l-3m4n5o6p7q8r" data-source-id="src-7c2d9f1e8a3b">
+                            <td class="note-content-cell">
+                                <div class="note-content-display" data-note-id="prop-3c4d5e6f-7g8h-9i0j-1k2l-3m4n5o6p7q8r">Selon Yuval Noah Harari dans "Sapiens", la révolution cognitive qui s'est produite il y a environ 70 000 ans a permis aux Homo sapiens de développer un langage complexe capable de transmettre des informations sur des choses qui n'existent pas, comme les mythes, les dieux et les nations.</div>
+                                <!-- note-id: prop-3c4d5e6f-7g8h-9i0j-1k2l-3m4n5o6p7q8r -->
+                            </td>
+                            <td>
+                                <span class="epistemic-badge direct">Direct</span>
+                            </td>
+                            <td class="folder-cell">
+                                <div class="folder-path-builder" data-note-id="prop-3c4d5e6f-7g8h-9i0j-1k2l-3m4n5o6p7q8r" data-path="livres/histoire/anthropologie/revolution-cognitive">
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 0)">livres <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'livres')">livres</div><div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'cours')">cours</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 0)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 1)">histoire <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'histoire')">histoire</div><div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'science')">science</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 1)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 2)">anthropologie <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'anthropologie')">anthropologie</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 2)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 3)">revolution-cognitive <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'revolution-cognitive')">revolution-cognitive</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 3)">+ Créer nouveau...</div></div></div>
+                                    <button class="folder-add-btn" onclick="addFolderSegment(this)">+ Ajouter</button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="note-actions">
+                                    <button class="btn-mini accept" onclick="acceptNote('prop-3c4d5e6f-7g8h-9i0j-1k2l-3m4n5o6p7q8r')">
+                                        ✓ Accepter
+                                    </button>
+                                    <button class="btn-mini reject" onclick="rejectNote('prop-3c4d5e6f-7g8h-9i0j-1k2l-3m4n5o6p7q8r')">
+                                        ✕ Rejeter
+                                    </button>
+                                    <button class="btn-mini detail" onclick="viewNoteDetail('prop-3c4d5e6f-7g8h-9i0j-1k2l-3m4n5o6p7q8r')">
+                                        Détails
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Note 2 from source 2 -->
+                        <tr class="note-row" data-note-id="prop-4d5e6f7g-8h9i-0j1k-2l3m-4n5o6p7q8r9s" data-source-id="src-7c2d9f1e8a3b">
+                            <td class="note-content-cell">
+                                <div class="note-content-display" data-note-id="prop-4d5e6f7g-8h9i-0j1k-2l3m-4n5o6p7q8r9s">La capacité des Homo sapiens à créer des fictions communes (mythes, religions, nations, systèmes économiques) est ce qui a permis la coopération flexible à grande échelle, un avantage crucial par rapport aux autres espèces humaines.</div>
+                                <!-- note-id: prop-4d5e6f7g-8h9i-0j1k-2l3m-4n5o6p7q8r9s -->
+                            </td>
+                            <td>
+                                <span class="epistemic-badge">Inféré</span>
+                            </td>
+                            <td class="folder-cell">
+                                <div class="folder-path-builder" data-note-id="prop-4d5e6f7g-8h9i-0j1k-2l3m-4n5o6p7q8r9s" data-path="livres/histoire/anthropologie/fictions-communes">
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 0)">livres <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'livres')">livres</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 0)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 1)">histoire <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'histoire')">histoire</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 1)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 2)">anthropologie <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'anthropologie')">anthropologie</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 2)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 3)">fictions-communes <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'fictions-communes')">fictions-communes</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 3)">+ Créer nouveau...</div></div></div>
+                                    <button class="folder-add-btn" onclick="addFolderSegment(this)">+ Ajouter</button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="note-actions">
+                                    <button class="btn-mini accept" onclick="acceptNote('prop-4d5e6f7g-8h9i-0j1k-2l3m-4n5o6p7q8r9s')">
+                                        ✓ Accepter
+                                    </button>
+                                    <button class="btn-mini reject" onclick="rejectNote('prop-4d5e6f7g-8h9i-0j1k-2l3m-4n5o6p7q8r9s')">
+                                        ✕ Rejeter
+                                    </button>
+                                    <button class="btn-mini detail" onclick="viewNoteDetail('prop-4d5e6f7g-8h9i-0j1k-2l3m-4n5o6p7q8r9s')">
+                                        Détails
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- SOURCE GROUP 3: idees-roman-cyberpunk.md -->
+                        <tr class="source-header-row" data-source-id="src-3b8f1d2a9c4e">
+                            <td colspan="3">
+                                <div class="source-name">
+                                    <div>
+                                        <div class="source-file">📄 idees-roman-cyberpunk.md</div>
+                                        <div class="source-id">src-3b8f1d2a9c4e · 25/08 12:10</div>
+                                    </div>
+                                    <div class="source-meta">
+                                        <span class="domain-badge">FICTION</span>
+                                        <span class="source-status">COMPLÉTÉ</span>
+                                        <span class="source-count">8 notes proposées</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="source-actions">
+                                    <button class="btn-small accept-all" onclick="acceptAllFromSource('src-3b8f1d2a9c4e')">
+                                        ✓ Tout accepter
+                                    </button>
+                                    <button class="btn-small reject-all" onclick="rejectAllFromSource('src-3b8f1d2a9c4e')">
+                                        ✕ Tout rejeter
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Note 1 from source 3 -->
+                        <tr class="note-row" data-note-id="prop-5e6f7g8h-9i0j-1k2l-3m4n-5o6p7q8r9s0t" data-source-id="src-3b8f1d2a9c4e">
+                            <td class="note-content-cell">
+                                <div class="note-content-display" data-note-id="prop-5e6f7g8h-9i0j-1k2l-3m4n-5o6p7q8r9s0t">Dans l'univers cyberpunk en développement, la ville de Neo-Tokyo est divisée en trois strates verticales : les Hauts (quartiers aériens des corporations), les Médianes (niveau de rue où vit la majorité), et les Bas-Fonds (réseaux souterrains abandonnés occupés par les marginaux).</div>
+                                <!-- note-id: prop-5e6f7g8h-9i0j-1k2l-3m4n-5o6p7q8r9s0t -->
+                            </td>
+                            <td>
+                                <span class="epistemic-badge">Inféré</span>
+                            </td>
+                            <td class="folder-cell">
+                                <div class="folder-path-builder" data-note-id="prop-5e6f7g8h-9i0j-1k2l-3m4n-5o6p7q8r9s0t" data-path="créations/romans/cyberpunk/neo-tokyo-strates">
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 0)">créations <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'créations')">créations</div><div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'mythologie')">mythologie</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 0)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 1)">romans <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'romans')">romans</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 1)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 2)">cyberpunk <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'cyberpunk')">cyberpunk</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 2)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 3)">neo-tokyo-strates <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'neo-tokyo-strates')">neo-tokyo-strates</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 3)">+ Créer nouveau...</div></div></div>
+                                    <button class="folder-add-btn" onclick="addFolderSegment(this)">+ Ajouter</button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="note-actions">
+                                    <button class="btn-mini accept" onclick="acceptNote('prop-5e6f7g8h-9i0j-1k2l-3m4n-5o6p7q8r9s0t')">
+                                        ✓ Accepter
+                                    </button>
+                                    <button class="btn-mini reject" onclick="rejectNote('prop-5e6f7g8h-9i0j-1k2l-3m4n-5o6p7q8r9s0t')">
+                                        ✕ Rejeter
+                                    </button>
+                                    <button class="btn-mini detail" onclick="viewNoteDetail('prop-5e6f7g8h-9i0j-1k2l-3m4n-5o6p7q8r9s0t')">
+                                        Détails
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- SOURCE GROUP 4: YouTube Short -->
+                        <tr class="source-header-row" data-source-id="src-yt-a3f9d2b1c8e5">
+                            <td colspan="3">
+                                <div class="source-name">
+                                    <div>
+                                        <div class="source-file">🎥 YouTube Short: "Les yokai dans la culture moderne"</div>
+                                        <div class="source-id">src-yt-a3f9d2b1c8e5 · 24/08 18:45 · 0:58 · <a href="#" style="color: #666; text-decoration: none;">youtube.com/shorts/xyz123</a></div>
+                                    </div>
+                                    <div class="source-meta">
+                                        <span class="domain-badge">LEARNING</span>
+                                        <span class="source-status">COMPLÉTÉ</span>
+                                        <span class="source-count">3 notes proposées</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="source-actions">
+                                    <button class="btn-small accept-all" onclick="acceptAllFromSource('src-yt-a3f9d2b1c8e5')">
+                                        ✓ Tout accepter
+                                    </button>
+                                    <button class="btn-small reject-all" onclick="rejectAllFromSource('src-yt-a3f9d2b1c8e5')">
+                                        ✕ Tout rejeter
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Note 1 from YouTube source -->
+                        <tr class="note-row" data-note-id="prop-yt1-8a9b-0c1d-2e3f-4g5h6i7j8k9l" data-source-id="src-yt-a3f9d2b1c8e5">
+                            <td class="note-content-cell">
+                                <div class="note-content-display" data-note-id="prop-yt1-8a9b-0c1d-2e3f-4g5h6i7j8k9l">Les yokai apparaissent fréquemment dans les anime et manga contemporains comme Natsume's Book of Friends, Mushishi, ou GeGeGe no Kitarō, servant de pont entre la tradition folklorique et la culture pop moderne.</div>
+                            </td>
+                            <td>
+                                <span class="epistemic-badge direct">Direct</span>
+                            </td>
+                            <td class="folder-cell">
+                                <div class="folder-path-builder" data-note-id="prop-yt1-8a9b-0c1d-2e3f-4g5h6i7j8k9l" data-path="mythologie/japonaise/yokai/culture-moderne">
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 0)">mythologie <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'mythologie')">mythologie</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 0)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 1)">japonaise <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'japonaise')">japonaise</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 1)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 2)">yokai <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'yokai')">yokai</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 2)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 3)">culture-moderne <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'culture-moderne')">culture-moderne</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 3)">+ Créer nouveau...</div></div></div>
+                                    <button class="folder-add-btn" onclick="addFolderSegment(this)">+ Ajouter</button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="note-actions">
+                                    <button class="btn-mini accept" onclick="acceptNote('prop-yt1-8a9b-0c1d-2e3f-4g5h6i7j8k9l')">
+                                        ✓ Accepter
+                                    </button>
+                                    <button class="btn-mini reject" onclick="rejectNote('prop-yt1-8a9b-0c1d-2e3f-4g5h6i7j8k9l')">
+                                        ✕ Rejeter
+                                    </button>
+                                    <button class="btn-mini detail" onclick="viewNoteDetail('prop-yt1-8a9b-0c1d-2e3f-4g5h6i7j8k9l')">
+                                        Détails
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- SOURCE GROUP 5: Instagram Post -->
+                        <tr class="source-header-row" data-source-id="src-ig-b2c8d5e1f4a7">
+                            <td colspan="3">
+                                <div class="source-name">
+                                    <div>
+                                        <div class="source-file">📱 Instagram: @worldbuilding_tips - Post sur les systèmes de magie</div>
+                                        <div class="source-id">src-ig-b2c8d5e1f4a7 · 23/08 21:12 · Carousel (5 slides) · <a href="#" style="color: #666; text-decoration: none;">instagram.com/p/abc456</a></div>
+                                    </div>
+                                    <div class="source-meta">
+                                        <span class="domain-badge">LEARNING</span>
+                                        <span class="source-status">COMPLÉTÉ</span>
+                                        <span class="source-count">4 notes proposées</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="source-actions">
+                                    <button class="btn-small accept-all" onclick="acceptAllFromSource('src-ig-b2c8d5e1f4a7')">
+                                        ✓ Tout accepter
+                                    </button>
+                                    <button class="btn-small reject-all" onclick="rejectAllFromSource('src-ig-b2c8d5e1f4a7')">
+                                        ✕ Tout rejeter
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Note 1 from Instagram source -->
+                        <tr class="note-row" data-note-id="prop-ig1-3b4c-5d6e-7f8g-9h0i1j2k3l4m" data-source-id="src-ig-b2c8d5e1f4a7">
+                            <td class="note-content-cell">
+                                <div class="note-content-display" data-note-id="prop-ig1-3b4c-5d6e-7f8g-9h0i1j2k3l4m">Un système de magie cohérent doit établir des règles claires : source d'énergie, coût pour l'utilisateur, limites définies, et conséquences de la transgression. Brandon Sanderson appelle ça les "Lois de la Magie".</div>
+                            </td>
+                            <td>
+                                <span class="epistemic-badge">Inféré</span>
+                            </td>
+                            <td class="folder-cell">
+                                <div class="folder-path-builder" data-note-id="prop-ig1-3b4c-5d6e-7f8g-9h0i1j2k3l4m" data-path="créations/worldbuilding/systèmes-magie/règles">
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 0)">créations <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'créations')">créations</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 0)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 1)">worldbuilding <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'worldbuilding')">worldbuilding</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 1)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 2)">systèmes-magie <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'systèmes-magie')">systèmes-magie</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 2)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 3)">règles <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'règles')">règles</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 3)">+ Créer nouveau...</div></div></div>
+                                    <button class="folder-add-btn" onclick="addFolderSegment(this)">+ Ajouter</button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="note-actions">
+                                    <button class="btn-mini accept" onclick="acceptNote('prop-ig1-3b4c-5d6e-7f8g-9h0i1j2k3l4m')">
+                                        ✓ Accepter
+                                    </button>
+                                    <button class="btn-mini reject" onclick="rejectNote('prop-ig1-3b4c-5d6e-7f8g-9h0i1j2k3l4m')">
+                                        ✕ Rejeter
+                                    </button>
+                                    <button class="btn-mini detail" onclick="viewNoteDetail('prop-ig1-3b4c-5d6e-7f8g-9h0i1j2k3l4m')">
+                                        Détails
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- SOURCE GROUP 6: TikTok Video -->
+                        <tr class="source-header-row" data-source-id="src-tt-c5d1e8f2a9b3">
+                            <td colspan="3">
+                                <div class="source-name">
+                                    <div>
+                                        <div class="source-file">🎵 TikTok: @mythologyexplained - Les esprits renards à travers le monde</div>
+                                        <div class="source-id">src-tt-c5d1e8f2a9b3 · 22/08 16:30 · 2:43 · <a href="#" style="color: #666; text-decoration: none;">tiktok.com/@user/video/789</a></div>
+                                    </div>
+                                    <div class="source-meta">
+                                        <span class="domain-badge">LEARNING</span>
+                                        <span class="source-status">COMPLÉTÉ</span>
+                                        <span class="source-count">5 notes proposées</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="source-actions">
+                                    <button class="btn-small accept-all" onclick="acceptAllFromSource('src-tt-c5d1e8f2a9b3')">
+                                        ✓ Tout accepter
+                                    </button>
+                                    <button class="btn-small reject-all" onclick="rejectAllFromSource('src-tt-c5d1e8f2a9b3')">
+                                        ✕ Tout rejeter
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Note 1 from TikTok source -->
+                        <tr class="note-row" data-note-id="prop-tt1-6c7d-8e9f-0g1h-2i3j4k5l6m7n" data-source-id="src-tt-c5d1e8f2a9b3">
+                            <td class="note-content-cell">
+                                <div class="note-content-display" data-note-id="prop-tt1-6c7d-8e9f-0g1h-2i3j4k5l6m7n">Les esprits renards apparaissent dans plusieurs mythologies : kitsune au Japon, huli jing en Chine, kumiho en Corée. Chaque culture leur attribue des caractéristiques différentes mais partage le concept de renard métamorphe à longue vie.</div>
+                            </td>
+                            <td>
+                                <span class="epistemic-badge direct">Direct</span>
+                            </td>
+                            <td class="folder-cell">
+                                <div class="folder-path-builder" data-note-id="prop-tt1-6c7d-8e9f-0g1h-2i3j4k5l6m7n" data-path="mythologie/comparative/esprits-renards">
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 0)">mythologie <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'mythologie')">mythologie</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 0)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 1)">comparative <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'comparative')">comparative</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 1)">+ Créer nouveau...</div></div></div><span class="folder-separator">/</span>
+                                    <div class="folder-segment"><button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 2)">esprits-renards <span>▼</span></button><div class="folder-dropdown"><div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'esprits-renards')">esprits-renards</div><div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 2)">+ Créer nouveau...</div></div></div>
+                                    <button class="folder-add-btn" onclick="addFolderSegment(this)">+ Ajouter</button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="note-actions">
+                                    <button class="btn-mini accept" onclick="acceptNote('prop-tt1-6c7d-8e9f-0g1h-2i3j4k5l6m7n')">
+                                        ✓ Accepter
+                                    </button>
+                                    <button class="btn-mini reject" onclick="rejectNote('prop-tt1-6c7d-8e9f-0g1h-2i3j4k5l6m7n')">
+                                        ✕ Rejeter
+                                    </button>
+                                    <button class="btn-mini detail" onclick="viewNoteDetail('prop-tt1-6c7d-8e9f-0g1h-2i3j4k5l6m7n')">
+                                        Détails
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Pagination -->
+                <div class="pagination" data-od-id="pagination">
+                    <div class="pagination-info">
+                        Affichage 1-10 notes sur 35 notes · 6 sources
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" disabled>← Précédent</button>
+                        <button class="pagination-btn active">1</button>
+                        <button class="pagination-btn">2</button>
+                        <button class="pagination-btn">3</button>
+                        <button class="pagination-btn">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Refresh data
+        function refresh() {
+            alert('Rafraîchissement des données en cours...');
+        }
+
+        // Toggle folder dropdown
+        function toggleFolderDropdown(btn, segmentIndex) {
+            const segment = btn.closest('.folder-segment');
+            const dropdown = segment.querySelector('.folder-dropdown');
+
+            // Close all other dropdowns
+            document.querySelectorAll('.folder-dropdown.active').forEach(d => {
+                if (d !== dropdown) d.classList.remove('active');
+            });
+            document.querySelectorAll('.folder-segment-btn.active').forEach(b => {
+                if (b !== btn) b.classList.remove('active');
+            });
+
+            // Toggle current dropdown
+            dropdown.classList.toggle('active');
+            btn.classList.toggle('active');
+        }
+
+        // Select folder from dropdown
+        function selectFolder(item, segmentIndex, folderName) {
+            const segment = item.closest('.folder-segment');
+            const btn = segment.querySelector('.folder-segment-btn');
+            const dropdown = segment.querySelector('.folder-dropdown');
+
+            // Update button text
+            btn.innerHTML = `${folderName} <span>▼</span>`;
+
+            // Close dropdown
+            dropdown.classList.remove('active');
+            btn.classList.remove('active');
+
+            // Update path data
+            updatePathData(segment.closest('.folder-path-builder'));
+        }
+
+        // Create new folder
+        function createNewFolder(item, segmentIndex) {
+            const newFolderName = prompt('Nom du nouveau dossier :');
+            if (newFolderName && newFolderName.trim() !== '') {
+                const cleanName = newFolderName.trim().toLowerCase().replace(/\s+/g, '-');
+                selectFolder(item, segmentIndex, cleanName);
+            }
+        }
+
+        // Add new folder segment
+        function addFolderSegment(btn) {
+            const builder = btn.closest('.folder-path-builder');
+            const newFolderName = prompt('Nom du nouveau sous-dossier :');
+
+            if (newFolderName && newFolderName.trim() !== '') {
+                const cleanName = newFolderName.trim().toLowerCase().replace(/\s+/g, '-');
+
+                // Create separator
+                const separator = document.createElement('span');
+                separator.className = 'folder-separator';
+                separator.textContent = '/';
+
+                // Create new segment
+                const segment = document.createElement('div');
+                segment.className = 'folder-segment';
+                segment.innerHTML = `
+                    <button class="folder-segment-btn" onclick="toggleFolderDropdown(this, ${getSegmentCount(builder)})">
+                        ${cleanName} <span>▼</span>
+                    </button>
+                    <div class="folder-dropdown">
+                        <div class="folder-dropdown-item" onclick="selectFolder(this, ${getSegmentCount(builder)}, '${cleanName}')">${cleanName}</div>
+                        <div class="folder-dropdown-item create-new" onclick="createNewFolder(this, ${getSegmentCount(builder)})">+ Créer nouveau...</div>
+                    </div>
+                `;
+
+                // Insert before the add button
+                builder.insertBefore(separator, btn);
+                builder.insertBefore(segment, btn);
+
+                // Update path data
+                updatePathData(builder);
+            }
+        }
+
+        // Get segment count
+        function getSegmentCount(builder) {
+            return builder.querySelectorAll('.folder-segment').length;
+        }
+
+        // Update path data attribute
+        function updatePathData(builder) {
+            const segments = [];
+            builder.querySelectorAll('.folder-segment-btn').forEach(btn => {
+                const text = btn.textContent.trim().replace('▼', '').trim();
+                segments.push(text);
+            });
+            const newPath = segments.join('/');
+            builder.dataset.path = newPath;
+
+            console.log(`Chemin mis à jour : ${newPath}`);
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.folder-segment')) {
+                document.querySelectorAll('.folder-dropdown.active').forEach(d => {
+                    d.classList.remove('active');
+                });
+                document.querySelectorAll('.folder-segment-btn.active').forEach(b => {
+                    b.classList.remove('active');
+                });
+            }
+        });
+
+        // Update folder path for individual note
+        function updateNoteFolder(input) {
+            const noteId = input.dataset.noteId;
+            const newPath = input.value;
+            console.log(`Dossier mis à jour pour note ${noteId}: ${newPath}`);
+
+            // Visual feedback
+            input.style.borderColor = '#2e7d32';
+            setTimeout(() => {
+                input.style.borderColor = '';
+            }, 1000);
+        }
+
+        // Accept individual note
+        function acceptNote(noteId) {
+            const row = document.querySelector(`tr[data-note-id="${noteId}"]`);
+            const contentDisplay = row.querySelector('.note-content-display');
+            const folderBuilder = row.querySelector('.folder-path-builder');
+
+            const content = contentDisplay.textContent;
+            const folderPath = folderBuilder ? folderBuilder.getAttribute('data-path') : '';
+
+            if (!content || content.trim() === '') {
+                alert('⚠️ Le contenu de la note ne peut pas être vide.');
+                textarea.focus();
+                return;
+            }
+
+            if (!folderPath || folderPath.trim() === '') {
+                alert('⚠️ Le dossier proposé ne peut pas être vide.');
+                folderInput.focus();
+                return;
+            }
+
+            const confirmMsg = `Accepter cette note ?\n\nDossier : ${folderPath}\n\nContenu : ${content.substring(0, 100)}...`;
+
+            if (confirm(confirmMsg)) {
+                alert(`✓ Note acceptée !\n\nFichier créé : ${folderPath}/assert-[uuid].md`);
+
+                // Visual feedback
+                row.style.opacity = '0.5';
+                row.style.backgroundColor = '#e8f5e9';
+                const buttons = row.querySelectorAll('button');
+                buttons.forEach(btn => btn.disabled = true);
+            }
+        }
+
+        // Reject individual note
+        function rejectNote(noteId) {
+            const reason = prompt(`Rejeter cette note ?\n\nID: ${noteId}\n\nRaison du rejet (optionnel) :`);
+
+            if (reason !== null) {
+                alert(`✕ Note rejetée.\n\nID: ${noteId}\nRaison : ${reason || 'Aucune raison fournie'}`);
+
+                // Visual feedback
+                const row = document.querySelector(`tr[data-note-id="${noteId}"]`);
+                row.style.opacity = '0.5';
+                row.style.backgroundColor = '#ffebee';
+                const buttons = row.querySelectorAll('button');
+                buttons.forEach(btn => btn.disabled = true);
+            }
+        }
+
+        // Accept all notes from a source
+        function acceptAllFromSource(sourceId) {
+            const noteRows = document.querySelectorAll(`tr.note-row[data-source-id="${sourceId}"]`);
+            const count = noteRows.length;
+
+            if (confirm(`Accepter toutes les ${count} notes de cette source ?`)) {
+                alert(`✓ ${count} notes acceptées !`);
+
+                noteRows.forEach(row => {
+                    row.style.opacity = '0.5';
+                    row.style.backgroundColor = '#e8f5e9';
+                    const buttons = row.querySelectorAll('button');
+                    buttons.forEach(btn => btn.disabled = true);
+                });
+            }
+        }
+
+        // Reject all notes from a source
+        function rejectAllFromSource(sourceId) {
+            const noteRows = document.querySelectorAll(`tr.note-row[data-source-id="${sourceId}"]`);
+            const count = noteRows.length;
+
+            const reason = prompt(`Rejeter toutes les ${count} notes de cette source ?\n\nRaison (optionnel) :`);
+
+            if (reason !== null) {
+                alert(`✕ ${count} notes rejetées.\n\nRaison : ${reason || 'Aucune raison fournie'}`);
+
+                noteRows.forEach(row => {
+                    row.style.opacity = '0.5';
+                    row.style.backgroundColor = '#ffebee';
+                    const buttons = row.querySelectorAll('button');
+                    buttons.forEach(btn => btn.disabled = true);
+                });
+            }
+        }
+
+        // View note detail
+        function viewNoteDetail(noteId) {
+            window.location.href = `pekopeko-proposal-detail.html?id=${noteId}`;
+        }
+    </script>
+</body>
+</html>

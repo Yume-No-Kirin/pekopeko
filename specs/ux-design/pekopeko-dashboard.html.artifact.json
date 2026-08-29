@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "pekopeko-dashboard.html",
+  "entry": "pekopeko-dashboard.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-25T06:47:03.048Z",
+  "updatedAt": "2026-08-29T07:26:21.238Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

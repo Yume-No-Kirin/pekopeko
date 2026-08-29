@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pekopeko — Ingestion</title>
+    <link rel="icon" type="image/svg+xml" href="pekopeko-icon.svg">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #fff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sidebar-logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 0;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            padding: 8px 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #999;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 10px 20px;
+            color: #666;
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #f8f8f8;
+            color: #333;
+        }
+
+        .nav-item.active {
+            background: #f0f0f0;
+            color: #000;
+            border-left-color: #333;
+            font-weight: 500;
+        }
+
+        .nav-item.disabled {
+            color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 240px;
+            min-height: 100vh;
+        }
+
+        .page-header {
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #f8f8f8;
+            border-color: #333;
+        }
+
+        .btn-primary {
+            background: #333;
+            color: #fff;
+            border-color: #333;
+        }
+
+        .btn-primary:hover {
+            background: #000;
+            border-color: #000;
+        }
+
+        .content-wrapper {
+            padding: 32px;
+        }
+
+        /* Filters Bar */
+        .filters-bar {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+            min-width: 160px;
+        }
+
+        /* Table */
+        .table-container {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table thead {
+            background: #f8f8f8;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #666;
+        }
+
+        .table td {
+            padding: 16px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table tbody tr:hover {
+            background: #fafafa;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .status-badge.pending {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .status-badge.running {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .status-badge.completed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-badge.failed {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status-badge.skipped_duplicate {
+            background: #f5f5f5;
+            color: #757575;
+        }
+
+        /* Domain Badge */
+        .domain-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #666;
+        }
+
+        /* Action Link */
+        .action-link {
+            color: #333;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .action-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: #fff;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pagination-btn {
+            padding: 8px 16px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: #f8f8f8;
+            border-color: #333;
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background: #333;
+            color: #fff;
+            border-color: #333;
+        }
+
+        /* Empty State */
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .empty-state-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #666;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            color: #999;
+        }
+
+        /* File Name */
+        .file-name {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .source-id {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" data-od-id="sidebar-nav">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">Pekopeko</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Principal</div>
+                <a href="pekopeko-dashboard.html" class="nav-item">Dashboard</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Modules actifs</div>
+                <a href="pekopeko-workflow.html" class="nav-item">Validation</a>
+                <a href="pekopeko-ingestion.html" class="nav-item active">Logs d'ingestion</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Modules à venir</div>
+                <a href="#" class="nav-item disabled">Analytics</a>
+                <a href="#" class="nav-item disabled">Configuration</a>
+                <a href="#" class="nav-item disabled">Export</a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="page-header" data-od-id="page-header">
+            <div class="header-left">
+                <h1 class="page-title">Ingestion de données</h1>
+                <p class="page-subtitle">Suivi des tâches d'ingestion et logs détaillés</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn" onclick="alert('Rafraîchissement des données...')">
+                    ↻ Rafraîchir
+                </button>
+                <button class="btn btn-primary" onclick="alert('Nouvelle ingestion à implémenter')">
+                    + Nouvelle ingestion
+                </button>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            <!-- Filters -->
+            <div class="filters-bar" data-od-id="filters">
+                <div class="filter-group">
+                    <label class="filter-label">Statut</label>
+                    <select class="filter-select">
+                        <option value="all">Tous les statuts</option>
+                        <option value="pending">En attente</option>
+                        <option value="running">En cours</option>
+                        <option value="completed">Complété</option>
+                        <option value="failed">Échoué</option>
+                        <option value="skipped_duplicate">Doublon ignoré</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Domaine</label>
+                    <select class="filter-select">
+                        <option value="all">Tous les domaines</option>
+                        <option value="PERSONAL">Personal</option>
+                        <option value="FICTION">Fiction</option>
+                        <option value="LEARNING">Learning</option>
+                        <option value="RESEARCH">Research</option>
+                        <option value="PUBLISHING">Publishing</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Période</label>
+                    <select class="filter-select">
+                        <option value="today">Aujourd'hui</option>
+                        <option value="week">Cette semaine</option>
+                        <option value="month">Ce mois</option>
+                        <option value="all">Toute période</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Ingestion Table -->
+            <div class="table-container" data-od-id="ingestion-table">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>Domaine</th>
+                            <th>Statut</th>
+                            <th>Démarré</th>
+                            <th>Complété</th>
+                            <th>Propositions</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div class="file-name">mythologie-japonaise.md</div>
+                                <div class="source-id">src-a8f3d2e1b4c5</div>
+                            </td>
+                            <td><span class="domain-badge">FICTION</span></td>
+                            <td><span class="status-badge running">En cours</span></td>
+                            <td>2026-08-25 14:23</td>
+                            <td>—</td>
+                            <td>—</td>
+                            <td><a href="#" class="action-link">Voir logs</a></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="file-name">notes-lecture-sapiens.md</div>
+                                <div class="source-id">src-7c2d9f1e8a3b</div>
+                            </td>
+                            <td><span class="domain-badge">LEARNING</span></td>
+                            <td><span class="status-badge completed">Complété</span></td>
+                            <td>2026-08-25 13:45</td>
+                            <td>2026-08-25 13:47</td>
+                            <td>12</td>
+                            <td><a href="#" class="action-link">Voir logs</a></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="file-name">idees-roman-cyberpunk.md</div>
+                                <div class="source-id">src-3b8f1d2a9c4e</div>
+                            </td>
+                            <td><span class="domain-badge">FICTION</span></td>
+                            <td><span class="status-badge completed">Complété</span></td>
+                            <td>2026-08-25 12:10</td>
+                            <td>2026-08-25 12:14</td>
+                            <td>8</td>
+                            <td><a href="#" class="action-link">Voir logs</a></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="file-name">recherche-narratologie.md</div>
+                                <div class="source-id">src-9d4c2e1f7a8b</div>
+                            </td>
+                            <td><span class="domain-badge">RESEARCH</span></td>
+                            <td><span class="status-badge failed">Échoué</span></td>
+                            <td>2026-08-25 11:30</td>
+                            <td>2026-08-25 11:31</td>
+                            <td>—</td>
+                            <td><a href="#" class="action-link">Voir erreur</a></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="file-name">journal-personnel-aout.md</div>
+                                <div class="source-id">src-5e1f9c3d2b4a</div>
+                            </td>
+                            <td><span class="domain-badge">PERSONAL</span></td>
+                            <td><span class="status-badge completed">Complété</span></td>
+                            <td>2026-08-25 10:15</td>
+                            <td>2026-08-25 10:18</td>
+                            <td>15</td>
+                            <td><a href="#" class="action-link">Voir logs</a></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="file-name">mythologie-japonaise.md</div>
+                                <div class="source-id">src-a8f3d2e1b4c5</div>
+                            </td>
+                            <td><span class="domain-badge">FICTION</span></td>
+                            <td><span class="status-badge skipped_duplicate">Doublon</span></td>
+                            <td>2026-08-25 09:50</td>
+                            <td>2026-08-25 09:50</td>
+                            <td>—</td>
+                            <td><a href="#" class="action-link">Voir original</a></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="file-name">concepts-univers-yumekirin.md</div>
+                                <div class="source-id">src-2c9e4f1d8b3a</div>
+                            </td>
+                            <td><span class="domain-badge">PUBLISHING</span></td>
+                            <td><span class="status-badge completed">Complété</span></td>
+                            <td>2026-08-25 09:00</td>
+                            <td>2026-08-25 09:05</td>
+                            <td>23</td>
+                            <td><a href="#" class="action-link">Voir logs</a></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="file-name">notes-cours-narratologie.md</div>
+                                <div class="source-id">src-6f3d1e9c2b4a</div>
+                            </td>
+                            <td><span class="domain-badge">LEARNING</span></td>
+                            <td><span class="status-badge pending">En attente</span></td>
+                            <td>—</td>
+                            <td>—</td>
+                            <td>—</td>
+                            <td><a href="#" class="action-link">Démarrer</a></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="file-name">brainstorming-personnages.md</div>
+                                <div class="source-id">src-8a2d4c1f9e3b</div>
+                            </td>
+                            <td><span class="domain-badge">FICTION</span></td>
+                            <td><span class="status-badge completed">Complété</span></td>
+                            <td>2026-08-24 18:20</td>
+                            <td>2026-08-24 18:23</td>
+                            <td>6</td>
+                            <td><a href="#" class="action-link">Voir logs</a></td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="file-name">references-mythologie-nordique.md</div>
+                                <div class="source-id">src-1d8f3c2e9b4a</div>
+                            </td>
+                            <td><span class="domain-badge">RESEARCH</span></td>
+                            <td><span class="status-badge completed">Complété</span></td>
+                            <td>2026-08-24 16:45</td>
+                            <td>2026-08-24 16:49</td>
+                            <td>18</td>
+                            <td><a href="#" class="action-link">Voir logs</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Pagination -->
+                <div class="pagination" data-od-id="pagination">
+                    <div class="pagination-info">
+                        Affichage 1-10 sur 47 ingestions
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" disabled>← Précédent</button>
+                        <button class="pagination-btn active">1</button>
+                        <button class="pagination-btn">2</button>
+                        <button class="pagination-btn">3</button>
+                        <button class="pagination-btn">4</button>
+                        <button class="pagination-btn">5</button>
+                        <button class="pagination-btn">Suivant →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

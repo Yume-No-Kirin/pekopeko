@@ -1,0 +1,26 @@
+[mcp_servers.node_repl]
+enabled = false
+
+[mcp_servers.cua_repl]
+enabled = false
+
+[plugins."documents@openai-primary-runtime"]
+enabled = false
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = false
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = false
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = false
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = false
+
+[plugins."google-calendar@openai-curated"]
+enabled = false
+
+[plugins."slack@openai-curated"]
+enabled = false 

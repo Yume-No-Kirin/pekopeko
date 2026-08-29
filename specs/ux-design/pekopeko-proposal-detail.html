@@ -1,0 +1,1628 @@
+<!doctype html>
+<html lang="fr"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pekopeko — Détails de proposition</title>
+    <link rel="icon" type="image/svg+xml" href="pekopeko-icon.svg">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #fff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sidebar-logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 0;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            padding: 8px 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #999;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 10px 20px;
+            color: #666;
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #f8f8f8;
+            color: #333;
+        }
+
+        .nav-item.active {
+            background: #f0f0f0;
+            color: #000;
+            border-left-color: #333;
+            font-weight: 500;
+        }
+
+        .nav-item.disabled {
+            color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 240px;
+            min-height: 100vh;
+        }
+
+        .page-header {
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 24px 32px;
+        }
+
+        .breadcrumb {
+            font-size: 13px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+
+        .breadcrumb a {
+            color: #666;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .proposal-id {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 13px;
+            color: #999;
+        }
+
+        .content-wrapper {
+            padding: 32px;
+            max-width: 1200px;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-info {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .domain-badge, .type-badge, .epistemic-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .domain-badge {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .type-badge {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .epistemic-badge {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .validation-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #f8f8f8;
+            border-color: #333;
+        }
+
+        .btn-accept {
+            background: #2e7d32;
+            color: #fff;
+            border-color: #2e7d32;
+        }
+
+        .btn-accept:hover {
+            background: #1b5e20;
+            border-color: #1b5e20;
+        }
+
+        .btn-reject {
+            background: #fff;
+            color: #c62828;
+            border-color: #c62828;
+        }
+
+        .btn-reject:hover {
+            background: #c62828;
+            color: #fff;
+        }
+
+        .btn-nav {
+            background: #fff;
+            color: #666;
+            border-color: #ddd;
+        }
+
+        .btn-nav:hover {
+            background: #f5f5f5;
+            border-color: #999;
+            color: #333;
+        }
+
+        .btn-nav:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-nav:disabled:hover {
+            background: #fff;
+            border-color: #ddd;
+            color: #666;
+        }
+
+        .validation-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 8px;
+            margin-right: auto;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Two-Column Layout */
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        /* Section Card */
+        .section-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 16px 20px;
+            background: #f8f8f8;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #666;
+        }
+
+        .edit-toggle {
+            padding: 6px 12px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .edit-toggle:hover {
+            background: #f0f0f0;
+        }
+
+        .edit-toggle.active {
+            background: #333;
+            color: #fff;
+            border-color: #333;
+        }
+
+        .section-content {
+            padding: 20px;
+        }
+
+        /* Editable Content */
+        .editable-content {
+            position: relative;
+        }
+
+        .content-display {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #333;
+            min-height: 100px;
+        }
+
+        .content-edit {
+            display: none;
+        }
+
+        .content-edit.active {
+            display: block;
+        }
+
+        .content-textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 15px;
+            font-family: inherit;
+            line-height: 1.7;
+            resize: vertical;
+        }
+
+        .content-textarea:focus {
+            outline: none;
+            border-color: #333;
+        }
+
+        .edit-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        /* Metadata Table */
+        .metadata-table {
+            width: 100%;
+        }
+
+        .metadata-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .metadata-row:last-child {
+            border-bottom: none;
+        }
+
+        .metadata-label {
+            flex: 0 0 140px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #999;
+        }
+
+        .metadata-value {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .metadata-value code {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 12px;
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        /* Logs Section */
+        .logs-section {
+            grid-column: 1 / -1;
+        }
+
+        .log-entries {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .log-entry {
+            padding: 16px;
+            background: #fafafa;
+            border-left: 3px solid #e0e0e0;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 13px;
+        }
+
+        .log-entry.info {
+            border-left-color: #1565c0;
+        }
+
+        .log-entry.success {
+            border-left-color: #2e7d32;
+        }
+
+        .log-entry.warning {
+            border-left-color: #e65100;
+        }
+
+        .log-timestamp {
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .log-message {
+            color: #333;
+        }
+
+        .log-details {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e0e0e0;
+            color: #666;
+            font-size: 12px;
+        }
+
+        /* Source Preview */
+        .source-preview {
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #333;
+            white-space: pre-wrap;
+        }
+
+        .expand-link {
+            display: inline-block;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #333;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .expand-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Editable metadata field */
+        .metadata-value-editable {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .metadata-input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            transition: all 0.2s;
+        }
+
+        .metadata-input:focus {
+            outline: none;
+            border-color: #333;
+            background: #fafafa;
+        }
+
+        .metadata-input:hover {
+            border-color: #999;
+        }
+
+        .field-hint {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        .metadata-row.highlighted {
+            background: #fffbf0;
+            margin: 0 -12px;
+            padding: 12px 12px 12px 12px;
+            border-left: 3px solid #e65100;
+        }
+
+        /* Interactive Folder Path Builder */
+        .folder-path-builder {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            padding: 8px 0;
+        }
+
+        .folder-segment {
+            position: relative;
+            display: inline-block;
+        }
+
+        .folder-segment-btn {
+            padding: 6px 12px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .folder-segment-btn:hover {
+            background: #f5f5f5;
+            border-color: #999;
+        }
+
+        .folder-segment-btn.active {
+            background: #333;
+            color: #fff;
+            border-color: #333;
+        }
+
+        .folder-segment-btn span {
+            font-size: 10px;
+            opacity: 0.6;
+        }
+
+        .folder-separator {
+            color: #999;
+            font-size: 14px;
+            margin: 0 2px;
+        }
+
+        .folder-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            min-width: 200px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .folder-dropdown.active {
+            display: block;
+        }
+
+        .folder-dropdown-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .folder-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .folder-dropdown-item:hover {
+            background: #f5f5f5;
+        }
+
+        .folder-dropdown-item.create-new {
+            color: #2e7d32;
+            font-weight: 500;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .folder-add-btn {
+            padding: 6px 12px;
+            background: #f8f8f8;
+            border: 1px dashed #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .folder-add-btn:hover {
+            background: #e8f5e9;
+            border-color: #2e7d32;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" data-od-id="sidebar-nav">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">Pekopeko</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Principal</div>
+                <a href="pekopeko-dashboard.html" class="nav-item">Dashboard</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Modules actifs</div>
+                <a href="pekopeko-workflow.html" class="nav-item active">Validation</a>
+                <a href="pekopeko-ingestion.html" class="nav-item">Logs d'ingestion</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Modules à venir</div>
+                <a href="#" class="nav-item disabled">Analytics</a>
+                <a href="#" class="nav-item disabled">Configuration</a>
+                <a href="#" class="nav-item disabled">Export</a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="page-header" data-od-id="page-header">
+            <div class="breadcrumb">
+                <a href="pekopeko-dashboard.html">Dashboard</a> /
+                <a href="pekopeko-workflow.html">Validation</a> /
+                Détails
+            </div>
+            <h1 class="page-title">Revue de proposition</h1>
+            <div class="proposal-id">prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d</div>
+
+            <!-- Note Selector -->
+            <div style="margin-top: 16px;">
+                <label for="noteSelector" style="font-size: 13px; font-weight: 600; color: #666; display: block; margin-bottom: 6px;">
+                    Sélectionner une note pour prévisualiser :
+                </label>
+                <select id="noteSelector" onchange="switchNote(this.value)" style="
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    background: #fff;
+                    cursor: pointer;
+                    min-width: 400px;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                ">
+                    <option value="markdown-kitsune">📄 Markdown : Kitsune transformation (mythologie-japonaise.md)</option>
+                    <option value="youtube-yokai">🎥 YouTube Short : Yokai culture moderne (0:58)</option>
+                    <option value="instagram-magie">📱 Instagram : Systèmes de magie (@worldbuilding_tips)</option>
+                    <option value="tiktok-renards">🎵 TikTok : Esprits renards comparés (2:43)</option>
+                </select>
+            </div>
+        </header>
+
+        <div class="content-wrapper">
+            <!-- Status and Actions -->
+            <div class="status-bar" data-od-id="status-bar">
+                <div class="status-info">
+                    <span class="status-badge">À valider</span>
+                    <span class="domain-badge">FICTION</span>
+                    <span class="type-badge">Assertion</span>
+                    <span class="epistemic-badge">Inféré</span>
+                </div>
+                <div class="validation-actions">
+                    <div class="nav-buttons">
+                        <button class="btn btn-nav" id="prevBtn" onclick="navigateToPrevious()" style="transform: translate(-13px, 0px);">← Précédent</button>
+                        <button class="btn btn-nav" id="nextBtn" onclick="navigateToNext()" style="transform: translate(261px, 1px);">Suivant →</button>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-reject" onclick="handleReject()" style="transform: translate(-135px, 1px);">✕ Rejeter</button>
+                        <button class="btn btn-accept" onclick="handleAccept()" style="transform: translate(-130px, 1px);">✓ Accepter</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two-Column Layout -->
+            <div class="two-column">
+                <!-- Left Column: Proposal Content -->
+                <div class="section-card" data-od-id="proposal-content-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Contenu de la proposition</h2>
+                        <button class="edit-toggle" onclick="toggleEdit()">✎ Éditer</button>
+                    </div>
+                    <div class="section-content">
+                        <div class="editable-content">
+                            <div class="content-display" id="contentDisplay">
+                                Les kitsune dans la mythologie japonaise possèdent la capacité de se transformer en forme humaine après avoir atteint un certain âge, généralement cent ans. Plus un kitsune vieillit, plus il acquiert de queues, jusqu'à un maximum de neuf queues, symbolisant sa sagesse et son pouvoir.
+                            </div>
+                            <div class="content-edit" id="contentEdit">
+                                <textarea class="content-textarea" id="contentTextarea">Les kitsune dans la mythologie japonaise possèdent la capacité de se transformer en forme humaine après avoir atteint un certain âge, généralement cent ans. Plus un kitsune vieillit, plus il acquiert de queues, jusqu'à un maximum de neuf queues, symbolisant sa sagesse et son pouvoir.</textarea>
+                                <div class="edit-actions">
+                                    <button class="btn btn-small" onclick="saveEdit()">Sauvegarder</button>
+                                    <button class="btn btn-small" onclick="cancelEdit()">Annuler</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Metadata -->
+                <div class="section-card" data-od-id="metadata-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Métadonnées</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="metadata-table">
+                            <div class="metadata-row">
+                                <div class="metadata-label">ID Proposition</div>
+                                <div class="metadata-value"><code>prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d</code></div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Type</div>
+                                <div class="metadata-value" data-metadata="type">Assertion</div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Domaine</div>
+                                <div class="metadata-value" data-metadata="domain">FICTION</div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Statut épistémique</div>
+                                <div class="metadata-value" data-metadata="epistemic">Inféré</div>
+                            </div>
+                            <div class="metadata-row highlighted">
+                                <div class="metadata-label">Dossier proposé</div>
+                                <div class="metadata-value">
+                                    <div class="metadata-value-editable">
+                                        <div class="folder-path-builder" id="folderPathBuilder" data-path="mythologie/japonaise/créatures/kitsune-transformation">
+                                            <div class="folder-segment">
+                                                <button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 0)">mythologie <span>▼</span></button>
+                                                <div class="folder-dropdown">
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'mythologie')">mythologie</div>
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'créations')">créations</div>
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 0, 'livres')">livres</div>
+                                                    <div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 0)">+ Créer nouveau...</div>
+                                                </div>
+                                            </div>
+                                            <span class="folder-separator">/</span>
+                                            <div class="folder-segment">
+                                                <button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 1)">japonaise <span>▼</span></button>
+                                                <div class="folder-dropdown">
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'japonaise')">japonaise</div>
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'nordique')">nordique</div>
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 1, 'grecque')">grecque</div>
+                                                    <div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 1)">+ Créer nouveau...</div>
+                                                </div>
+                                            </div>
+                                            <span class="folder-separator">/</span>
+                                            <div class="folder-segment">
+                                                <button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 2)">créatures <span>▼</span></button>
+                                                <div class="folder-dropdown">
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'créatures')">créatures</div>
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'dieux')">dieux</div>
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 2, 'légendes')">légendes</div>
+                                                    <div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 2)">+ Créer nouveau...</div>
+                                                </div>
+                                            </div>
+                                            <span class="folder-separator">/</span>
+                                            <div class="folder-segment">
+                                                <button class="folder-segment-btn" onclick="toggleFolderDropdown(this, 3)">kitsune-transformation <span>▼</span></button>
+                                                <div class="folder-dropdown">
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'kitsune-transformation')">kitsune-transformation</div>
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'kitsune-neuf-queues')">kitsune-neuf-queues</div>
+                                                    <div class="folder-dropdown-item" onclick="selectFolder(this, 3, 'types-kitsune')">types-kitsune</div>
+                                                    <div class="folder-dropdown-item create-new" onclick="createNewFolder(this, 3)">+ Créer nouveau...</div>
+                                                </div>
+                                            </div>
+                                            <button class="folder-add-btn" onclick="addFolderSegment(this)">+ Ajouter</button>
+                                        </div>
+                                    </div>
+                                    <div class="field-hint">Chemin où la note canonique sera sauvegardée après acceptation</div>
+                                </div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Statut épistémique</div>
+                                <div class="metadata-value">Inféré (inferred)</div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Créé le</div>
+                                <div class="metadata-value">2026-08-25T14:23:45Z</div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Validité</div>
+                                <div class="metadata-value">De: 2026-08-25 · À: —</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Source Information -->
+                <div class="section-card" data-od-id="source-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Source originale</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="metadata-table">
+                            <div class="metadata-row">
+                                <div class="metadata-label">ID Source</div>
+                                <div class="metadata-value" data-metadata="source-id"><code>src-a8f3d2e1b4c5</code></div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Type de source</div>
+                                <div class="metadata-value" data-metadata="source-type">📄 Fichier Markdown</div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Fichier</div>
+                                <div class="metadata-value" data-metadata="source-file"><code>mythologie-japonaise.md</code></div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Ingéré le</div>
+                                <div class="metadata-value">2026-08-25T14:20:12Z</div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Hash contenu</div>
+                                <div class="metadata-value"><code>a8f3d2e1b4c5...</code></div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 20px;" data-source-type-example="markdown">
+                            <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">Aperçu du contenu source :</div>
+                            <div class="source-preview">
+# Mythologie japonaise : Les Kitsune
+
+Les kitsune (狐) sont des renards magiques de la mythologie japonaise,
+considérés comme des êtres surnaturels possédant une intelligence supérieure
+et des pouvoirs magiques qui augmentent avec l'âge et la sagesse.
+
+## Transformation et queues
+
+Les kitsune possèdent la capacité de se transformer en forme humaine après
+avoir atteint un certain âge, généralement cent ans. Cette transformation
+est l'un de leurs pouvoirs les plus célèbres.
+
+Plus un kitsune vieillit, plus il acquiert de queues, jusqu'à un maximum
+de neuf queues (kyūbi no kitsune, 九尾の狐), symbolisant sa sagesse et son
+pouvoir. Les kitsune à neuf queues sont considérés comme les plus puissants
+et les plus sages.
+
+## Types de kitsune
+
+Il existe principalement deux types de kitsune :
+- Zenko (善狐) : les kitsune bienveillants, souvent associés au dieu Inari
+- Yako (野狐) : les kitsune malicieux ou malveillants
+                            </div>
+                            <a href="#" class="expand-link">Voir le fichier source complet →</a>
+                        </div>
+
+                        <!--
+                            EXEMPLES DE SOURCES VIDÉO
+                            Pour afficher un exemple de source vidéo au lieu de Markdown :
+                            1. Masquer la div markdown: ajouter style="display: none;" à la div avec data-source-type-example="markdown"
+                            2. Afficher une div vidéo: retirer display: none de l'une des div avec data-source-type-example="youtube|instagram|tiktok"
+                        -->
+
+                        <!-- Exemple source YouTube Short -->
+                        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e0e0e0; display: none;" data-source-type-example="youtube">
+                            <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 12px;">Exemple pour source YouTube Short :</div>
+                            <div class="metadata-table">
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Plateforme</div>
+                                    <div class="metadata-value">🎥 YouTube Short</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Titre vidéo</div>
+                                    <div class="metadata-value">"Les yokai dans la culture moderne"</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Créateur</div>
+                                    <div class="metadata-value">@japanese_mythology_channel</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">URL</div>
+                                    <div class="metadata-value"><a href="#" style="color: #1a73e8;">youtube.com/shorts/xyz123</a></div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Durée</div>
+                                    <div class="metadata-value">0:58</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Date publication</div>
+                                    <div class="metadata-value">2026-08-20</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Transcription disponible</div>
+                                    <div class="metadata-value">✓ Oui (auto-générée + corrigée)</div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 16px;">
+                                <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">Transcription :</div>
+                                <div class="source-preview" style="max-height: 200px;">
+[00:00] Aujourd'hui on parle des yokai dans les anime modernes !
+
+[00:03] Les yokai, ces créatures surnaturelles du folklore japonais,
+ont trouvé une nouvelle vie dans la culture pop contemporaine.
+
+[00:12] Des séries comme Natsume's Book of Friends, Mushishi,
+ou encore GeGeGe no Kitarō mettent en scène ces êtres mystérieux.
+
+[00:25] Ce qui est fascinant, c'est comment ces œuvres servent de pont
+entre la tradition ancestrale et la sensibilité moderne.
+
+[00:35] Les créateurs réinterprètent les légendes tout en respectant
+leur essence spirituelle originelle.
+
+[00:45] Résultat : de nouvelles générations découvrent ce patrimoine
+culturel à travers des histoires captivantes et visuellement
+magnifiques.
+
+[00:55] Et vous, quel est votre yokai préféré dans les anime ? 🦊
+                                </div>
+                                <a href="#" class="expand-link">Voir la transcription complète →</a>
+                            </div>
+                        </div>
+
+                        <!-- Exemple source Instagram Post -->
+                        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e0e0e0; display: none;" data-source-type-example="instagram">
+                            <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 12px;">Exemple pour source Instagram :</div>
+                            <div class="metadata-table">
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Plateforme</div>
+                                    <div class="metadata-value">📱 Instagram Post</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Type de post</div>
+                                    <div class="metadata-value">Carousel (5 slides)</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Compte</div>
+                                    <div class="metadata-value">@worldbuilding_tips</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">URL</div>
+                                    <div class="metadata-value"><a href="#" style="color: #e1306c;">instagram.com/p/abc456</a></div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Date publication</div>
+                                    <div class="metadata-value">2026-08-23</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Texte de légende</div>
+                                    <div class="metadata-value">✓ Extrait (524 caractères)</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Transcription audio</div>
+                                    <div class="metadata-value">✓ Disponible (générée par Whisper)</div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 16px;">
+                                <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">Légende du post :</div>
+                                <div class="source-preview" style="max-height: 200px;">
+🔮 Les 3 règles d'or d'un système de magie cohérent
+
+Slide 1/5 : LA SOURCE
+Votre magie vient d'où ? Énergie cosmique, force vitale, éléments naturels ?
+Définissez-la clairement. Dans Avatar, c'est le chi. Dans Mistborn, ce sont
+les métaux.
+
+Slide 2/5 : LE COÛT
+Rien n'est gratuit. Fatigue physique, années de vie, santé mentale ?
+Un coût crée de la tension narrative. Dans FMA, c'est l'équivalent exchange.
+
+Slide 3/5 : LES LIMITES
+Qu'est-ce que votre magie NE PEUT PAS faire ? Les limites sont plus
+intéressantes que les possibilités infinies.
+
+Slide 4/5 : LES CONSÉQUENCES
+Que se passe-t-il si on abuse du système ou qu'on le transgresse ?
+Dans The Witcher, les mutations ont un prix permanent.
+
+Slide 5/5 : LA COHÉRENCE
+Respectez vos propres règles. Si un personnage peut faire X au chapitre 2,
+il doit pouvoir le refaire au chapitre 20. Sauf si...
+
+💡 Bonus : Brandon Sanderson appelle ça les "Lois de la Magie". Check his
+essays pour aller plus loin !
+
+#worldbuilding #writing #fantasy #magicsystem
+                                </div>
+                            </div>
+                            <div style="margin-top: 24px;">
+                                <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">Transcription audio (voix-off du Reel) :</div>
+                                <div class="source-preview" style="max-height: 200px;">
+[00:00] Salut ! Aujourd'hui on parle des systèmes de magie dans la fantasy.
+
+[00:03] Première règle : définir la SOURCE. Votre magie vient d'où exactement ?
+C'est une énergie cosmique ? La force vitale des êtres vivants ? Les éléments
+naturels ? Il faut que ce soit clair.
+
+[00:18] Dans Avatar, c'est le chi qui circule dans le corps. Dans Mistborn
+de Brandon Sanderson, ce sont les métaux qu'on ingère et qu'on brûle. Voyez ?
+Des sources très différentes mais toujours définies.
+
+[00:32] Deuxième règle : le COÛT. Rien n'est gratuit en magie. Fatigue
+physique, années de vie raccourcies, santé mentale qui se dégrade... Le coût
+crée de la tension narrative.
+
+[00:47] Dans Fullmetal Alchemist, c'est l'échange équivalent : pour obtenir
+quelque chose, il faut sacrifier quelque chose d'égale valeur. Brutal mais
+cohérent.
+
+[01:02] Troisième règle : les LIMITES. Qu'est-ce que votre système de magie
+NE PEUT PAS faire ? Contre-intuitif, mais les limites sont souvent plus
+intéressantes que les possibilités infinies.
+
+[01:18] Quatrième : les CONSÉQUENCES. Que se passe-t-il si quelqu'un abuse
+du système ou le transgresse ? Dans The Witcher, les mutations pour devenir
+sorceleur ont un prix permanent : stérilité, émotions diminuées.
+
+[01:35] Et enfin, la COHÉRENCE. Respectez vos propres règles. Si votre
+personnage peut faire X au chapitre 2, il doit pouvoir le refaire au
+chapitre 20. Sauf si vous avez une TRÈS bonne raison narrative.
+
+[01:52] Brandon Sanderson a théorisé tout ça dans ses "Lois de la Magie".
+Je vous mets le lien dans ma bio pour aller plus loin.
+
+[02:03] Et vous, c'est quoi votre système de magie préféré en fantasy ?
+Dites-le en commentaires ! À plus ! ✨
+                                </div>
+                                <a href="#" class="expand-link">Voir la transcription complète →</a>
+                            </div>
+                        </div>
+
+                        <!-- Exemple source TikTok Video -->
+                        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e0e0e0; display: none;" data-source-type-example="tiktok">
+                            <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 12px;">Exemple pour source TikTok :</div>
+                            <div class="metadata-table">
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Plateforme</div>
+                                    <div class="metadata-value">🎵 TikTok Video</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Titre</div>
+                                    <div class="metadata-value">"Les esprits renards à travers le monde"</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Créateur</div>
+                                    <div class="metadata-value">@mythologyexplained</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">URL</div>
+                                    <div class="metadata-value"><a href="#" style="color: #000;">tiktok.com/@user/video/789</a></div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Durée</div>
+                                    <div class="metadata-value">2:43</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Date publication</div>
+                                    <div class="metadata-value">2026-08-22</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Hashtags</div>
+                                    <div class="metadata-value">#mythology #kitsune #folklore #education</div>
+                                </div>
+                                <div class="metadata-row">
+                                    <div class="metadata-label">Transcription</div>
+                                    <div class="metadata-value">✓ Disponible (générée par Whisper)</div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 16px;">
+                                <div style="font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">Transcription :</div>
+                                <div class="source-preview" style="max-height: 200px;">
+[00:00] Saviez-vous que les esprits renards existent dans plusieurs cultures ?
+
+[00:08] Au Japon, on les appelle KITSUNE. Des renards magiques qui peuvent
+se transformer en humains et qui gagnent des queues en vieillissant.
+Neuf queues = sagesse maximale ! 🦊
+
+[00:25] En Chine, ce sont les HULI JING. Similaires mais avec une nuance :
+ils peuvent être bons ou mauvais selon leur âge et leurs intentions.
+Les plus vieux sont souvent des sages.
+
+[00:48] En Corée, les KUMIHO sont... différents. Traditionnellement plus
+sombres, ils sont souvent représentés comme des créatures dangereuses
+qui se nourrissent de foie humain. Flippant ! 😱
+
+[01:15] Ce qui est fascinant, c'est ce point commun : dans toutes ces
+cultures, le renard = métamorphose + longévité + intelligence supérieure.
+
+[01:32] Pourquoi le renard ? Peut-être parce que dans la vraie vie,
+les renards sont rusés, solitaires, et un peu mystérieux. 🤔
+
+[01:48] Les mythes reflètent souvent notre rapport aux animaux.
+Le renard inspire à la fois la méfiance et l'admiration.
+
+[02:05] Fun fact : certains temples au Japon ont des statues de kitsune
+qui protègent les sanctuaires d'Inari, le dieu du riz.
+
+[02:20] Alors, team kitsune, huli jing, ou kumiho ? Dites-moi dans
+les commentaires ! 💬
+
+[02:35] Et si vous voulez en savoir plus sur les créatures mythologiques,
+suivez-moi pour plus de content comme celui-ci ! 🔥
+
+#mythology #kitsune #hulijing #kumiho #folklore #japan #china #korea
+#education #mythology101 #LearnOnTikTok
+                                </div>
+                                <a href="#" class="expand-link">Voir la transcription complète →</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Provenance -->
+                <div class="section-card" data-od-id="provenance-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Provenance &amp; Extraction</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="metadata-table">
+                            <div class="metadata-row">
+                                <div class="metadata-label">Provider LLM</div>
+                                <div class="metadata-value"><code>ollama-llama3</code></div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Modèle</div>
+                                <div class="metadata-value">Llama 3 8B Instruct</div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Température</div>
+                                <div class="metadata-value">0.7</div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Extraction ID</div>
+                                <div class="metadata-value"><code>ext-9c4e8f1d2a3b</code></div>
+                            </div>
+                            <div class="metadata-row">
+                                <div class="metadata-label">Durée extraction</div>
+                                <div class="metadata-value">2.3 secondes</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs d'ingestion -->
+                <div class="section-card logs-section" data-od-id="logs-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Logs d'ingestion complets</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="log-entries">
+                            <div class="log-entry info">
+                                <div class="log-timestamp">[2026-08-25 14:20:12.345] INFO</div>
+                                <div class="log-message">Démarrage de l'ingestion : mythologie-japonaise.md</div>
+                                <div class="log-details">
+                                    Task ID: task-7d3c2e1f8a4b<br>
+                                    Domain: FICTION<br>
+                                    File size: 2.4 KB
+                                </div>
+                            </div>
+
+                            <div class="log-entry info">
+                                <div class="log-timestamp">[2026-08-25 14:20:12.567] INFO</div>
+                                <div class="log-message">Lecture du fichier source réussie</div>
+                                <div class="log-details">
+                                    Reader: MarkdownReader<br>
+                                    Content hash: a8f3d2e1b4c5d6e7f8a9b1c2d3e4f5a6<br>
+                                    Encoding: UTF-8
+                                </div>
+                            </div>
+
+                            <div class="log-entry info">
+                                <div class="log-timestamp">[2026-08-25 14:20:12.789] INFO</div>
+                                <div class="log-message">Vérification de doublon : aucun doublon détecté</div>
+                                <div class="log-details">
+                                    Source ID généré: src-a8f3d2e1b4c5<br>
+                                    Dossier cible: FICTION/sources/src-a8f3d2e1b4c5/
+                                </div>
+                            </div>
+
+                            <div class="log-entry success">
+                                <div class="log-timestamp">[2026-08-25 14:20:13.012] SUCCESS</div>
+                                <div class="log-message">Source sauvegardée avec succès</div>
+                                <div class="log-details">
+                                    Path: vault/FICTION/sources/src-a8f3d2e1b4c5/src-a8f3d2e1b4c5.md<br>
+                                    Status: ACTIVE
+                                </div>
+                            </div>
+
+                            <div class="log-entry info">
+                                <div class="log-timestamp">[2026-08-25 14:20:13.234] INFO</div>
+                                <div class="log-message">Appel au provider LLM pour extraction</div>
+                                <div class="log-details">
+                                    Provider: ollama-llama3<br>
+                                    Model: llama3:8b-instruct<br>
+                                    Context: {"domain": "FICTION", "source_type": "markdown"}
+                                </div>
+                            </div>
+
+                            <div class="log-entry success">
+                                <div class="log-timestamp">[2026-08-25 14:20:15.567] SUCCESS</div>
+                                <div class="log-message">Extraction LLM terminée : 8 assertions extraites</div>
+                                <div class="log-details">
+                                    Duration: 2.3s<br>
+                                    Tokens: 1,234 input / 567 output<br>
+                                    Assertions: 8 (6 inferred, 2 direct)
+                                </div>
+                            </div>
+
+                            <div class="log-entry info">
+                                <div class="log-timestamp">[2026-08-25 14:20:15.678] INFO</div>
+                                <div class="log-message">Création de la proposition 1/8</div>
+                                <div class="log-details">
+                                    Proposition ID: prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d<br>
+                                    Type: assertion<br>
+                                    Statut épistémique: inferred<br>
+                                    Sujet: Transformation et âge des kitsune<br>
+                                    Dossier proposé: FICTION/mythologie/japonaise/créatures (après acceptation)
+                                </div>
+                            </div>
+
+                            <div class="log-entry success">
+                                <div class="log-timestamp">[2026-08-25 14:20:15.789] SUCCESS</div>
+                                <div class="log-message">Proposition sauvegardée</div>
+                                <div class="log-details">
+                                    Path: vault/FICTION/proposals/prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d/prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d.md<br>
+                                    Status: PROPOSED
+                                </div>
+                            </div>
+
+                            <div class="log-entry info">
+                                <div class="log-timestamp">[2026-08-25 14:20:15.890] INFO</div>
+                                <div class="log-message">Traitement des propositions restantes (2-8)...</div>
+                            </div>
+
+                            <div class="log-entry success">
+                                <div class="log-timestamp">[2026-08-25 14:20:16.234] SUCCESS</div>
+                                <div class="log-message">Ingestion terminée avec succès</div>
+                                <div class="log-details">
+                                    Total duration: 3.9s<br>
+                                    Source préservée: ✓<br>
+                                    Propositions créées: 8/8<br>
+                                    Status final: completed
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Note data for different sources
+        const notesData = {
+            'markdown-kitsune': {
+                id: 'prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d',
+                content: 'Les kitsune dans la mythologie japonaise possèdent la capacité de se transformer en forme humaine après avoir atteint un certain âge, généralement cent ans. Plus un kitsune vieillit, plus il acquiert de queues, jusqu\'à un maximum de neuf queues, symbolisant sa sagesse et son pouvoir.',
+                domain: 'FICTION',
+                type: 'Assertion',
+                epistemic: 'Inféré',
+                sourceType: 'markdown',
+                sourceId: 'src-a8f3d2e1b4c5',
+                sourceFile: 'mythologie-japonaise.md',
+                sourceDate: '2026-08-25T14:20:12Z'
+            },
+            'youtube-yokai': {
+                id: 'prop-yt1-8a9b-0c1d-2e3f-4g5h6i7j8k9l',
+                content: 'Les yokai apparaissent fréquemment dans les anime et manga contemporains comme Natsume\'s Book of Friends, Mushishi, ou GeGeGe no Kitarō, servant de pont entre la tradition folklorique et la culture pop moderne.',
+                domain: 'LEARNING',
+                type: 'Assertion',
+                epistemic: 'Direct',
+                sourceType: 'youtube',
+                sourceId: 'src-yt-a3f9d2b1c8e5',
+                sourceTitle: 'Les yokai dans la culture moderne',
+                sourceCreator: '@japanese_mythology_channel',
+                sourceUrl: 'youtube.com/shorts/xyz123',
+                sourceDuration: '0:58',
+                sourceDate: '2026-08-20'
+            },
+            'instagram-magie': {
+                id: 'prop-ig1-3b4c-5d6e-7f8g-9h0i1j2k3l4m',
+                content: 'Un système de magie cohérent doit établir des règles claires : source d\'énergie, coût pour l\'utilisateur, limites définies, et conséquences de la transgression. Brandon Sanderson appelle ça les "Lois de la Magie".',
+                domain: 'LEARNING',
+                type: 'Assertion',
+                epistemic: 'Inféré',
+                sourceType: 'instagram',
+                sourceId: 'src-ig-b2c8d5e1f4a7',
+                sourceAccount: '@worldbuilding_tips',
+                sourcePostType: 'Carousel (5 slides)',
+                sourceUrl: 'instagram.com/p/abc456',
+                sourceDate: '2026-08-23'
+            },
+            'tiktok-renards': {
+                id: 'prop-tt1-6c7d-8e9f-0g1h-2i3j4k5l6m7n',
+                content: 'Les esprits renards apparaissent dans plusieurs mythologies : kitsune au Japon, huli jing en Chine, kumiho en Corée. Chaque culture leur attribue des caractéristiques différentes mais partage le concept de renard métamorphe à longue vie.',
+                domain: 'LEARNING',
+                type: 'Assertion',
+                epistemic: 'Direct',
+                sourceType: 'tiktok',
+                sourceId: 'src-tt-c5d1e8f2a9b3',
+                sourceTitle: 'Les esprits renards à travers le monde',
+                sourceCreator: '@mythologyexplained',
+                sourceUrl: 'tiktok.com/@user/video/789',
+                sourceDuration: '2:43',
+                sourceDate: '2026-08-22'
+            }
+        };
+
+        // Switch between notes
+        function switchNote(noteKey) {
+            const note = notesData[noteKey];
+            if (!note) return;
+
+            // Update proposal ID
+            document.querySelector('.proposal-id').textContent = note.id;
+
+            // Update status badges
+            document.querySelector('.domain-badge').textContent = note.domain;
+            document.querySelector('.epistemic-badge').textContent = note.epistemic;
+            document.querySelector('.epistemic-badge').className =
+                'epistemic-badge' + (note.epistemic === 'Direct' ? ' direct' : '');
+
+            // Update content
+            document.getElementById('contentDisplay').textContent = note.content;
+            document.getElementById('contentTextarea').value = note.content;
+
+            // Update metadata
+            document.querySelector('[data-metadata="domain"]').textContent = note.domain;
+            document.querySelector('[data-metadata="type"]').textContent = note.type;
+            document.querySelector('[data-metadata="epistemic"]').textContent = note.epistemic;
+
+            // Update source section
+            document.querySelector('[data-metadata="source-id"]').textContent = note.sourceId;
+
+            // Hide all source examples
+            document.querySelectorAll('[data-source-type-example]').forEach(el => {
+                el.style.display = 'none';
+            });
+
+            // Show the relevant source example
+            const sourceExample = document.querySelector(`[data-source-type-example="${note.sourceType}"]`);
+            if (sourceExample) {
+                sourceExample.style.display = 'block';
+            }
+
+            // Update source-specific metadata based on type
+            updateSourceMetadata(note);
+        }
+
+        function updateSourceMetadata(note) {
+            const sourceTypeEl = document.querySelector('[data-metadata="source-type"]');
+
+            if (note.sourceType === 'markdown') {
+                sourceTypeEl.textContent = '📄 Fichier Markdown';
+                document.querySelector('[data-metadata="source-file"]').textContent = note.sourceFile;
+            } else if (note.sourceType === 'youtube') {
+                sourceTypeEl.textContent = '🎥 YouTube Short';
+            } else if (note.sourceType === 'instagram') {
+                sourceTypeEl.textContent = '📱 Instagram Post';
+            } else if (note.sourceType === 'tiktok') {
+                sourceTypeEl.textContent = '🎵 TikTok Video';
+            }
+        }
+
+        // Toggle edit mode
+        function toggleEdit() {
+            const editBtn = event.target;
+            const contentDisplay = document.getElementById('contentDisplay');
+            const contentEdit = document.getElementById('contentEdit');
+
+            if (contentEdit.classList.contains('active')) {
+                cancelEdit();
+            } else {
+                contentDisplay.style.display = 'none';
+                contentEdit.classList.add('active');
+                editBtn.textContent = '✎ Mode édition actif';
+                editBtn.classList.add('active');
+            }
+        }
+
+        // Save edit
+        function saveEdit() {
+            const textarea = document.getElementById('contentTextarea');
+            const contentDisplay = document.getElementById('contentDisplay');
+            const contentEdit = document.getElementById('contentEdit');
+            const editBtn = document.querySelector('.edit-toggle');
+
+            contentDisplay.textContent = textarea.value;
+            contentDisplay.style.display = 'block';
+            contentEdit.classList.remove('active');
+            editBtn.textContent = '✎ Éditer';
+            editBtn.classList.remove('active');
+
+            alert('Modifications enregistrées. La proposition a été mise à jour.');
+        }
+
+        // Cancel edit
+        function cancelEdit() {
+            const contentDisplay = document.getElementById('contentDisplay');
+            const contentEdit = document.getElementById('contentEdit');
+            const editBtn = document.querySelector('.edit-toggle');
+            const textarea = document.getElementById('contentTextarea');
+
+            textarea.value = contentDisplay.textContent;
+            contentDisplay.style.display = 'block';
+            contentEdit.classList.remove('active');
+            editBtn.textContent = '✎ Éditer';
+            editBtn.classList.remove('active');
+        }
+
+        // Handle accept
+        function handleAccept() {
+            const folderBuilder = document.getElementById('folderPathBuilder');
+            const folderPath = folderBuilder ? folderBuilder.getAttribute('data-path') : '';
+
+            if (!folderPath || folderPath.trim() === '') {
+                alert('⚠️ Le dossier proposé ne peut pas être vide.\n\nVeuillez spécifier un chemin valide avant d\'accepter.');
+                return;
+            }
+
+            const confirmMsg = `Confirmer l'acceptation de cette proposition ?\n\nUne entrée canonique sera créée dans :\n📁 ${folderPath}/assertions/assert-[uuid]/assert-[uuid].md`;
+
+            if (confirm(confirmMsg)) {
+                const successMsg = `✓ Proposition acceptée !\n\nFichier créé : ${folderPath}/assertions/assert-[uuid]/assert-[uuid].md\nStatut proposition : PROPOSED → ACCEPTED\n\nRedirection vers la liste de validation...`;
+                alert(successMsg);
+                // window.location.href = 'pekopeko-workflow.html';
+            }
+        }
+
+        // Handle reject
+        function handleReject() {
+            const reason = prompt('Raison du rejet (optionnel) :');
+            if (reason !== null) {
+                alert('Proposition rejetée.\n\nStatut proposition : PROPOSED → REJECTED\nRaison : ' + (reason || 'Aucune raison fournie') + '\n\nRedirection vers la liste de validation...');
+                // window.location.href = 'pekopeko-validation.html';
+            }
+        }
+
+        // Navigation between proposals
+        // Simulated list of proposal IDs (in a real app, this would come from the server or session storage)
+        const proposalsList = [
+            'prop-8f3a2d1c-9b4e-5a6f-7c8d-1e2f3a4b5c6d', // Current (kitsune transformation)
+            'prop-1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p', // Kitsune neuf queues
+            'prop-2b3c4d5e-6f7g-8h9i-0j1k-2l3m4n5o6p7q', // Types kitsune
+            'prop-3c4d5e6f-7g8h-9i0j-1k2l-3m4n5o6p7q8r', // Revolution cognitive
+            'prop-4d5e6f7g-8h9i-0j1k-2l3m-4n5o6p7q8r9s', // Fictions communes
+            'prop-5e6f7g8h-9i0j-1k2l-3m4n-5o6p7q8r9s0t'  // Neo-tokyo strates
+        ];
+
+        // Get current proposal index
+        function getCurrentProposalIndex() {
+            const currentId = document.querySelector('.proposal-id').textContent;
+            return proposalsList.indexOf(currentId);
+        }
+
+        // Navigate to previous proposal
+        function navigateToPrevious() {
+            const currentIndex = getCurrentProposalIndex();
+            if (currentIndex > 0) {
+                const prevId = proposalsList[currentIndex - 1];
+                window.location.href = `pekopeko-proposal-detail.html?id=${prevId}`;
+            }
+        }
+
+        // Navigate to next proposal
+        function navigateToNext() {
+            const currentIndex = getCurrentProposalIndex();
+            if (currentIndex < proposalsList.length - 1) {
+                const nextId = proposalsList[currentIndex + 1];
+                window.location.href = `pekopeko-proposal-detail.html?id=${nextId}`;
+            }
+        }
+
+        // Update button states based on current position
+        function updateNavigationButtons() {
+            const currentIndex = getCurrentProposalIndex();
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            // Disable previous button if at the start
+            prevBtn.disabled = currentIndex <= 0;
+
+            // Disable next button if at the end
+            nextBtn.disabled = currentIndex >= proposalsList.length - 1;
+        }
+
+        // Initialize navigation on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateNavigationButtons();
+        });
+
+        // Interactive Folder Path Builder Functions
+
+        // Toggle folder dropdown
+        function toggleFolderDropdown(btn, segmentIndex) {
+            const segment = btn.closest('.folder-segment');
+            const dropdown = segment.querySelector('.folder-dropdown');
+
+            // Close all other dropdowns
+            document.querySelectorAll('.folder-dropdown.active').forEach(d => {
+                if (d !== dropdown) d.classList.remove('active');
+            });
+            document.querySelectorAll('.folder-segment-btn.active').forEach(b => {
+                if (b !== btn) b.classList.remove('active');
+            });
+
+            // Toggle current dropdown
+            dropdown.classList.toggle('active');
+            btn.classList.toggle('active');
+        }
+
+        // Select folder from dropdown
+        function selectFolder(item, segmentIndex, folderName) {
+            const segment = item.closest('.folder-segment');
+            const btn = segment.querySelector('.folder-segment-btn');
+            const dropdown = segment.querySelector('.folder-dropdown');
+
+            // Update button text
+            btn.innerHTML = `${folderName} <span>▼</span>`;
+
+            // Close dropdown
+            dropdown.classList.remove('active');
+            btn.classList.remove('active');
+
+            // Update path data
+            updatePathData(segment.closest('.folder-path-builder'));
+        }
+
+        // Create new folder
+        function createNewFolder(item, segmentIndex) {
+            const newFolderName = prompt('Nom du nouveau dossier :');
+            if (newFolderName && newFolderName.trim() !== '') {
+                const cleanName = newFolderName.trim().toLowerCase().replace(/\s+/g, '-');
+                selectFolder(item, segmentIndex, cleanName);
+            }
+        }
+
+        // Add new folder segment
+        function addFolderSegment(btn) {
+            const builder = btn.closest('.folder-path-builder');
+            const newFolderName = prompt('Nom du nouveau sous-dossier :');
+
+            if (newFolderName && newFolderName.trim() !== '') {
+                const cleanName = newFolderName.trim().toLowerCase().replace(/\s+/g, '-');
+
+                // Create new segment HTML
+                const segmentCount = builder.querySelectorAll('.folder-segment').length;
+                const newSegmentHTML = `
+                    <span class="folder-separator">/</span>
+                    <div class="folder-segment">
+                        <button class="folder-segment-btn" onclick="toggleFolderDropdown(this, ${segmentCount})">
+                            ${cleanName} <span>▼</span>
+                        </button>
+                        <div class="folder-dropdown">
+                            <div class="folder-dropdown-item" onclick="selectFolder(this, ${segmentCount}, '${cleanName}')">${cleanName}</div>
+                            <div class="folder-dropdown-item create-new" onclick="createNewFolder(this, ${segmentCount})">+ Créer nouveau...</div>
+                        </div>
+                    </div>
+                `;
+
+                // Insert before the add button
+                btn.insertAdjacentHTML('beforebegin', newSegmentHTML);
+
+                // Update path data
+                updatePathData(builder);
+            }
+        }
+
+        // Update path data attribute
+        function updatePathData(builder) {
+            const segments = builder.querySelectorAll('.folder-segment-btn');
+            const pathParts = [];
+
+            segments.forEach(btn => {
+                const text = btn.textContent.trim().replace('▼', '').trim();
+                pathParts.push(text);
+            });
+
+            builder.setAttribute('data-path', pathParts.join('/'));
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.folder-segment')) {
+                document.querySelectorAll('.folder-dropdown.active').forEach(d => {
+                    d.classList.remove('active');
+                });
+                document.querySelectorAll('.folder-segment-btn.active').forEach(b => {
+                    b.classList.remove('active');
+                });
+            }
+        });
+    </script>
+
+</body></html>

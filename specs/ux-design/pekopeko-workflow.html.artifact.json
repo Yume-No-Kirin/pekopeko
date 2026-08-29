@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "pekopeko-workflow.html",
+  "entry": "pekopeko-workflow.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-25T07:01:32.874Z",
+  "updatedAt": "2026-08-25T07:01:32.874Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

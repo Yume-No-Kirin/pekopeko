@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "pekopeko-proposal-detail.html",
+  "entry": "pekopeko-proposal-detail.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-25T06:51:32.592Z",
+  "updatedAt": "2026-08-25T08:04:20.148Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}
