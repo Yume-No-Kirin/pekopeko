@@ -1,6 +1,6 @@
 # TASK-003: Entity, Event and Relationship Extraction Module (V1)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -155,3 +155,139 @@ pytest unit tests covering every acceptance criterion above. Use tmp_path (or eq
 - Any GUI or CLI.
 - A second or third concrete LLM provider beyond the one required for V1.
 - Consolidating this module's storage logic with knowledge_core/storage.py or any other existing module.
+
+## Implementation notes
+
+Implemented at `src/app/extraction/` (`errors.py`, `frontmatter.py`, `storage.py`,
+`task_state.py`, `readers/base.py`, `readers/markdown_reader.py`,
+`providers/base.py`, `providers/ollama_provider.py`, `pipeline.py`), tests at
+`src/tests/extraction/` (41 tests, 100% line coverage of `src/app/extraction`).
+Independent of `app.ingestion` and `app.review` (no imports; only the on-disk
+frontmatter contract is shared per ADI-001/ADI-004), following `app/review/`'s
+more mature pattern rather than `app/ingestion/`'s: typed exceptions
+(`errors.py`), a fixed atomic-write helper (cleans up the `.tmp` file if
+`os.replace()` itself fails -- the real bug TASK-002's verification found and
+fixed in `app/ingestion/storage.py`'s original version), and small path-builder
+helpers in `storage.py`.
+
+**Frontmatter field names follow this ticket's own "File layout (exact
+contract)" section literally** (`item_type`, `source_id`, `source_path`,
+`content` for the Source file; no separate `id` field on Proposals), which
+differs from TASK-001's field names (`type`, `id`, `original_filename`,
+`content_hash`) -- the two tickets specify different contracts and neither
+references the other's code, so this divergence is expected, not an error.
+
+**Relationship endpoint resolution** (not spelled out in code by the ticket):
+`ExtractedEntity`/`ExtractedEvent` carry a provider-assigned `local_id`
+scoped to one extraction call. `pipeline.py` writes all entity then event
+proposals first, building a `local_id -> proposal_id` map, then resolves each
+relationship's `endpoints` through that map before writing the relationship
+proposal (a string not matching any `local_id` is passed through unchanged,
+treated as an existing canonical item id per the ticket's own wording).
+
+**OllamaProvider** asks the model for a single JSON object
+(`{"entities": [...], "events": [...], "relationships": [...]}`) rather than
+TASK-001's line-delimited `"status: text"` format, since three item types with
+different type-specific fields plus the `local_id`/`endpoints` correlation
+can't be expressed in a flat line format. Parsing fails loud (raises) on
+malformed JSON or an invalid `epistemic_status`, never silently defaults.
+
+**Post-verification cleanup (2026-08-30):** `VALID_EPISTEMIC_STATUSES` was
+originally defined separately in `storage.py` (a `set`) and
+`providers/ollama_provider.py` (a `list`) -- same four values in both, so no
+functional bug, but a latent drift risk since both were hand-maintained.
+Consolidated into a single `frozenset` in `providers/base.py` (the module
+that already owns the `epistemic_status` vocabulary via the `Extracted*`
+dataclasses); `storage.py` and `ollama_provider.py` now both import it
+instead of redefining it. Also added `test_source_id_changes_when_middle_of_content_changes`
+to `test_storage.py`, explicitly demonstrating that `_generate_source_id`
+hashes the *entire* source content (SHA-256 always consumes its full input;
+only the resulting hex-digest string is truncated to 16 characters to keep
+the id short) rather than only a prefix/suffix -- confirms duplicate
+detection (AC3) is not vulnerable to two different sources sharing only a
+common start/end. No production behavior changed by either point; both were
+re-verified in the isolated scratch copy (41/41 tests, 100% coverage).
+
+**Inherited characteristic (not introduced by this ticket):** duplicate
+detection is existence-only on `source_id` (content hash), same as TASK-001.
+If extraction fails after the Source file is already written, re-ingesting
+identical content is skipped as a duplicate rather than retried, since the
+pipeline cannot distinguish "already fully processed" from "source written,
+extraction failed" by file existence alone. This mirrors TASK-001's accepted
+behavior; changing dedup semantics was out of scope for this ticket.
+
+## Verification record (2026-08-30)
+
+Implemented by Claude (this session). Per this project's verification
+discipline: code was copied to an isolated scratch directory (outside the
+repo, `.../scratchpad/task003_verify/`) and the test suite re-run
+independently there (41/41 passed, 100% coverage, matching the in-repo run),
+rather than trusting the in-repo run alone. A hand-written manual
+reproduction script (`manual_repro.py`, run in the isolated copy) called
+`extract_source` directly and the resulting Source/Proposal files were read
+back and inspected by eye -- frontmatter fields, relationship endpoint
+resolution (local_id -> real proposal_id), and duplicate-skip behavior all
+matched the contract. Each acceptance criterion checked individually:
+
+- `[PASS]` AC1 (Source + one Proposal file per extracted item, all required
+  frontmatter incl. `proposal_status: PROPOSED`, `provenance.source_id`, and
+  type-specific fields) -- `test_first_extraction_full_contract`
+  (`test_pipeline.py`) and all of `test_type_specific_fields.py` pass in both
+  runs; manually confirmed by eye via `manual_repro.py`'s printed file
+  contents.
+- `[PASS]` AC2 (no pipeline/storage/reader code imports an LLM SDK/HTTP client
+  directly) -- `test_non_provider_modules_do_not_import_llm_sdk` and
+  `test_ollama_provider_only_imports_requests_lazily`
+  (`test_import_isolation.py`) pass; `requests` is imported lazily inside
+  `OllamaProvider.__init__` only.
+- `[PASS]` AC3 (re-ingesting identical content creates no new files, returns
+  `skipped_duplicate`) -- `test_duplicate_detection` (`test_pipeline.py`)
+  passes, asserting the provider is called exactly once and the proposals
+  directory still holds exactly the original 3 files after the second call;
+  reconfirmed in `manual_repro.py`'s duplicate re-ingestion step.
+- `[PASS]` AC4 (provider failure leaves no partial/corrupt file, original
+  input untouched, task state `failed` with non-null `error`) --
+  `test_provider_failure_handling` (`test_pipeline.py`) and
+  `test_pipeline_records_failed_status_with_error` (`test_task_state.py`)
+  pass. Note: the Source file is written *before* the provider call (mirrors
+  TASK-001) and is intentionally left in place on provider failure -- this is
+  a complete write, not a partial one; no proposal files exist.
+- `[PASS]` AC5 (second reader registered without touching `pipeline.py`) --
+  `test_second_reader_extensibility` (`test_extensibility.py`) registers a
+  local `MockTextReader` on a freshly-built `SourceReaderRegistry`.
+- `[PASS]` AC6 (second provider swapped without touching `pipeline.py`) --
+  `test_second_provider_extensibility` (`test_extensibility.py`) passes a
+  plain `MockProvider` class (structural `Provider` typing, no inheritance)
+  directly into `extract_source`.
+- `[PASS]` AC7 (`epistemic_status` always one of the 4 values, never silently
+  defaulted) -- `test_write_entity_proposal_file_invalid_epistemic_status_raises`
+  (`test_storage.py`) and `test_extract_raises_on_invalid_epistemic_status`
+  (`test_ollama_provider.py`, LLM-response-level) both confirm a bad value
+  raises rather than defaulting; every write path requires an explicit valid
+  value.
+- `[PASS]` AC8 (atomic writes; failure leaves no partial file) --
+  `test_atomic_write_creates_file_no_leftover_tmp`,
+  `test_atomic_write_cleans_up_tmp_on_replace_failure`, and
+  `test_no_rollback_target_file_untouched_on_replace_failure`
+  (`test_storage.py`) simulate an `os.replace()` failure via monkeypatch and
+  confirm no `.tmp` file survives and the original target (if any) is
+  unchanged -- using the fixed cleanup pattern from `app/review/storage.py`
+  (the orphaned-`.tmp`-file bug TASK-002 found and fixed does not recur here).
+- `[PASS]` AC9 (no git usage) -- `grep -rn "git" src/app/extraction/` returns
+  nothing in both the working tree and the isolated copy;
+  `test_no_git_usage_in_extraction_module` passes independently in both too.
+- `[PASS]` Test coverage -- `pytest --cov=src.app.extraction` reports 100%
+  line coverage (351/351 statements) in both the working tree and the
+  isolated copy (project requirement: >=80%).
+- `[PASS]` 41/41 tests pass in the working tree and again, independently, in
+  an isolated scratch copy of the code.
+- `[NOT RUN]` Real Ollama endpoint / GUI interaction -- not applicable
+  (`requests.post` is mocked in all `OllamaProvider` tests per the project's
+  "no real network calls" testing rule; ticket has no GUI/CLI requirement).
+
+**Honesty note on independence**: this verification was performed by the same
+Claude session that wrote the implementation, not by a separate reviewer or
+model (same caveat flagged in TASK-002's verification record). It does follow
+the isolated-copy-and-independently-rerun discipline the project asks for,
+plus a manual by-eye file inspection beyond just re-running pytest, but it is
+not the same strength of evidence as an independent second reviewer.

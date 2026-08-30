@@ -2,18 +2,18 @@
 
 ## First thing, every session
 
-Read `docs/ROADMAP.md` in full before touching anything in this repo. It is the single source of continuity — not this file, not `docs/PROJECT_HANDOFF.md` (a stale one-off dump, explicitly not kept up to date, do not rely on it). Then follow ROADMAP.md's own "Démarrage de session" steps: find the current phase, read that phase's "Lecture requise" file list in full (not a summary), and check `specs/decisions/` for ADRs relevant to that phase.
+Read `docs/ROADMAP.md` in full before touching anything in this repo. It is the single source of continuity — not this file. Then follow ROADMAP.md's own "Démarrage de session" steps: find the current step, read the matching "Lecture requise" file list in full (not a summary), and check `specs/decisions/` for the ADRs the current ticket cites.
 
 ## Source of truth
 
 - `docs/ROADMAP.md` — current phase, status, next action. Kept up to date; trust it over memory of past conversations.
 - `specs/` — product vision, architecture, domain model, and ADRs. `specs/decisions/README.md` defines the ADR format; `specs/tasks/README.md` defines the ticket lifecycle (`backlog/` → `active/` → `completed/`).
-- Everything else (this file included) should point at those two, not duplicate their content — ROADMAP.md itself explains why `PROJECT_HANDOFF.md` went stale by doing that.
+- Everything else (this file included) should point at those two, not duplicate their content. A doc that restates them drifts out of date silently — that is exactly how an earlier context dump in `docs/` went stale and had to be dropped.
 
 ## Working conventions
 
 - An ADR with status `Proposed` is not a decision. Never treat it as accepted without Cleo's explicit confirmation, even if the draft already exists.
-- After any session that changes something (spec, decision, code), update ROADMAP.md's "État actuel" and "Prochaine action exacte" — and verify the two are still mutually consistent, not just individually edited. A real desync between them happened once (see ROADMAP.md's "Bug trouvé et corrigé dans ce fichier lui-même").
+- After any session that changes something (spec, decision, code), update ROADMAP.md's "État actuel" and "Prochaine action exacte" — and verify the two are still mutually consistent, not just individually edited. A real desync between them happened once: "Prochaine action exacte" still pointed at a ticket that a re-prioritization earlier in the same file had already dropped.
 - A ticket under `specs/tasks/` must be self-contained: files/modules concerned, expected schema/interface, testable acceptance criteria, and the 2-3 relevant invariants cited explicitly in the ticket. If implementing a ticket requires re-reading all of `specs/`, the ticket is scoped wrong.
 - A significant architecture decision belongs in `specs/decisions/` as a real ADR file — not only as a paragraph in ROADMAP.md or a conclusion left in chat history.
 - Verification discipline: never trust a single test run or an AI-generated report at face value. Reproduce independently — copy the code to an isolated location, rerun tests yourself, check each acceptance criterion one by one. Write audit/verification reports to a file in a structured, line-by-line format (`[STATUS] check — result`), listing every check attempted including ones that failed to run — not summarized in chat.
@@ -42,7 +42,7 @@ Read `docs/ROADMAP.md` in full before touching anything in this repo. It is the 
 ## Code and tests
 
 - Backend implementation language is Python (ADI-007, `specs/decisions/ADI-007-implementation-language.md`).
-- No `requirements.txt` or `pyproject.toml` exists yet; the only dependency in use so far is `pyyaml`.
+- Dependencies are pinned in `src/requirements.txt` (`pyyaml`, `requests`, `pytest`). No `pyproject.toml` exists yet.
 - Tests use `pytest` and must run against a temp directory (`tmp_path` or equivalent) — never against a real Obsidian vault or any path outside the test's own temp directory.
 - No git-based historization anywhere in the implementation. Canonical item history is per-item folders on disk (ADI-001, `specs/decisions/ADI-001-canonical-persistence-model.md`) — this was an explicit, firm decision; do not reintroduce git for it.
 - Test coverage : at least 80%
