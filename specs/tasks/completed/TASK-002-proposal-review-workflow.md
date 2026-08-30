@@ -1,6 +1,6 @@
 # TASK-002: Proposal Review Workflow (V1)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -147,3 +147,58 @@ None as code. Depends on TASK-001 only through the shared Proposal/Source frontm
 - Any GUI or CLI.
 - Cross-domain review operations (INV-009).
 - Reviewer authentication/authorization.
+
+## Verification record (2026-08-29)
+
+Implemented by Claude (this session) at `src/app/review/` (`errors.py`, `frontmatter.py`,
+`storage.py`, `pipeline.py`), tests at `src/tests/review/` (56 tests). Per this project's
+verification discipline: code was copied to an isolated scratch directory (outside the repo) and
+the test suite re-run independently there, rather than trusting the in-repo run alone. Each
+acceptance criterion checked individually:
+
+- `[PASS]` AC1 (accept writes a compliant Assertion file, updates proposal to ACCEPTED with
+  reviewed_by/reviewed_at/resulting_item_id) — `test_accept_proposal_writes_assertion_with_all_required_frontmatter`,
+  `test_accept_proposal_carries_over_valid_from_valid_until`, `test_accept_proposal_provenance_fields`,
+  `test_accept_proposal_updates_proposal_fields` pass in both runs. Also manually reproduced
+  end-to-end outside pytest (hand-built fixture files, called `pipeline.accept_proposal` directly,
+  read the resulting files back) — output frontmatter/body inspected by eye, matches contract.
+- `[PASS]` AC2 (reject sets REJECTED, no assertion file, other fields/body unchanged) — 11 tests
+  in `test_pipeline_reject.py` pass, including explicit before/after body comparison.
+- `[PASS]` AC3 (no `history/` subfolder on either transition) — `test_accept_proposal_no_history_subfolder_created`,
+  `test_reject_proposal_no_history_subfolder_created` pass; code inspection confirms
+  `write_proposal_file_in_place` never creates a `history/` path.
+- `[PASS]` AC4 (typed error on non-PROPOSED status, no side effects) — all double-transition
+  combinations tested (accept→accept, accept→reject, reject→reject, reject→accept);
+  `test_accept_already_accepted_proposal_raises_and_leaves_files_unchanged` explicitly diffs file
+  content before/after the second (failing) call.
+- `[PASS]` AC5 (failed assertion write leaves proposal at PROPOSED, no orphaned assertion file) —
+  `test_accept_proposal_assertion_write_failure_leaves_proposal_untouched`,
+  `test_accept_proposal_assertion_write_failure_no_orphan_assertion_file` pass, via monkeypatching
+  `storage.write_assertion_file` to raise before any file is touched.
+- `[PASS]` AC6 (`list_proposals` domain isolation + status filter) — `test_list_proposals_domain_isolation`,
+  `test_list_proposals_filters_by_status`, `test_list_proposals_no_status_filter_returns_all_statuses` pass.
+- `[PASS]` AC7 (`get_proposal` resolves linked Source content) — `test_get_proposal_resolves_linked_source_content`
+  passes; manually confirmed `detail.source_body` equals the literal source file content.
+- `[PASS]` AC8 (atomic writes, no partial file survives a failure) — code inspection confirms
+  temp-file-then-`os.replace()`; `test_write_atomic_file_failure_leaves_no_partial_file` simulates
+  a mid-write failure and confirms no `.md` or orphaned `.tmp` file remains. **Bug found and fixed
+  during this verification pass**: the first implementation of `_write_atomic_file` (matching
+  `ingestion/storage.py`'s existing pattern) did not clean up the temporary file if `os.replace()`
+  itself failed, leaving an orphaned `.tmp` file — caught by this test, fixed by wrapping
+  `os.replace()` in try/except that removes the temp file and re-raises.
+- `[PASS]` AC9 (no git usage) — `grep -rn "git" src/app/review/` returns nothing;
+  `test_no_git_references_in_review_module` passes independently in the isolated copy too.
+- `[PASS]` Test coverage — `pytest --cov=src.app.review` reports 100% line coverage (196/196
+  statements), in both the working tree and the isolated copy (project requirement: ≥80%).
+- `[PASS]` 56/56 tests pass in the working tree and again, independently, in an isolated scratch
+  copy of the code (not just re-running in place).
+- `[NOT RUN]` Real Obsidian vault / GUI interaction — not applicable, ticket has no GUI/CLI
+  requirement (function entry points only, per Constraints).
+
+**Honesty note on independence**: this verification was performed by the same Claude session that
+wrote the implementation, not by a separate reviewer or model (unlike KC-001's two-round qwen ↔
+Claude cross-check). It does follow the isolated-copy-and-independently-rerun discipline the
+project asks for, and it did catch one real bug (the orphaned `.tmp` file above) rather than just
+re-confirming a passing test run — but it is not the same strength of evidence as an independent
+second reviewer. Flagging this the same way the TASK-001 gap was flagged in `docs/ROADMAP.md`,
+rather than silently presenting this as equivalent to a cross-model review.

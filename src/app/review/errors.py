@@ -1,0 +1,35 @@
+"""
+Typed exceptions for the proposal review workflow.
+"""
+
+
+class ReviewError(Exception):
+    """Base class for all review/ module errors."""
+
+
+class ValidationError(ReviewError):
+    """Raised when frontmatter is missing/invalid, on read or write."""
+
+
+class ProposalNotFoundError(ReviewError):
+    """Raised when proposal_id does not resolve to a file under <domain>/proposals/."""
+
+
+class SourceNotFoundError(ReviewError):
+    """Raised when provenance.source_id does not resolve to a file under <domain>/sources/."""
+
+
+class DomainMismatchError(ReviewError):
+    """Raised when the caller-supplied domain does not match the proposal's own domain field."""
+
+
+class InvalidProposalStatusError(ReviewError):
+    """Raised when accept/reject is attempted on a proposal whose proposal_status != PROPOSED."""
+
+
+class UnsupportedProposalTypeError(ReviewError):
+    """Raised when proposed_item_type != 'assertion' (V1 scope)."""
+
+
+class InvalidDomainError(ReviewError):
+    """Raised when domain is not one of the allowed domains."""
