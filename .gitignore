@@ -24,3 +24,8 @@ _tmp_*
 # requirements_analysis.md) — dead working files, not part of the corpus.
 # See docs/ROADMAP.md Phase 0 for what actually happened with Task E.
 temp/
+
+# --- Pekopeko: local device secrets (TASK-004, app/config) ---
+# .env holds secrets/local overrides for the PEKOPEKO_* config keys — never
+# committed. .env.example (the template) stays tracked.
+.env

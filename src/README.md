@@ -35,23 +35,41 @@ app/
 
 ### Configuration
 
-Configuration is handled through environment variables in `.env` file:
+Configuration is local to the device, never inside the vault (ADI-008), and
+lives in a YAML file read by `app.config.load_config()`:
 
-```env
-# Ollama provider settings
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3
-OLLAMA_TIMEOUT=60
+- **Location**: `~/.pekopeko/config.yaml` by default, overridable via the
+  `PEKOPEKO_CONFIG_PATH` environment variable. A missing file is not an
+  error - built-in defaults are used.
+- **Schema**:
+  ```yaml
+  llm_provider:
+    active: ollama          # which concrete provider is active
+    ollama:
+      base_url: http://localhost:11434
+      model: llama3
+      timeout: 60
+  retrieval:
+    index_dir: ~/.pekopeko/retrieval_index
+  task_state:
+    dir: ~/.pekopeko/task_state
+  ```
+- **Environment-variable overrides** (bounded list, each overrides the
+  corresponding file value for that one key): `PEKOPEKO_CONFIG_PATH`,
+  `PEKOPEKO_LLM_PROVIDER`, `PEKOPEKO_OLLAMA_BASE_URL`, `PEKOPEKO_OLLAMA_MODEL`,
+  `PEKOPEKO_OLLAMA_TIMEOUT`, `PEKOPEKO_TASK_STATE_DIR`,
+  `PEKOPEKO_RETRIEVAL_INDEX_DIR`.
+- **`.env` companion file** (optional, next to the resolved `config.yaml` -
+  default `~/.pekopeko/.env`): loaded via `python-dotenv` for secrets/
+  sensitive values, recognizing only the same bounded `PEKOPEKO_*` keys
+  above - not a separate key namespace. A real process env var still wins
+  over a `.env` value.
+- **`default.domain`**: reserved for a future ticket, not yet read by
+  `ingest_source`/`extract_source`.
 
-# Vault root directory
-VAULT_ROOT=./vault
-
-# Task state directory
-TASK_STATE_DIR=./task_state
-
-# Default domain for ingestion
-DEFAULT_DOMAIN=PERSONAL
-```
+`vault_root` remains an explicit caller-supplied parameter to
+`ingest_source`/`extract_source` - it has no configuration surface (YAML or
+`.env`).
 
 ### Usage
 
@@ -98,6 +116,7 @@ This implementation complies with all relevant ADRs:
 - Python 3.8+
 - PyYAML (`pip install pyyaml`)
 - requests (for Ollama provider, `pip install requests`)
+- python-dotenv (for the optional `.env` config companion file, `pip install python-dotenv`)
 
 ### Testing
 

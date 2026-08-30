@@ -20,8 +20,8 @@
 Phase : implémentation des tickets `TASK-XXX` (en cours).
 
 - **Décisions** : ADI-001 à ADI-009 toutes `Accepted` (voir ci-dessous). Aucune décision d'architecture en attente.
-- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions), `src/app/review/` (TASK-002, revue des propositions), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship), tests sous `src/tests/`. Les trois tickets sont dans `specs/tasks/completed/`.
-- **Suite** : `specs/tasks/backlog/` est maintenant vide. Le reste du travail du Knowledge Core (config locale, revue des propositions Entity/Event/Relationship, statut EDITED, retrieval, etc.) n'est pas encore ticketé — voir `specs/tasks/BACKLOG-CLAUDE.md` pour l'inventaire complet (rédigé indépendamment, sans consulter un éventuel `BACKLOG.md`) avant d'écrire le prochain ticket.
+- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions), `src/app/review/` (TASK-002, revue des propositions), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), tests sous `src/tests/`. Les quatre tickets sont dans `specs/tasks/completed/`.
+- **Suite** : le reste du travail du Knowledge Core (revue des propositions Entity/Event/Relationship, statut EDITED, retrieval, etc.) n'est pas encore ticketé — voir `specs/tasks/BACKLOG-CLAUDE.md` pour l'inventaire complet (rédigé indépendamment, sans consulter un éventuel `BACKLOG.md`) avant d'écrire le prochain ticket.
 - **Reste à ticketer** : l'interface (framework tranché par ADI-009, mais ni scope V1 ni ticket écrits).
 
 ## Décisions d'architecture (ADI-001 à ADI-009, toutes `Accepted`)
@@ -93,6 +93,16 @@ Scope V1 : indépendant de `app.ingestion` et `app.review` (aucun import ; seul 
 - Vérifié par Claude selon la discipline du projet (environnement isolé — copie hors dépôt, 41/41 rejoués, 100 % couverture reconfirmée, 9 critères un par un, plus une reproduction manuelle bout-en-bout avec inspection par l'œil des fichiers Source/Proposal produits). Rapport dans la section « Verification record » du ticket. Même limite que TASK-002 : vérification faite par la même session Claude que l'implémentation, pas par un second réviseur indépendant.
 - **Relecture demandée par Cleo (2026-08-30)** : deux points vérifiés post-implémentation. (1) `VALID_EPISTEMIC_STATUSES` était défini deux fois (`storage.py` en `set`, `ollama_provider.py` en `list`) — mêmes valeurs, pas de bug fonctionnel, mais risque de dérive silencieuse ; consolidé en une seule définition dans `providers/base.py`, importée par les deux autres fichiers. (2) Hash de détection de doublon (`_generate_source_id`) confirmé calculé sur l'intégralité du contenu (SHA-256 consomme tout l'input ; seul le digest hexadécimal résultant est tronqué à 16 caractères pour raccourcir l'id) — pas de bug, un test explicite ajouté pour le démontrer. Voir « Post-verification cleanup » dans le ticket.
 
+### TASK-004 — Mécanisme de configuration locale — `completed`
+
+`specs/tasks/completed/TASK-004-local-configuration.md`. Formalise ce qu'ADI-008 (et implicitement ADI-002/ADI-005) supposait déjà : un fichier YAML local (`~/.pekopeko/config.yaml`, jamais dans le vault) plus une liste bornée d'overrides par variable d'env, pour le provider LLM actif, l'emplacement de l'index de retrieval (réservé pour la future TASK-007, non consommé ici) et celui de l'état de tâche. Code : `src/app/config/` (`schema.py`, `loader.py`, `errors.py`), plus `providers/factory.py` neuf dans `src/app/ingestion/` et `src/app/extraction/`, 19 tests dans `src/tests/config/` (100 % de couverture de lignes), quelques tests additionnels dans `src/tests/ingestion/` et `src/tests/extraction/`.
+
+Branchement minimal : `ingestion/pipeline.py` et `extraction/pipeline.py` tirent désormais leur défaut de `state_dir` de la config (`<task_state.dir>/ingestion` et `<task_state.dir>/extraction`), et chacun reçoit une factory optionnelle (`providers/factory.py`) pour construire son `OllamaProvider` depuis la config — sans changer la signature publique de `ingest_source`/`extract_source` ni le fait que `provider` reste un paramètre obligatoire fourni par l'appelant.
+
+- **Amendement (2026-08-30)** : Cleo a ajouté après coup un fichier `.env` compagnon pour les secrets et un champ `default.domain` réservé. Après clarification (3 questions posées et tranchées, voir le ticket) : `.env` (via `python-dotenv`, nouvelle dépendance pinnée) ne fait que charger les mêmes 7 clés bornées `PEKOPEKO_*` déjà existantes — pas un second espace de clés — et une vraie variable d'env réelle garde toujours la priorité sur `.env`. `default.domain` est réservé (comme `retrieval.index_dir` pour TASK-007) : présent dans le schéma, jamais lu par `ingest_source`/`extract_source`, aucun changement de signature. `vault_root` n'a toujours aucune surface de config. 24/24 tests `config` (100 % couverture), vérification en environnement isolé rejouée indépendamment — détail complet dans la section « Amendment verification » du ticket.
+
+- Vérifié par Claude selon la discipline du projet (environnement isolé, 19/19 tests `config` rejoués + couverture 100 % reconfirmée, 44/44 `extraction` et 29/31 `ingestion` (2 échecs préexistants et non liés à ce ticket) rejoués, 11 critères un par un, plus un script de reproduction manuelle bout-en-bout par l'œil). Rapport dans la section « Verification record » du ticket. Même limite que TASK-002/TASK-003 : vérification faite par la même session Claude que l'implémentation, pas par un second réviseur indépendant.
+
 ### Interface — pas encore ticketée
 
 Framework tranché (ReactJS, ADI-009) et écrans définis par les maquettes de `specs/ux-design/`, mais le scope V1 et le découpage en tickets restent à faire.
@@ -111,9 +121,7 @@ Framework tranché (ReactJS, ADI-009) et écrans définis par les maquettes de `
 
 ## Prochaine action exacte
 
-**TASK-001, TASK-002 et TASK-003 sont tous `completed`.** `specs/tasks/backlog/` est vide — il n'y a pas de ticket prêt à implémenter immédiatement. Avant d'en écrire un nouveau, lire `specs/tasks/BACKLOG-CLAUDE.md` (inventaire complet du travail restant, rédigé le 2026-08-30 sans consulter un éventuel `BACKLOG.md` séparé) et demander à Cleo lequel prioriser — candidats évidents en tête de liste : TASK-004 (config locale, implicitement supposée exister par TASK-001/003 sans jamais avoir été ticketée) et TASK-005 (revue des propositions Entity/Event/Relationship, miroir de TASK-002 pour la sortie de TASK-003).
-
-Une fois le prochain ticket choisi et rédigé : le lire en entier avec les ADR qu'il cite, l'implémenter, le vérifier selon la discipline ci-dessus (environnement isolé, critères un par un, rapport structuré dans une section « Verification record » du ticket), puis le déplacer vers `specs/tasks/completed/` et mettre à jour « État actuel » + cette section.
+**TASK-001, TASK-002, TASK-003 et TASK-004 sont tous `completed`** (2026-08-30). Prochaine action : revoir `specs/tasks/BACKLOG-CLAUDE.md` (inventaire complet du travail restant) et demander à Cleo lequel prioriser ensuite — candidat évident : TASK-005 (revue des propositions Entity/Event/Relationship, miroir de TASK-002 pour la sortie de TASK-003).
 
 ---
 

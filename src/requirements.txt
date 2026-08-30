@@ -3,6 +3,7 @@
 # Core dependencies
 pyyaml>=6.0.0
 requests>=2.28.0
+python-dotenv>=1.0.0
 
 # For testing (if needed)
 pytest>=7.0.0

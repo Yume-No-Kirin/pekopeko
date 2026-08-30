@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
+from ..config import load_config
 from .providers.base import Provider, ExtractionResult
 from .readers.base import SourceReaderRegistry
 from .readers.markdown_reader import MarkdownReader
@@ -57,8 +58,7 @@ def ingest_source(
 
     # Create task state if not provided
     if state_dir is None:
-        # Default to a temporary directory for task state
-        state_dir = Path.home() / ".pekopeko" / "ingestion_state"
+        state_dir = load_config().task_state.dir / "ingestion"
 
     task_state = create_task_state(str(source_path), domain, state_dir)
     update_task_state(task_state, state_dir)

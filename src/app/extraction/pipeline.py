@@ -9,14 +9,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+from ..config import load_config
 from . import storage
 from .errors import InvalidDomainError
 from .providers.base import Provider
 from .readers.base import SourceReaderRegistry
 from .readers.markdown_reader import MarkdownReader
 from .task_state import TaskState, create_task_state, update_task_state
-
-DEFAULT_STATE_DIR = Path.home() / ".pekopeko" / "extraction_state"
 
 
 class ExtractionPipelineResult:
@@ -58,7 +57,7 @@ def extract_source(
         raise InvalidDomainError(f"Invalid domain '{domain}'. Must be one of {sorted(storage.VALID_DOMAINS)}")
 
     if state_dir is None:
-        state_dir = DEFAULT_STATE_DIR
+        state_dir = load_config().task_state.dir / "extraction"
 
     task_state = create_task_state(str(source_path), domain, state_dir)
     update_task_state(task_state, state_dir)

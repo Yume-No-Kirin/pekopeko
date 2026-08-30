@@ -15,14 +15,14 @@ Constat de départ : les tickets existants ferment le flux `SOURCE → EXTRACTIO
 **Statut : completed.** Ferme `PROPOSAL → HUMAN REVIEW → CANONICAL` (UC-011, CAP-CORE-002) pour les propositions de type `assertion` : listing, détail, accept/reject uniquement (pas d'édition, pas de bulk).
 
 ### TASK-003 — Extraction Entity/Event/Relationship
-**Statut : backlog (rédigé, prochain à implémenter).** Même pipeline que TASK-001 mais pour Entity/Event/Relationship ; s'arrête à PROPOSED, ne résout pas encore les endpoints de relation vers des IDs canoniques.
+**Statut : completed.** Même pipeline que TASK-001 mais pour Entity/Event/Relationship ; s'arrête à PROPOSED, ne résout pas encore les endpoints de relation vers des IDs canoniques.
+
+### TASK-004 — Mécanisme de configuration locale
+**Statut : completed.** Un système de config unique (fichier ou variables d'environnement, local, par appareil, jamais dans le vault) pour choisir le provider LLM actif, l'emplacement de l'index de retrieval et celui de l'état de tâche. Requis implicitement par ADI-002, ADI-005 et ADI-008, mais aucun ticket ne le formalise encore — TASK-001/003 supposent juste qu'il existe.
 
 ---
 
 ## 2. Knowledge Core — cycle de vie proposition/canonique (manquant)
-
-### TASK-004 — Mécanisme de configuration locale
-Un système de config unique (fichier ou variables d'environnement, local, par appareil, jamais dans le vault) pour choisir le provider LLM actif, l'emplacement de l'index de retrieval et celui de l'état de tâche. Requis implicitement par ADI-002, ADI-005 et ADI-008, mais aucun ticket ne le formalise encore — TASK-001/003 supposent juste qu'il existe.
 
 ### TASK-005 — Revue des propositions Entity/Event/Relationship
 Miroir de TASK-002 pour la sortie de TASK-003 : listing/détail/accept/reject pour `proposed_item_type` entity/event/relationship, plus la résolution des `endpoints` d'une relation acceptée vers des IDs canoniques stables (ADI-003), une fois ses propres endpoints eux-mêmes acceptés.

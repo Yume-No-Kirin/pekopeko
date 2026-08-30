@@ -155,13 +155,11 @@ def test_domain_validation(tmp_path, source_file):
 
 
 def test_default_state_dir_used_when_not_provided(tmp_path, source_file, monkeypatch):
-    # Monkeypatch the module-level default so this never touches the real
+    # Override via PEKOPEKO_TASK_STATE_DIR so this never touches the real
     # home directory (AGENTS.md: tests must never write outside their own
     # temp directory).
-    from src.app.extraction import pipeline as pipeline_module
-
-    fake_default = tmp_path / "fake_home_state"
-    monkeypatch.setattr(pipeline_module, "DEFAULT_STATE_DIR", fake_default)
+    fake_root = tmp_path / "fake_home_state"
+    monkeypatch.setenv("PEKOPEKO_TASK_STATE_DIR", str(fake_root))
 
     vault_root = tmp_path / "vault"
     provider = FakeProvider(_full_extraction_result())
@@ -169,6 +167,7 @@ def test_default_state_dir_used_when_not_provided(tmp_path, source_file, monkeyp
     result = extract_source(vault_root, "PERSONAL", source_file, provider)
 
     assert result.status == "completed"
+    fake_default = fake_root / "extraction"
     assert fake_default.exists()
     assert list(fake_default.glob("extract-*.json"))
 
