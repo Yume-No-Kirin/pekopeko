@@ -15,7 +15,7 @@ from .errors import InvalidDomainError
 from .providers.base import Provider
 from .readers.base import SourceReaderRegistry
 from .readers.markdown_reader import MarkdownReader
-from .task_state import TaskState, create_task_state, update_task_state
+from .task_state import TaskState, create_task_state, update_task_state, append_task_event
 
 
 class ExtractionPipelineResult:
@@ -61,6 +61,8 @@ def extract_source(
 
     task_state = create_task_state(str(source_path), domain, state_dir)
     update_task_state(task_state, state_dir)
+    append_task_event(task_state, state_dir, "info", "Extraction task started",
+                       {"source_path": str(source_path), "domain": domain})
 
     try:
         task_state.status = "running"
@@ -68,10 +70,14 @@ def extract_source(
 
         registry = _build_reader_registry()
         content = registry.read_file(source_path)
+        append_task_event(task_state, state_dir, "info", "Source content read",
+                           {"source_path": str(source_path)})
 
         source_id = storage._generate_source_id(content)
 
         if storage.source_exists(vault_root, domain, source_id):
+            append_task_event(task_state, state_dir, "info", "Duplicate source detected, skipping extraction",
+                               {"source_id": source_id})
             task_state.source_id = source_id
             task_state.status = "skipped_duplicate"
             task_state.completed_at = datetime.now().isoformat()
@@ -80,14 +86,23 @@ def extract_source(
                 source_id=source_id, proposal_ids=[], status="skipped_duplicate", skipped_duplicate=True
             )
 
+        append_task_event(task_state, state_dir, "info", "No duplicate found, continuing extraction",
+                           {"source_id": source_id})
+
         storage.write_source_file(vault_root, domain, content)
         task_state.source_id = source_id
         update_task_state(task_state, state_dir)
+        append_task_event(task_state, state_dir, "info", "Source file written",
+                           {"source_id": source_id})
 
         extraction_provider = type(provider).__name__
+        append_task_event(task_state, state_dir, "info", "Provider extraction call started",
+                           {"provider": extraction_provider})
         try:
             extraction_result = provider.extract(content, {"source_path": str(source_path)})
         except Exception as e:
+            append_task_event(task_state, state_dir, "warning", "Provider extraction call failed",
+                               {"provider": extraction_provider, "error": str(e)})
             task_state.status = "failed"
             task_state.error = str(e)
             task_state.completed_at = datetime.now().isoformat()
@@ -95,6 +110,12 @@ def extract_source(
             return ExtractionPipelineResult(
                 source_id=source_id, proposal_ids=[], status="failed", error=task_state.error
             )
+
+        append_task_event(task_state, state_dir, "success", "Provider extraction call finished",
+                           {"provider": extraction_provider,
+                            "entities_count": len(extraction_result.entities),
+                            "events_count": len(extraction_result.events),
+                            "relationships_count": len(extraction_result.relationships)})
 
         proposal_ids: List[str] = []
         local_id_to_proposal_id = {}
@@ -108,6 +129,8 @@ def extract_source(
                 proposal_ids.append(proposal_id)
                 task_state.proposal_ids = proposal_ids
                 update_task_state(task_state, state_dir)
+                append_task_event(task_state, state_dir, "info", "Proposal written",
+                                   {"proposal_id": proposal_id, "proposed_item_type": "entity"})
 
             for event in extraction_result.events:
                 proposal_id = storage.write_event_proposal_file(
@@ -117,6 +140,8 @@ def extract_source(
                 proposal_ids.append(proposal_id)
                 task_state.proposal_ids = proposal_ids
                 update_task_state(task_state, state_dir)
+                append_task_event(task_state, state_dir, "info", "Proposal written",
+                                   {"proposal_id": proposal_id, "proposed_item_type": "event"})
 
             for relationship in extraction_result.relationships:
                 resolved_endpoints = [
@@ -129,7 +154,11 @@ def extract_source(
                 proposal_ids.append(proposal_id)
                 task_state.proposal_ids = proposal_ids
                 update_task_state(task_state, state_dir)
+                append_task_event(task_state, state_dir, "info", "Proposal written",
+                                   {"proposal_id": proposal_id, "proposed_item_type": "relationship"})
         except Exception as e:
+            append_task_event(task_state, state_dir, "warning", "Failed to write proposal",
+                               {"error": str(e)})
             task_state.status = "failed"
             task_state.error = f"Failed to write proposal: {e}"
             task_state.completed_at = datetime.now().isoformat()
@@ -141,12 +170,16 @@ def extract_source(
         task_state.status = "completed"
         task_state.completed_at = datetime.now().isoformat()
         update_task_state(task_state, state_dir)
+        append_task_event(task_state, state_dir, "success", "Extraction task completed",
+                           {"proposal_count": len(proposal_ids)})
 
         return ExtractionPipelineResult(
             source_id=source_id, proposal_ids=proposal_ids, status="completed"
         )
 
     except Exception as e:
+        append_task_event(task_state, state_dir, "warning", "Extraction task failed",
+                           {"error": str(e)})
         task_state.status = "failed"
         task_state.error = str(e)
         task_state.completed_at = datetime.now().isoformat()

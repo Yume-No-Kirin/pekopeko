@@ -34,6 +34,45 @@ def test_non_numeric_timeout_raises_config_error(tmp_path):
         load_config(path=config_file)
 
 
+def test_non_numeric_temperature_raises_config_error(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("llm_provider:\n  ollama:\n    temperature: hot\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        load_config(path=config_file)
+
+
+def test_negative_temperature_from_file_raises_config_error(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("llm_provider:\n  ollama:\n    temperature: -0.1\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        load_config(path=config_file)
+
+
+def test_zero_temperature_from_file_is_accepted(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("llm_provider:\n  ollama:\n    temperature: 0\n", encoding="utf-8")
+
+    cfg = load_config(path=config_file)
+
+    assert cfg.llm_provider.ollama.temperature == 0.0
+
+
+def test_non_numeric_temperature_via_env_var_raises_config_error(tmp_path, monkeypatch):
+    monkeypatch.setenv("PEKOPEKO_OLLAMA_TEMPERATURE", "hot")
+
+    with pytest.raises(ConfigError):
+        load_config(path=tmp_path / "does_not_exist.yaml")
+
+
+def test_negative_temperature_via_env_var_raises_config_error(tmp_path, monkeypatch):
+    monkeypatch.setenv("PEKOPEKO_OLLAMA_TEMPERATURE", "-0.1")
+
+    with pytest.raises(ConfigError):
+        load_config(path=tmp_path / "does_not_exist.yaml")
+
+
 def test_unknown_provider_via_env_var_raises_config_error(tmp_path, monkeypatch):
     monkeypatch.setenv("PEKOPEKO_LLM_PROVIDER", "not-a-real-provider")
 

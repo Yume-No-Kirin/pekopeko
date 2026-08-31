@@ -27,6 +27,24 @@ def test_partial_override_llm_provider_ollama_model(tmp_path, monkeypatch):
     assert cfg.llm_provider.ollama.timeout == 60
 
 
+def test_partial_override_llm_provider_ollama_temperature(tmp_path, monkeypatch):
+    monkeypatch.delenv("PEKOPEKO_OLLAMA_TEMPERATURE", raising=False)
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "llm_provider:\n  ollama:\n    temperature: 0.2\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(path=config_file)
+
+    assert cfg.llm_provider.ollama.temperature == 0.2
+    # Rest of the section keeps its built-in default.
+    assert cfg.llm_provider.active == "ollama"
+    assert cfg.llm_provider.ollama.model == "llama3"
+    assert cfg.llm_provider.ollama.base_url == "http://localhost:11434"
+    assert cfg.llm_provider.ollama.timeout == 60
+
+
 def test_partial_override_retrieval_index_dir(tmp_path, monkeypatch):
     monkeypatch.delenv("PEKOPEKO_RETRIEVAL_INDEX_DIR", raising=False)
     custom_index_dir = tmp_path / "custom_index"

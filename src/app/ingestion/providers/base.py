@@ -2,7 +2,7 @@
 Base interfaces for LLM providers used in ingestion.
 """
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Optional, Protocol
 
 
 @dataclass
@@ -16,6 +16,8 @@ class ExtractedAssertion:
 class ExtractionResult:
     """Result of an extraction operation."""
     assertions: list[ExtractedAssertion]
+    model: Optional[str] = None
+    temperature: Optional[float] = None
 
 
 class Provider(Protocol):

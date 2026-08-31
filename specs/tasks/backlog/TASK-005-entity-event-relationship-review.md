@@ -178,6 +178,13 @@ None as code. Depends on TASK-003 only through the shared Proposal frontmatter c
 (ADI-001/ADI-004/TASK-003's file layout) — tests build their own fixture Proposal files rather
 than depending on `app.extraction`.
 
+Note: TASK-006 (`backlog`, no code dependency either direction, either order works) also edits
+`review/pipeline.py` — it widens `_load_and_validate_for_review`'s status check, while this
+ticket adds type-dispatch inside `accept_proposal`. The two changes are orthogonal (status check
+vs. type dispatch), but whichever of TASK-005/TASK-006 is implemented second should read the
+file's current state (as left by the first) rather than patching against the TASK-002 baseline
+described in each ticket's own Objective.
+
 ## Acceptance criteria
 
 1. Accepting a `PROPOSED` entity proposal writes `<domain>/entities/<entity_id>/<entity_id>.md`

@@ -14,6 +14,7 @@ class OllamaProviderConfig:
     base_url: str = "http://localhost:11434"
     model: str = "llama3"
     timeout: int = 60
+    temperature: float = 0.7
 
 
 class OllamaProvider(Provider):
@@ -52,7 +53,8 @@ class OllamaProvider(Provider):
                 json={
                     "model": self.config.model,
                     "prompt": prompt,
-                    "stream": False
+                    "stream": False,
+                    "options": {"temperature": self.config.temperature}
                 },
                 timeout=self.config.timeout
             )
@@ -66,7 +68,11 @@ class OllamaProvider(Provider):
             # Parse the extracted assertions from the LLM response
             assertions = self._parse_assertions(extracted_text)
 
-            return ExtractionResult(assertions=assertions)
+            return ExtractionResult(
+                assertions=assertions,
+                model=self.config.model,
+                temperature=self.config.temperature
+            )
 
         except Exception as e:
             raise Exception(f"Failed to extract assertions using Ollama: {str(e)}")

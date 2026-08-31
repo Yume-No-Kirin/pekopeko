@@ -22,7 +22,7 @@ def _config_with(active: str) -> PekopekoConfig:
     return PekopekoConfig(
         llm_provider=LLMProviderConfig(
             active=active,
-            ollama=OllamaProviderSettings(base_url="http://example:11434", model="phi3", timeout=45),
+            ollama=OllamaProviderSettings(base_url="http://example:11434", model="phi3", timeout=45, temperature=0.15),
         )
     )
 
@@ -36,6 +36,7 @@ def test_build_configured_provider_returns_ollama_provider():
     assert provider.config.base_url == "http://example:11434"
     assert provider.config.model == "phi3"
     assert provider.config.timeout == 45
+    assert provider.config.temperature == 0.15
 
 
 def test_build_configured_provider_raises_on_unknown_provider():

@@ -19,12 +19,44 @@
 
 Phase : implémentation des tickets `TASK-XXX` (en cours).
 
-- **Décisions** : ADI-001 à ADI-009 toutes `Accepted` (voir ci-dessous). Aucune décision d'architecture en attente.
-- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions), `src/app/review/` (TASK-002, revue des propositions), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), tests sous `src/tests/`. Les quatre tickets sont dans `specs/tasks/completed/`.
-- **Suite** : le reste du travail du Knowledge Core (revue des propositions Entity/Event/Relationship, statut EDITED, retrieval, etc.) n'est pas encore ticketé — voir `specs/tasks/BACKLOG-CLAUDE.md` pour l'inventaire complet (rédigé indépendamment, sans consulter un éventuel `BACKLOG.md`) avant d'écrire le prochain ticket.
-- **Reste à ticketer** : l'interface (framework tranché par ADI-009, mais ni scope V1 ni ticket écrits).
+- **Décisions** : ADI-001 à ADI-010 toutes `Accepted` (voir ci-dessous). Aucune décision d'architecture en attente.
+- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, et par TASK-001b, journal d'événements de tâche), `src/app/review/` (TASK-002, revue des propositions), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), tests sous `src/tests/`. Ces six tickets sont dans `specs/tasks/completed/`.
+- **Suite** : neuf tickets `backlog` existent maintenant (dix moins TASK-001a, complété le
+  2026-08-31). Cœur GUI : TASK-005 (revue
+  Entity/Event/Relationship) et TASK-006 (statut EDITED + historisation des Proposals) ne
+  dépendent que du contrat de fichiers TASK-001/003 ; TASK-007 (couche API backend,
+  premier ticket du socle GUI, voir ADI-010) ne dépend que des fonctions déjà `completed`
+  de TASK-001/002/003/004 ; TASK-008/009/010/011 (scaffold + Dashboard/Settings,
+  Ingestion Logs, Validation, Détail de proposition) forment une chaîne de dépendance
+  (008→009→010→011, chacun réutilisant les composants/wrappers API du précédent).
+  **Trois tickets backend satellites** (2026-08-31, voir leurs sections ci-dessous) ont été
+  ajoutés en écrivant TASK-009/010/011, suite à la décision de Cleo que les maquettes
+  `specs/ux-design/` sont la cible : là où le backend manquait une donnée qu'une maquette
+  montre, un ticket satellite additif comble le trou plutôt que de couper la fonctionnalité
+  GUI — TASK-001a (provenance d'extraction enrichie, étend TASK-001, **`completed`** le
+  2026-08-31), TASK-001b (journal d'événements de tâche, étend TASK-001+TASK-003,
+  **`completed`** le 2026-08-31), TASK-007a (pagination sur les endpoints de liste, étend TASK-007, encore
+  `backlog`). Suffixe lettré délibéré pour ne renuméroter ni les tickets déjà écrits ni
+  leurs citations croisées. Le reste du travail du Knowledge Core (retrieval, etc.) n'est
+  pas encore ticketé — voir `specs/tasks/BACKLOG-CLAUDE.md` pour l'inventaire complet avant
+  d'écrire le prochain ticket.
+- **TASK-012** (revue Entity/Event/Relationship — intégration API + GUI) est maintenant
+  rédigé (2026-08-31, `backlog`) : ferme le socle GUI en branchant TASK-005 (backend,
+  déjà écrit, repris par référence sans modification) sur les écrans Validation
+  (TASK-010) et Détail (TASK-011), jusqu'ici volontairement limités au type `assertion`.
+  Ajoute deux points d'intégration que TASK-005 laissait ouverts (il précède la couche
+  API) : nommer son erreur typée `UnresolvedRelationshipEndpointError` et l'ajouter à la
+  table de mapping d'erreurs de TASK-007 (`src/app/api/app.py`, → `409`) — ce qui
+  supersède l'AC10 de TASK-007 (422 pour accept sur entity/event/relationship). Le socle
+  GUI (TASK-007 → TASK-012) est donc désormais **entièrement rédigé**.
+  `specs/tasks/BACKLOG-CLAUDE-V2.md` (proposition de re-priorisation GUI-first de Cleo,
+  2026-08-31) reprend les mêmes ~33 entrées de `BACKLOG-CLAUDE.md` mais réordonnées pour
+  amener le GUI avant de continuer le Knowledge Core — TASK-007 à TASK-012 (plus les 3
+  satellites) en ont été extraits et rédigés (ce fichier) ; le reste de cette
+  re-priorisation (section 2, TASK-013 à TASK-037) demeure une proposition, pas une
+  décision actée par Cleo.
 
-## Décisions d'architecture (ADI-001 à ADI-009, toutes `Accepted`)
+## Décisions d'architecture (ADI-001 à ADI-010, toutes `Accepted`)
 
 **Lecture requise avant de rédiger une nouvelle ADR :** `specs/product/vision.md`, `user-needs.md`, `scope.md`, `non-goals.md`, `product-model.md`, `use-cases.md` (cité comme justification derrière presque chaque exigence, et seul document porteur des signaux de volume), `specs/domain/knowledge-model.md`, `specs/domain/knowledge-invariants.md`, `specs/architecture/principles.md`, `specs/architecture/capabilities.md`, la section 23 (« Architectural Decision Inputs ») de `specs/architecture/technical-requirements.md`, et les ADR déjà écrites. Le format attendu est défini dans `specs/decisions/README.md`.
 
@@ -39,6 +71,7 @@ Les 6 premières répondent aux questions ouvertes de la section 23 ; ADI-007/00
 - **ADI-007 — Langage d'implémentation.** Python pour le Knowledge Core / backend. Ne présume rien du frontend (tranché séparément par ADI-009).
 - **ADI-008 — Architecture des providers LLM.** Cleo veut pouvoir changer de LLM d'extraction librement, jamais verrouillée sur un provider. Le pipeline passe toujours par une interface d'abstraction (`extract(text, context) -> ExtractionResult`), jamais un appel direct ; le provider actif est choisi par **config locale** (hors vault, par appareil, comme ADI-002/005). Changer de provider = changer la config, pas le code. L'ADR tranche l'architecture (pluggable), pas quel provider est le défaut.
 - **ADI-009 — Framework frontend.** **ReactJS**, choisi pour familiarité (pas d'évaluation exhaustive des alternatives — même logique pragmatique qu'ADI-007). Déclenchée par `specs/ux-design/` (4 maquettes HTML/CSS/JS statiques et framework-agnostiques : Dashboard, Validation, Ingestion Logs, Proposal Detail — voir le README du dossier). L'ADR ne tranche que le framework : ni le scope V1 de l'interface ni son découpage en tickets.
+- **ADI-010 — Couche API backend et contrat d'intégration frontend.** Tranche ce qu'ADI-009 avait explicitement laissé ouvert ("comment l'interface parle au backend"). REST/HTTP via **Flask** (synchrone, pas de nouveau paradigme async — rien dans le backend n'est `asyncio`-natif). Ingestion/extraction restent asynchrones (ADI-005 règle 1) via un job HTTP `202` + `task_id` miné et persisté de façon synchrone avant la réponse, puis polling `GET .../<task_id>` (pas de push/websocket) ; review/config restent synchrones (ADI-005 règle 3), appel direct. `vault_root` (qui n'a aujourd'hui aucune surface de config, cf. amendement TASK-004 ci-dessous) est lu par le process API via une variable d'environnement dédiée `PEKOPEKO_VAULT_ROOT`, jamais par requête, et sans étendre le schéma partagé de `config/`. Sécurité : bind `127.0.0.1` uniquement + jeton partagé (`X-API-Key` contre `PEKOPEKO_API_KEY`) — pas d'authentification multi-utilisateur, `reviewer_id`/`domain` restent "trusted as given" comme dans tous les tickets précédents.
 
 ## Conventions d'identifiants (issues du nettoyage de cohérence, terminé)
 
@@ -74,6 +107,56 @@ Scope V1 : sources `.md` uniquement (derrière une interface extensible pour ajo
 - **Écart architectural non résolu :** ADI-004 ne prévoit que 5 sous-dossiers par domaine (`entities/`, `assertions/`, `events/`, `relationships/`, `proposals/`). TASK-001 en ajoute un 6ᵉ, `sources/`, pour la préservation de la source brute — exigée par CAP-002/UC-001 mais absente d'ADI-004 telle qu'écrite. Signalé dans le ticket plutôt que tranché en silence.
 - **Écart de vérification assumé :** Cleo a confirmé le 2026-08-29 que TASK-001 est vérifiée, mais sans le rapport indépendant que demande la discipline ci-dessous (code copié en environnement isolé, tests rejoués, 9 critères d'acceptation vérifiés un par un). Les seuls documents présents (`FINAL_IMPLEMENTATION_SUMMARY.md`, `src/src/FINAL_COMPLIANCE_REPORT.md`) sont des auto-rapports commités avec l'implémentation elle-même. À combler si l'écart devient gênant.
 
+### TASK-001a — Provenance d'extraction enrichie — `completed`
+
+`specs/tasks/completed/TASK-001a-extraction-provenance-metadata.md`. Ticket satellite
+(rédigé 2026-08-31, implémenté 2026-08-31) étendant TASK-001 de façon additive : ajoute
+`provider_model`, `provider_temperature`, `extraction_id`, `extraction_duration_seconds` au
+dict `provenance` de chaque Proposal — champs que la maquette
+`pekopeko-proposal-detail.html` montre mais que le contrat frontmatter de TASK-001 ne
+capturait pas. Écrit en préparant TASK-011 (écran Détail de proposition), qui en dépend
+pour sa section Provenance complète. Aucun changement de signature publique de
+`ingest_source` ; champs `null` si le `Provider` ne les fournit pas.
+
+- **Écart signalé et tranché avec Cleo avant l'implémentation** : le ticket supposait à
+  tort que `OllamaProvider` avait déjà une `temperature` configurée "juste pas encore
+  surfacée" — faux, `temperature` n'existait nulle part dans le code avant cette
+  implémentation. Résolu en ajoutant un vrai champ `temperature: float = 0.7` à
+  `OllamaProviderConfig` (pas à `config/schema.py` partagé — aucune nouvelle surface de
+  config utilisateur) et en le câblant réellement dans l'appel à l'API Ollama
+  (`options.temperature`), pour que la valeur reportée influence réellement la génération.
+  Détail complet dans la section « Deviation » du ticket.
+- Vérifié par Claude selon la discipline du projet (environnement isolé, copie hors dépôt
+  dans `scratchpad/task001a_verify/`, 34/36 `tests/ingestion` rejoués — mêmes 2 échecs
+  préexistants et non liés que TASK-004, confirmés par `git stash`/`git stash pop` avant/
+  après ce ticket —, couverture des fichiers touchés 83-100 % reconfirmée à l'identique
+  entre dépôt et copie isolée, 6 critères d'acceptation un par un, plus un script de
+  reproduction manuelle bout-en-bout inspectant le fichier Proposal écrit et le payload
+  JSON réellement envoyé à Ollama). Rapport dans la section « Verification record » du
+  ticket. Même limite que TASK-002/003/004 : vérification faite par la même session Claude
+  que l'implémentation, pas par un second réviseur indépendant.
+
+### TASK-001b — Journal d'événements de tâche, ingestion + extraction — `completed`
+
+`specs/tasks/completed/TASK-001b-task-event-log.md`. Ticket satellite (rédigé 2026-08-31,
+implémenté 2026-08-31) étendant TASK-001 **et** TASK-003 de façon additive et symétrique
+(deux édits séparés, sans import croisé, même discipline que TASK-004/TASK-007) : ajoute
+`events: list[TaskEvent]` (timestamp/niveau/message/détails) à `TaskState`, peuplé à chaque
+étape du pipeline. Comble l'absence de donnée derrière la section « Logs d'ingestion
+complets » de la maquette Détail et les actions « Voir logs »/« Voir erreur » de la
+maquette Ingestion Logs. `events` vide par défaut, rétrocompatible avec les `TaskState`
+déjà sur disque. Écrit en préparant TASK-009/TASK-011, qui en dépendent.
+
+- Vérifié par Claude selon la discipline du projet (environnement isolé, copie hors dépôt
+  dans `scratchpad/task001b_verify/`, 43/45 `tests/ingestion` et 51/51 `tests/extraction`
+  rejoués — mêmes 2 échecs préexistants et non liés qu'aux tickets précédents —, couverture
+  des fichiers touchés 97-100 % reconfirmée à l'identique entre dépôt et copie isolée, 8
+  critères d'acceptation un par un, plus un script de reproduction manuelle bout-en-bout
+  inspectant le fichier `TaskState` JSON réellement écrit. Rapport dans la section
+  « Verification record » du ticket. Même limite que TASK-001a/002/003/004 : vérification
+  faite par la même session Claude que l'implémentation, pas par un second réviseur
+  indépendant.
+
 ### TASK-002 — Workflow de revue des propositions (V1) — `completed`
 
 `specs/tasks/completed/TASK-002-proposal-review-workflow.md`. Code : `src/app/review/` (`errors.py`, `frontmatter.py`, `storage.py`, `pipeline.py`), 56 tests dans `src/tests/review/`, 100 % de couverture de lignes. Ferme le flux `PROPOSAL → HUMAN REVIEW → CANONICAL KNOWLEDGE` (UC-011, CAP-CORE-002).
@@ -95,17 +178,145 @@ Scope V1 : indépendant de `app.ingestion` et `app.review` (aucun import ; seul 
 
 ### TASK-004 — Mécanisme de configuration locale — `completed`
 
-`specs/tasks/completed/TASK-004-local-configuration.md`. Formalise ce qu'ADI-008 (et implicitement ADI-002/ADI-005) supposait déjà : un fichier YAML local (`~/.pekopeko/config.yaml`, jamais dans le vault) plus une liste bornée d'overrides par variable d'env, pour le provider LLM actif, l'emplacement de l'index de retrieval (réservé pour la future TASK-007, non consommé ici) et celui de l'état de tâche. Code : `src/app/config/` (`schema.py`, `loader.py`, `errors.py`), plus `providers/factory.py` neuf dans `src/app/ingestion/` et `src/app/extraction/`, 19 tests dans `src/tests/config/` (100 % de couverture de lignes), quelques tests additionnels dans `src/tests/ingestion/` et `src/tests/extraction/`.
+`specs/tasks/completed/TASK-004-local-configuration.md`. Formalise ce qu'ADI-008 (et implicitement ADI-002/ADI-005) supposait déjà : un fichier YAML local (`~/.pekopeko/config.yaml`, jamais dans le vault) plus une liste bornée d'overrides par variable d'env, pour le provider LLM actif, l'emplacement de l'index de retrieval (réservé pour le futur ticket de retrieval, `TASK-018` dans la numérotation de `BACKLOG-CLAUDE-V2.md`, non consommé ici) et celui de l'état de tâche. Code : `src/app/config/` (`schema.py`, `loader.py`, `errors.py`), plus `providers/factory.py` neuf dans `src/app/ingestion/` et `src/app/extraction/`, 19 tests dans `src/tests/config/` (100 % de couverture de lignes), quelques tests additionnels dans `src/tests/ingestion/` et `src/tests/extraction/`.
 
 Branchement minimal : `ingestion/pipeline.py` et `extraction/pipeline.py` tirent désormais leur défaut de `state_dir` de la config (`<task_state.dir>/ingestion` et `<task_state.dir>/extraction`), et chacun reçoit une factory optionnelle (`providers/factory.py`) pour construire son `OllamaProvider` depuis la config — sans changer la signature publique de `ingest_source`/`extract_source` ni le fait que `provider` reste un paramètre obligatoire fourni par l'appelant.
 
-- **Amendement (2026-08-30)** : Cleo a ajouté après coup un fichier `.env` compagnon pour les secrets et un champ `default.domain` réservé. Après clarification (3 questions posées et tranchées, voir le ticket) : `.env` (via `python-dotenv`, nouvelle dépendance pinnée) ne fait que charger les mêmes 7 clés bornées `PEKOPEKO_*` déjà existantes — pas un second espace de clés — et une vraie variable d'env réelle garde toujours la priorité sur `.env`. `default.domain` est réservé (comme `retrieval.index_dir` pour TASK-007) : présent dans le schéma, jamais lu par `ingest_source`/`extract_source`, aucun changement de signature. `vault_root` n'a toujours aucune surface de config. 24/24 tests `config` (100 % couverture), vérification en environnement isolé rejouée indépendamment — détail complet dans la section « Amendment verification » du ticket.
+- **Amendement (2026-08-30)** : Cleo a ajouté après coup un fichier `.env` compagnon pour les secrets et un champ `default.domain` réservé. Après clarification (3 questions posées et tranchées, voir le ticket) : `.env` (via `python-dotenv`, nouvelle dépendance pinnée) ne fait que charger les mêmes 7 clés bornées `PEKOPEKO_*` déjà existantes — pas un second espace de clés — et une vraie variable d'env réelle garde toujours la priorité sur `.env`. `default.domain` est réservé (comme `retrieval.index_dir` pour le futur ticket de retrieval, `TASK-018`) : présent dans le schéma, jamais lu par `ingest_source`/`extract_source`, aucun changement de signature. `vault_root` n'a toujours aucune surface de config. 24/24 tests `config` (100 % couverture), vérification en environnement isolé rejouée indépendamment — détail complet dans la section « Amendment verification » du ticket.
 
 - Vérifié par Claude selon la discipline du projet (environnement isolé, 19/19 tests `config` rejoués + couverture 100 % reconfirmée, 44/44 `extraction` et 29/31 `ingestion` (2 échecs préexistants et non liés à ce ticket) rejoués, 11 critères un par un, plus un script de reproduction manuelle bout-en-bout par l'œil). Rapport dans la section « Verification record » du ticket. Même limite que TASK-002/TASK-003 : vérification faite par la même session Claude que l'implémentation, pas par un second réviseur indépendant.
 
-### Interface — pas encore ticketée
+### TASK-005 — Revue des propositions Entity/Event/Relationship — `backlog`
 
-Framework tranché (ReactJS, ADI-009) et écrans définis par les maquettes de `specs/ux-design/`, mais le scope V1 et le découpage en tickets restent à faire.
+`specs/tasks/backlog/TASK-005-entity-event-relationship-review.md`. Miroir de TASK-002 pour la sortie de TASK-003 : listing/détail/accept/reject pour `proposed_item_type` entity/event/relationship, plus résolution des `endpoints` d'une relation acceptée vers des IDs canoniques stables (ADI-003), une fois ses propres endpoints eux-mêmes acceptés. Ticket entièrement rédigé (objectif, contrat de fichiers, 10 critères d'acceptation) mais jamais implémenté — aucune section « Verification record » ni « Implementation notes ».
+
+### TASK-006 — Statut EDITED et historisation des Proposals — `backlog`
+
+`specs/tasks/backlog/TASK-006-proposal-edit-and-history.md`. Ajoute `PROPOSED → EDITED` (édition du contenu d'une Proposal avant décision, UC-011 stage 5) et le mécanisme `history/` pour les Proposals qu'ADI-001 exige dès que le contenu change — engagement pris explicitement dans TASK-002 (« Le futur ticket qui introduira EDITED devra impérativement ajouter le mécanisme history/ pour les Proposals »). Rédigé le 2026-08-31, jamais implémenté.
+
+- **Décision de scope notable** : `edit_proposal` est générique aux 4 `proposed_item_type` (assertion/entity/event/relationship) — indépendant de TASK-005, car éditer ne touche que le frontmatter/body de la Proposal, jamais un writer canonique type-spécifique. `accept_proposal`/`reject_proposal` restent assertion-only (TASK-002/TASK-005), ce ticket élargit seulement leur statut accepté (`PROPOSED` ou `EDITED`), pas leur type. Conséquence assumée et documentée dans le ticket : une proposition entity/event/relationship éditée par ce ticket ne pourra toujours pas être acceptée avant TASK-005.
+- **Historisation sans nouveau champ `version`** : numéro de version dérivé du nombre de fichiers déjà présents dans `history/` au moment de l'édition ; chaque snapshot archivé reçoit `lifecycle_status: SUPERSEDED` + `superseded_by: v<n+1>`, jamais réécrit après coup (INV-004).
+- TASK-005 et TASK-006 sont indépendants entre eux (aucune dépendance de code) — les implémenter dans n'importe quel ordre est possible.
+
+### TASK-007 — Couche API backend pour le Knowledge Core — `backlog`
+
+`specs/tasks/backlog/TASK-007-backend-api-layer.md`. Premier ticket du socle GUI de
+`specs/tasks/BACKLOG-CLAUDE-V2.md` (correspond à l'ancien `TASK-022` de
+`BACKLOG-CLAUDE.md`) : expose `ingestion`/`extraction`/`review` (accept/reject
+uniquement)/`config` (lecture seule) via une API HTTP REST, levant pour la première fois
+la contrainte explicite "no GUI or CLI required" de TASK-001/002/003. Pré-requis
+obligatoire avant TASK-008 à TASK-012 — aucun écran ne peut être construit sans ce
+connecteur. Rédigé le 2026-08-31, jamais implémenté.
+
+- Implémente **ADI-010** (rédigée dans la même session, en butant sur 4 gaps bloquants
+  pour écrire ce ticket : aucun framework HTTP existant, forme du contrat de job
+  asynchrone jamais tranchée par ADI-005, absence totale de surface de config pour
+  `vault_root`, absence de tout mécanisme d'authentification) — voir la section ADI-010
+  ci-dessus pour le détail des décisions.
+- Nécessite deux changements additifs et rétrocompatibles à du code déjà `completed` :
+  `ingest_source`/`extract_source` et leurs `create_task_state` respectifs
+  (`src/app/ingestion/` et `src/app/extraction/`) gagnent un paramètre optionnel
+  `task_id: Optional[str] = None` (défaut `None` préserve le comportement actuel), plus
+  une nouvelle fonction `list_task_states` dans chacun des deux modules — même catégorie
+  de "branchement minimal" que celui déjà fait par TASK-004. Aucun changement à
+  `review/` ni `config/`.
+- Indépendant de TASK-005/TASK-006 (ne dépend que de TASK-001/002/003/004, tous
+  `completed`) — implémentable dans n'importe quel ordre par rapport à eux.
+
+### TASK-007a — Pagination sur les endpoints de liste — `backlog`
+
+`specs/tasks/backlog/TASK-007a-list-endpoint-pagination.md`. Ticket satellite
+(2026-08-31) étendant TASK-007 : `?limit=`/`?offset=` sur les 3 endpoints de liste
+(ingestions/extractions/proposals), enveloppe de réponse `{items, total, limit, offset}`.
+Écrit comme ticket séparé plutôt qu'édition en place de TASK-007, pour ne pas invalider la
+numérotation de ses critères d'acceptation déjà cités ailleurs (TASK-008 cite l'AC12 de
+TASK-007). TASK-009/TASK-010 en dépendent pour une vraie pagination serveur. Jamais
+implémenté.
+
+### TASK-008 — Scaffold React + écrans Dashboard et Settings — `backlog`
+
+`specs/tasks/backlog/TASK-008-react-scaffold-dashboard-settings.md`. Premier code frontend
+du dépôt : projet React (Vite, JS, React Router — décisions tranchées par ce ticket,
+ADI-009 les avait explicitement laissées ouvertes), nouveau répertoire `frontend/`
+(sibling de `src/`). Livre `pekopeko-dashboard.html` (stats agrégées sur les 5 domaines
+côté client, cartes de modules) et un écran Settings lecture seule (nouveau, absent des
+maquettes). Rédigé le 2026-08-31, jamais implémenté.
+
+- Deux clarifications tranchées par Cleo avant rédaction (aucune spec ne les couvrait) :
+  la clé `X-API-Key` est injectée au build via une variable d'environnement Vite
+  (`VITE_API_KEY`, jamais un flux runtime/localStorage) ; l'écran Settings reste lecture
+  seule pour V1 (affiche le chemin du `config.yaml` local avec une note d'édition
+  manuelle, pas de nouvel endpoint d'écriture) — le libellé "visualise/édite" de
+  `BACKLOG-CLAUDE-V2.md` est superseded par cette décision.
+- Dépend de TASK-007 (`backlog` — connecteur API obligatoire, ne peut pas être implémenté
+  avant lui) et transitivement de TASK-004 (`completed`, forme de `GET /config`).
+  Indépendant de TASK-005/TASK-006.
+- Prérequis pour TASK-009 à TASK-012 : la structure de routing/composants posée ici est
+  ce à quoi ces tickets ajoutent des écrans, sans la refondre.
+
+### TASK-009 — Écran Logs d'ingestion — `backlog`
+
+`specs/tasks/backlog/TASK-009-ingestion-logs-screen.md`. Implémente
+`pekopeko-ingestion.html` : table filtrable/paginée des tâches d'ingestion **et**
+extraction, détail des erreurs/doublons/événements par tâche (via TASK-001b), pagination
+serveur réelle (via TASK-007a). Fait passer la carte de module « Logs d'ingestion » du
+Dashboard à `available`. Rédigé le 2026-08-31 en appliquant le principe « les maquettes
+sont la cible » (voir note en tête de section « Suite » ci-dessus) : aucun élément de la
+maquette n'a été silencieusement supprimé — pagination et journal d'événements comblés par
+TASK-007a/TASK-001b plutôt que retirés. Dépend de TASK-007/TASK-007a/TASK-001b/TASK-008.
+Jamais implémenté.
+
+### TASK-010 — Écran Validation (Assertions) — `backlog`
+
+`specs/tasks/backlog/TASK-010-validation-screen.md`. Implémente `pekopeko-workflow.html`,
+scope assertion-only (miroir de TASK-002) : propositions groupées par source (jointure
+client sur `provenance.source_id`, y compris un N+1 assumé sur `GET /proposals/<id>` faute
+de `body`/`source_id` sur `ProposalSummary` — décision explicite de Cleo plutôt qu'étendre
+TASK-007), badge de statut épistémique (4 valeurs réelles), accepter/rejeter individuels.
+Sans folder-path builder ni bulk actions — déféré **pré-existant** (TASK-013/TASK-015,
+acté avant cette session dans `BACKLOG-CLAUDE-V2.md`/TASK-007), pas une coupe de ce
+ticket. `reviewer_id` fourni par une variable d'env au build (`VITE_REVIEWER_ID`, même
+pattern que `VITE_API_KEY`). Dépend de TASK-007/TASK-007a/TASK-008/TASK-009 (réutilise
+`api/tasks.js`). Jamais implémenté.
+
+### TASK-011 — Écran Détail de proposition (Assertions) — `backlog`
+
+`specs/tasks/backlog/TASK-011-proposal-detail-screen.md`. Implémente
+`pekopeko-proposal-detail.html`, scope assertion-only : contenu/métadonnées/source
+(Markdown uniquement) en pleine fidélité ; section Provenance complète et section « Logs
+d'ingestion complets » qui dépendent de TASK-001a/TASK-001b respectivement — dégradation
+gracieuse (champ par champ / note "aucun journal disponible") si ces satellites ne sont
+pas encore implémentés, jamais un crash. Navigation Précédent/Suivant réelle sur la file du
+domaine courant (remplace le sélecteur de note simulé de la maquette). Sans édition en
+place (TASK-006/TASK-014, déféré pré-existant) ni folder-path builder (TASK-013, déféré
+pré-existant). Dépend de TASK-007/TASK-008/TASK-009/TASK-010 ; TASK-001a/TASK-001b pour
+la pleine fidélité (non bloquants). Jamais implémenté.
+
+### TASK-012 — Revue Entity/Event/Relationship, intégration API + GUI — `backlog`
+
+`specs/tasks/backlog/TASK-012-entity-event-relationship-review-gui.md`. Ferme le socle
+GUI : reprend le backend de TASK-005 par référence (aucune modification de son scope ni
+de ses 10 AC), ajoute le nom de son erreur typée jusqu'ici innommée
+(`UnresolvedRelationshipEndpointError`, `review/errors.py`) et son entrée dans la table
+de mapping d'erreurs de TASK-007 (`src/app/api/app.py`, → `409`) — ce qui supersède
+l'AC10 de TASK-007 (422 pour `accept` sur entity/event/relationship). Côté frontend,
+lève les deux filtres client-side codés en dur sur `assertion` (`Validation.jsx` TASK-010
+Scope item 1, `ProposalDetail.jsx` TASK-011 Scope item 8) et ajoute 3 nouveaux composants
+de rendu (`EntityTypeBadge`, `EventTemporalRange`, `RelationshipEndpoints`) — aucune
+maquette UX n'existe pour ces 3 types (confirmé par grep sur `specs/ux-design/`), donc
+pas de portage de maquette, seulement réutilisation des conventions de badge existantes.
+Résolution des labels d'`endpoints` de relation sans nouvel endpoint backend : réutilise
+les données déjà récupérées par chaque écran (N+1 déjà existant sur Validation, un
+nouveau N+1 ciblé par endpoint sur Détail), id non résolu affiché tel quel plutôt que de
+bloquer l'écran. Rédigé le 2026-08-31, jamais implémenté.
+
+- Dépend de TASK-005 et TASK-007 (tous deux `backlog`) côté backend ; de la chaîne
+  TASK-008 → TASK-009 → TASK-010 → TASK-011 (tous `backlog`) côté frontend. Indépendant
+  de TASK-006/TASK-013/TASK-015.
+- Avec ce ticket, **le socle GUI (TASK-007 → TASK-012) est entièrement rédigé** —
+  framework tranché (ReactJS, ADI-009), contrat d'intégration backend tranché (Flask,
+  ADI-010). Le reste de `specs/tasks/BACKLOG-CLAUDE-V2.md` (section 2, TASK-013 à
+  TASK-037) demeure une proposition de re-priorisation, pas une décision actée par Cleo.
 
 ## Discipline de continuité (pour humain ou IA, quelle qu'elle soit)
 
@@ -121,7 +332,29 @@ Framework tranché (ReactJS, ADI-009) et écrans définis par les maquettes de `
 
 ## Prochaine action exacte
 
-**TASK-001, TASK-002, TASK-003 et TASK-004 sont tous `completed`** (2026-08-30). Prochaine action : revoir `specs/tasks/BACKLOG-CLAUDE.md` (inventaire complet du travail restant) et demander à Cleo lequel prioriser ensuite — candidat évident : TASK-005 (revue des propositions Entity/Event/Relationship, miroir de TASK-002 pour la sortie de TASK-003).
+**TASK-001, TASK-002, TASK-003, TASK-004, TASK-001a et TASK-001b sont tous `completed`**
+(TASK-001a et TASK-001b le 2026-08-31, les quatre autres le 2026-08-30). **Neuf tickets
+restent rédigés (`backlog`), aucun implémenté** — voir leurs sections ci-dessus (TASK-005,
+006, 007, 007a, 008, 009, 010, 011, 012 — compte vérifié contre
+`specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus).
+
+- Indépendants entre eux et de tout le reste : TASK-005, TASK-006 (TASK-005 est désormais
+  aussi le scope backend de TASK-012, voir ci-dessous — toujours implémentable seul, mais
+  plus totalement indépendant du reste du socle GUI).
+- Chaîne GUI, à implémenter dans cet ordre relatif : TASK-007 → TASK-008 → TASK-009 →
+  TASK-010 → TASK-011 → TASK-012 (chacun dépend du/des précédent(s) pour son
+  shell/composants/wrappers API ; TASK-012 dépend en plus de TASK-005 côté backend — voir
+  sa propre section ci-dessus). Le socle GUI est maintenant entièrement rédigé de
+  TASK-007 à TASK-012.
+- Satellite backend restant : TASK-007a dépend de TASK-007 (`backlog`) — pas avant lui.
+  TASK-009 tire pleinement parti de TASK-007a s'il est fait en premier ; TASK-011 tire déjà
+  pleinement parti de TASK-001a et TASK-001b (tous deux `completed`) pour ses sections
+  Provenance et Logs respectivement.
+
+Prochaine action : demander à Cleo l'ordre d'implémentation. Suggestion si aucune
+préférence : TASK-007 → TASK-007a → TASK-008 → TASK-009 → TASK-010 →
+TASK-011 → TASK-005 → TASK-012 dans l'ordre (TASK-005 doit précéder TASK-012, qui reprend
+son backend par référence), TASK-006 intercalable à tout moment.
 
 ---
 

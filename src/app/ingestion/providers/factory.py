@@ -16,6 +16,7 @@ def build_configured_provider(cfg: PekopekoConfig) -> Provider:
                 base_url=ollama_cfg.base_url,
                 model=ollama_cfg.model,
                 timeout=ollama_cfg.timeout,
+                temperature=ollama_cfg.temperature,
             )
         )
     raise ConfigError(f"ingestion has no provider implementation for llm_provider.active={active!r}")

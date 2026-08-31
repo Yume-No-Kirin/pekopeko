@@ -6,7 +6,7 @@ from .providers.base import Provider, ExtractionResult, ExtractedAssertion
 from .providers.ollama_provider import OllamaProvider, OllamaProviderConfig
 from .readers.base import SourceReaderRegistry
 from .storage import write_source_file, write_proposal_file
-from .task_state import TaskState
+from .task_state import TaskState, TaskEvent, append_task_event
 
 # Export the main classes and functions
 __all__ = [
@@ -21,5 +21,7 @@ __all__ = [
     'SourceReaderRegistry',
     'write_source_file',
     'write_proposal_file',
-    'TaskState'
+    'TaskState',
+    'TaskEvent',
+    'append_task_event'
 ]

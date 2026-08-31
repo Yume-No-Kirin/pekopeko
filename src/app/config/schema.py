@@ -10,6 +10,7 @@ class OllamaProviderSettings:
     base_url: str = "http://localhost:11434"
     model: str = "llama3"
     timeout: int = 60
+    temperature: float = 0.7
 
 
 @dataclass

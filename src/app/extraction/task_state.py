@@ -6,10 +6,32 @@ state is safe: it never affects canonical/proposal data, the caller simply
 resubmits the extraction attempt.
 """
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 import uuid
+
+
+@dataclass
+class TaskEvent:
+    """A single timestamped step recorded during an extraction task attempt."""
+    timestamp: str  # ISO 8601
+    level: str  # "info" | "success" | "warning"
+    message: str
+    details: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'timestamp': self.timestamp,
+            'level': self.level,
+            'message': self.message,
+            'details': self.details,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'TaskEvent':
+        return cls(**data)
 
 
 class TaskState:
@@ -25,7 +47,8 @@ class TaskState:
         completed_at: Optional[str] = None,
         error: Optional[str] = None,
         source_id: Optional[str] = None,
-        proposal_ids: Optional[list[str]] = None
+        proposal_ids: Optional[list[str]] = None,
+        events: Optional[List[TaskEvent]] = None
     ):
         self.task_id = task_id
         self.source_path = source_path
@@ -36,6 +59,7 @@ class TaskState:
         self.error = error
         self.source_id = source_id
         self.proposal_ids = proposal_ids or []
+        self.events = events or []
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert task state to dictionary."""
@@ -48,13 +72,18 @@ class TaskState:
             'completed_at': self.completed_at,
             'error': self.error,
             'source_id': self.source_id,
-            'proposal_ids': self.proposal_ids
+            'proposal_ids': self.proposal_ids,
+            'events': [event.to_dict() for event in self.events]
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TaskState':
-        """Create task state from dictionary."""
-        return cls(**data)
+        """Create task state from dictionary. Tolerates a missing 'events' key
+        (TaskState files persisted before this field existed)."""
+        data = dict(data)
+        events_data = data.pop('events', [])
+        events = [TaskEvent.from_dict(event) for event in events_data]
+        return cls(events=events, **data)
 
     def save(self, state_dir: Path):
         """
@@ -129,3 +158,30 @@ def update_task_state(task_state: TaskState, state_dir: Path):
         state_dir: Directory for task state storage
     """
     task_state.save(state_dir)
+
+
+def append_task_event(
+    task_state: TaskState,
+    state_dir: Path,
+    level: str,
+    message: str,
+    details: Optional[Dict[str, Any]] = None
+) -> None:
+    """
+    Append one TaskEvent to task_state.events and persist the updated
+    TaskState via the existing save/update_task_state write path.
+
+    Args:
+        task_state: TaskState object to append the event to
+        state_dir: Directory for task state storage
+        level: One of "info", "success", "warning"
+        message: Human-readable description of the step
+        details: Optional free-form JSON-serializable context
+    """
+    task_state.events.append(TaskEvent(
+        timestamp=datetime.now().isoformat(),
+        level=level,
+        message=message,
+        details=details
+    ))
+    update_task_state(task_state, state_dir)

@@ -16,6 +16,7 @@ def test_defaults_when_no_file_and_no_env(tmp_path, monkeypatch):
         "PEKOPEKO_OLLAMA_BASE_URL",
         "PEKOPEKO_OLLAMA_MODEL",
         "PEKOPEKO_OLLAMA_TIMEOUT",
+        "PEKOPEKO_OLLAMA_TEMPERATURE",
         "PEKOPEKO_TASK_STATE_DIR",
         "PEKOPEKO_RETRIEVAL_INDEX_DIR",
     ):
@@ -28,5 +29,6 @@ def test_defaults_when_no_file_and_no_env(tmp_path, monkeypatch):
     assert cfg.llm_provider.ollama.base_url == "http://localhost:11434"
     assert cfg.llm_provider.ollama.model == "llama3"
     assert cfg.llm_provider.ollama.timeout == 60
+    assert cfg.llm_provider.ollama.temperature == 0.7
     assert cfg.retrieval.index_dir == Path.home() / ".pekopeko" / "retrieval_index"
     assert cfg.task_state.dir == Path.home() / ".pekopeko" / "task_state"

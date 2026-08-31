@@ -5,7 +5,7 @@ import os
 import tempfile
 import hashlib
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
 import yaml
 from .providers.base import ExtractedAssertion
@@ -128,7 +128,11 @@ def write_proposal_file(
     domain: str,
     assertion: ExtractedAssertion,
     source_id: str,
-    extraction_provider: str
+    extraction_provider: str,
+    provider_model: Optional[str] = None,
+    provider_temperature: Optional[float] = None,
+    extraction_id: Optional[str] = None,
+    extraction_duration_seconds: Optional[float] = None
 ) -> str:
     """
     Write a proposal file atomically.
@@ -139,6 +143,12 @@ def write_proposal_file(
         assertion: The extracted assertion
         source_id: ID of the source file this assertion came from
         extraction_provider: Name of the provider that extracted this assertion
+        provider_model: Model reported by the provider, if any
+        provider_temperature: Temperature reported by the provider, if any
+        extraction_id: Pipeline-minted ID shared by all Proposals from the same
+            ingest_source call, if any
+        extraction_duration_seconds: Wall-clock duration of the provider.extract()
+            call, if any
 
     Returns:
         The proposal ID that was generated
@@ -163,7 +173,11 @@ def write_proposal_file(
         'valid_until': None,
         'provenance': {
             'source_id': source_id,
-            'extraction_provider': extraction_provider
+            'extraction_provider': extraction_provider,
+            'provider_model': provider_model,
+            'provider_temperature': provider_temperature,
+            'extraction_id': extraction_id,
+            'extraction_duration_seconds': extraction_duration_seconds
         }
     }
 

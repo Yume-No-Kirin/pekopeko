@@ -19,6 +19,7 @@ def _write_config(tmp_path):
         "    base_url: http://file-value:11434\n"
         "    model: file-model\n"
         "    timeout: 30\n"
+        "    temperature: 0.3\n"
         "retrieval:\n"
         "  index_dir: /file/index_dir\n"
         "task_state:\n"
@@ -34,6 +35,7 @@ def test_provider_env_overrides_take_precedence_over_file(tmp_path, monkeypatch)
     monkeypatch.setenv("PEKOPEKO_OLLAMA_MODEL", "env-model")
     monkeypatch.setenv("PEKOPEKO_OLLAMA_BASE_URL", "http://env-value:11434")
     monkeypatch.setenv("PEKOPEKO_OLLAMA_TIMEOUT", "90")
+    monkeypatch.setenv("PEKOPEKO_OLLAMA_TEMPERATURE", "0.9")
 
     cfg = load_config(path=config_file)
 
@@ -41,6 +43,7 @@ def test_provider_env_overrides_take_precedence_over_file(tmp_path, monkeypatch)
     assert cfg.llm_provider.ollama.model == "env-model"
     assert cfg.llm_provider.ollama.base_url == "http://env-value:11434"
     assert cfg.llm_provider.ollama.timeout == 90
+    assert cfg.llm_provider.ollama.temperature == 0.9
 
 
 def test_retrieval_env_override_takes_precedence_over_file(tmp_path, monkeypatch):

@@ -30,6 +30,7 @@ _ENV_LLM_PROVIDER = "PEKOPEKO_LLM_PROVIDER"
 _ENV_OLLAMA_BASE_URL = "PEKOPEKO_OLLAMA_BASE_URL"
 _ENV_OLLAMA_MODEL = "PEKOPEKO_OLLAMA_MODEL"
 _ENV_OLLAMA_TIMEOUT = "PEKOPEKO_OLLAMA_TIMEOUT"
+_ENV_OLLAMA_TEMPERATURE = "PEKOPEKO_OLLAMA_TEMPERATURE"
 _ENV_TASK_STATE_DIR = "PEKOPEKO_TASK_STATE_DIR"
 _ENV_RETRIEVAL_INDEX_DIR = "PEKOPEKO_RETRIEVAL_INDEX_DIR"
 
@@ -86,6 +87,14 @@ def _validate_timeout(raw_timeout) -> int:
     return raw_timeout
 
 
+def _validate_temperature(raw_temperature) -> float:
+    if isinstance(raw_temperature, bool) or not isinstance(raw_temperature, (int, float)):
+        raise ConfigError(f"llm_provider.ollama.temperature must be a number, got {raw_temperature!r}")
+    if raw_temperature < 0:
+        raise ConfigError(f"llm_provider.ollama.temperature must be >= 0, got {raw_temperature!r}")
+    return float(raw_temperature)
+
+
 def _validate_provider(active: str) -> str:
     if active not in VALID_PROVIDERS:
         raise ConfigError(
@@ -105,6 +114,7 @@ def _build_config(file_data: dict) -> PekopekoConfig:
         base_url=ollama_data.get("base_url", ollama_defaults.base_url),
         model=ollama_data.get("model", ollama_defaults.model),
         timeout=_validate_timeout(ollama_data.get("timeout", ollama_defaults.timeout)),
+        temperature=_validate_temperature(ollama_data.get("temperature", ollama_defaults.temperature)),
     )
 
     llm_provider_defaults = LLMProviderConfig()
@@ -151,6 +161,11 @@ def _apply_env_overrides(cfg: PekopekoConfig) -> PekopekoConfig:
             if env.get(_ENV_OLLAMA_TIMEOUT)
             else cfg.llm_provider.ollama.timeout
         ),
+        temperature=(
+            _validate_temperature_str(env[_ENV_OLLAMA_TEMPERATURE])
+            if env.get(_ENV_OLLAMA_TEMPERATURE)
+            else cfg.llm_provider.ollama.temperature
+        ),
     )
 
     retrieval_index_dir = (
@@ -180,6 +195,16 @@ def _validate_timeout_str(raw: str) -> int:
         raise ConfigError(f"{_ENV_OLLAMA_TIMEOUT} must be an integer, got {raw!r}") from e
     if value <= 0:
         raise ConfigError(f"{_ENV_OLLAMA_TIMEOUT} must be a positive integer, got {raw!r}")
+    return value
+
+
+def _validate_temperature_str(raw: str) -> float:
+    try:
+        value = float(raw)
+    except ValueError as e:
+        raise ConfigError(f"{_ENV_OLLAMA_TEMPERATURE} must be a number, got {raw!r}") from e
+    if value < 0:
+        raise ConfigError(f"{_ENV_OLLAMA_TEMPERATURE} must be >= 0, got {raw!r}")
     return value
 
 

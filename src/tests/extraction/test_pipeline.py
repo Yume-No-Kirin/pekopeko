@@ -3,6 +3,7 @@ Unit tests for the extraction pipeline: first-extraction contract (AC1),
 duplicate detection (AC3), provider failure handling (AC4), domain
 validation.
 """
+import inspect
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -19,6 +20,7 @@ from src.app.extraction import (
     ExtractionResult,
 )
 from src.app.extraction.errors import InvalidDomainError
+from src.app.extraction.task_state import load_task_state
 
 
 class FakeProvider:
@@ -184,3 +186,92 @@ def test_unregistered_extension_fails_via_outer_handler(tmp_path):
     assert result.status == "failed"
     assert "No reader registered" in result.error
     assert not vault_root.exists()
+
+
+def _last_task_state(state_dir):
+    state_files = sorted(state_dir.glob("extract-*.json"), key=lambda p: p.stat().st_mtime)
+    assert state_files
+    return load_task_state(state_dir, state_files[-1].stem)
+
+
+def test_extract_source_signature_unchanged():
+    """TASK-001b AC7: extract_source's public parameter list is unchanged."""
+    sig = inspect.signature(extract_source)
+    assert list(sig.parameters.keys()) == ['vault_root', 'domain', 'source_path', 'provider', 'state_dir']
+
+
+def test_successful_extraction_event_sequence(tmp_path, source_file):
+    """TASK-001b AC2: a successful extract_source call produces an
+    equivalent, independently-implemented events sequence for its own steps."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    provider = FakeProvider(_full_extraction_result())
+
+    result = extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    assert result.status == "completed"
+
+    loaded = _last_task_state(state_dir)
+    messages = [e.message for e in loaded.events]
+
+    assert messages == [
+        "Extraction task started",
+        "Source content read",
+        "No duplicate found, continuing extraction",
+        "Source file written",
+        "Provider extraction call started",
+        "Provider extraction call finished",
+        "Proposal written",
+        "Proposal written",
+        "Proposal written",
+        "Extraction task completed",
+    ]
+    assert all(e.timestamp for e in loaded.events)
+    assert loaded.events[-1].level == "success"
+
+    proposed_types = [
+        e.details["proposed_item_type"] for e in loaded.events if e.message == "Proposal written"
+    ]
+    assert proposed_types == ["entity", "event", "relationship"]
+
+
+def test_provider_failure_appends_warning_event_before_failed(tmp_path, source_file):
+    """TASK-001b AC3: a simulated provider failure appends a warning-level
+    event describing the failure before the task is marked failed."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    provider = Mock()
+    provider.extract.side_effect = Exception("provider exploded")
+
+    result = extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    assert result.status == "failed"
+
+    loaded = _last_task_state(state_dir)
+    assert loaded.status == "failed"
+
+    warning_events = [e for e in loaded.events if e.level == "warning"]
+    assert len(warning_events) == 1
+    assert "provider exploded" in warning_events[0].details["error"]
+    assert loaded.events[-1] is warning_events[0]
+
+
+def test_duplicate_extraction_event_sequence(tmp_path, source_file):
+    """TASK-001b AC4: a duplicate-source extraction (skipped_duplicate)
+    appends an event describing the duplicate detection instead of the
+    full success sequence."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    provider = FakeProvider(_full_extraction_result())
+
+    extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    files_before_second_call = set(state_dir.glob("extract-*.json"))
+    result2 = extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    assert result2.status == "skipped_duplicate"
+
+    new_state_file = (set(state_dir.glob("extract-*.json")) - files_before_second_call).pop()
+    loaded = load_task_state(state_dir, new_state_file.stem)
+    messages = [e.message for e in loaded.events]
+    assert messages == [
+        "Extraction task started",
+        "Source content read",
+        "Duplicate source detected, skipping extraction",
+    ]
