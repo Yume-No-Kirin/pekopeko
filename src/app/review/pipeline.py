@@ -10,6 +10,7 @@ from . import storage
 from .errors import (
     DomainMismatchError,
     InvalidProposalStatusError,
+    UneditableFieldError,
     UnsupportedProposalTypeError,
     ValidationError,
 )
@@ -50,6 +51,15 @@ class RejectResult:
     reviewed_by: str
     reviewed_at: str
     rejection_reason: Optional[str]
+
+
+@dataclass
+class EditResult:
+    proposal_id: str
+    edited_by: str
+    edited_at: str
+    archived_version_path: Path
+    archived_version: int
 
 
 def list_proposals(vault_root: Path, domain: str, status: Optional[str] = None) -> list[ProposalSummary]:
@@ -107,7 +117,7 @@ def get_proposal(vault_root: Path, domain: str, proposal_id: str) -> ProposalDet
     )
 
 
-def _load_and_validate_for_review(
+def _load_and_validate_common(
     vault_root: Path, domain: str, proposal_id: str, reviewer_id: str
 ) -> tuple[dict[str, Any], str]:
     storage._validate_domain(domain)
@@ -118,20 +128,77 @@ def _load_and_validate_for_review(
         raise DomainMismatchError(
             f"Proposal '{proposal_id}' belongs to domain '{frontmatter['domain']}', not '{domain}'"
         )
-    if frontmatter["proposed_item_type"] != "assertion":
-        raise UnsupportedProposalTypeError(
-            f"Proposal '{proposal_id}' has proposed_item_type "
-            f"'{frontmatter['proposed_item_type']}', only 'assertion' is supported"
-        )
-    if frontmatter["proposal_status"] != "PROPOSED":
+    if frontmatter["proposal_status"] not in ("PROPOSED", "EDITED"):
         raise InvalidProposalStatusError(
             f"Proposal '{proposal_id}' has status '{frontmatter['proposal_status']}', "
-            f"expected 'PROPOSED'"
+            f"expected 'PROPOSED' or 'EDITED'"
         )
     if not reviewer_id:
         raise ValidationError("reviewer_id is required")
 
     return frontmatter, body
+
+
+def _load_and_validate_for_review(
+    vault_root: Path, domain: str, proposal_id: str, reviewer_id: str
+) -> tuple[dict[str, Any], str]:
+    frontmatter, body = _load_and_validate_common(vault_root, domain, proposal_id, reviewer_id)
+    if frontmatter["proposed_item_type"] != "assertion":
+        raise UnsupportedProposalTypeError(
+            f"Proposal '{proposal_id}' has proposed_item_type "
+            f"'{frontmatter['proposed_item_type']}', only 'assertion' is supported"
+        )
+    return frontmatter, body
+
+
+def _load_and_validate_for_edit(
+    vault_root: Path, domain: str, proposal_id: str, reviewer_id: str
+) -> tuple[dict[str, Any], str]:
+    return _load_and_validate_common(vault_root, domain, proposal_id, reviewer_id)
+
+
+def edit_proposal(
+    vault_root: Path,
+    domain: str,
+    proposal_id: str,
+    reviewer_id: str,
+    body: Optional[str] = None,
+    field_updates: Optional[dict[str, Any]] = None,
+) -> EditResult:
+    field_updates = field_updates or {}
+    if body is None and not field_updates:
+        raise ValidationError("edit_proposal requires body and/or field_updates; both were empty/None")
+
+    # Locked for the whole read-version/archive/overwrite sequence: prevents two
+    # concurrent edits from computing the same next history version (see
+    # storage.proposal_edit_lock).
+    with storage.proposal_edit_lock(vault_root, domain, proposal_id):
+        frontmatter, current_body = _load_and_validate_for_edit(vault_root, domain, proposal_id, reviewer_id)
+        storage._validate_editable_fields(frontmatter["proposed_item_type"], field_updates)
+
+        # Archive pre-edit content first (INV-019 ordering): if this fails, the live
+        # proposal file is left completely untouched.
+        archived_path, archived_version = storage.archive_proposal_version(
+            vault_root, domain, proposal_id, frontmatter, current_body
+        )
+
+        now = datetime.now().isoformat()
+        new_frontmatter = dict(frontmatter)
+        new_frontmatter.update(field_updates)
+        new_frontmatter["proposal_status"] = "EDITED"
+        new_frontmatter["edited_by"] = reviewer_id
+        new_frontmatter["edited_at"] = now
+        new_body = body if body is not None else current_body
+
+        storage.write_proposal_file_in_place(vault_root, domain, proposal_id, new_frontmatter, new_body)
+
+    return EditResult(
+        proposal_id=proposal_id,
+        edited_by=reviewer_id,
+        edited_at=now,
+        archived_version_path=archived_path,
+        archived_version=archived_version,
+    )
 
 
 def accept_proposal(vault_root: Path, domain: str, proposal_id: str, reviewer_id: str) -> AcceptResult:

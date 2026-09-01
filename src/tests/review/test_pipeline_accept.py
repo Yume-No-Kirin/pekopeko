@@ -185,3 +185,37 @@ def test_accept_proposal_assertion_write_failure_no_orphan_assertion_file(tmp_pa
 
     assertions_dir = tmp_path / "PERSONAL" / "assertions"
     assert not assertions_dir.exists() or list(assertions_dir.iterdir()) == []
+
+
+def test_accept_proposal_succeeds_on_edited_status(tmp_path, make_proposal_file):
+    proposal_id, _ = make_proposal_file(domain="PERSONAL", status="EDITED")
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    assert result.assertion_path.exists()
+    assertion_frontmatter, _ = parse_frontmatter(result.assertion_path.read_text(encoding="utf-8"))
+    assert assertion_frontmatter["lifecycle_status"] == "ACTIVE"
+
+
+def test_accept_proposal_after_edit_writes_assertion_from_edited_body_and_fields(tmp_path, make_proposal_file):
+    proposal_id, _ = make_proposal_file(
+        domain="PERSONAL", body="Original body.", epistemic_status="direct"
+    )
+    pipeline.edit_proposal(
+        tmp_path, "PERSONAL", proposal_id, "editor-1",
+        body="Edited body.", field_updates={"epistemic_status": "uncertain"},
+    )
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    assertion_frontmatter, assertion_body = parse_frontmatter(result.assertion_path.read_text(encoding="utf-8"))
+    assert assertion_body == "Edited body."
+    assert assertion_frontmatter["epistemic_status"] == "uncertain"
+
+
+def test_accept_already_edited_then_accepted_proposal_raises_on_second_accept(tmp_path, make_proposal_file):
+    proposal_id, _ = make_proposal_file(domain="PERSONAL", status="EDITED")
+    pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    with pytest.raises(InvalidProposalStatusError):
+        pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-2")

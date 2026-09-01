@@ -104,3 +104,32 @@ def test_reject_proposal_wrong_domain_raises_domain_mismatch(tmp_path, make_prop
 
     with pytest.raises(DomainMismatchError):
         pipeline.reject_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+
+def test_reject_proposal_succeeds_on_edited_status(tmp_path, make_proposal_file):
+    proposal_id, proposal_file = make_proposal_file(domain="PERSONAL", status="EDITED")
+
+    pipeline.reject_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    proposal_frontmatter, _ = parse_frontmatter(proposal_file.read_text(encoding="utf-8"))
+    assert proposal_frontmatter["proposal_status"] == "REJECTED"
+    assert proposal_frontmatter["resulting_item_id"] is None
+
+
+def test_reject_proposal_after_edit_preserves_edited_content_unchanged(tmp_path, make_proposal_file):
+    proposal_id, proposal_file = make_proposal_file(domain="PERSONAL", body="Original body.")
+    pipeline.edit_proposal(tmp_path, "PERSONAL", proposal_id, "editor-1", body="Edited body.")
+
+    pipeline.reject_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    proposal_frontmatter, proposal_body = parse_frontmatter(proposal_file.read_text(encoding="utf-8"))
+    assert proposal_body == "Edited body."
+    assert proposal_frontmatter["proposal_status"] == "REJECTED"
+
+
+def test_reject_already_edited_then_rejected_proposal_raises_on_second_reject(tmp_path, make_proposal_file):
+    proposal_id, _ = make_proposal_file(domain="PERSONAL", status="EDITED")
+    pipeline.reject_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    with pytest.raises(InvalidProposalStatusError):
+        pipeline.reject_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-2")

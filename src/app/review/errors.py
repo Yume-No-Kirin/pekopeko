@@ -24,7 +24,8 @@ class DomainMismatchError(ReviewError):
 
 
 class InvalidProposalStatusError(ReviewError):
-    """Raised when accept/reject is attempted on a proposal whose proposal_status != PROPOSED."""
+    """Raised when accept/reject/edit is attempted on a proposal whose proposal_status is not
+    one of the statuses that operation currently accepts ('PROPOSED' or 'EDITED', for all three)."""
 
 
 class UnsupportedProposalTypeError(ReviewError):
@@ -33,3 +34,7 @@ class UnsupportedProposalTypeError(ReviewError):
 
 class InvalidDomainError(ReviewError):
     """Raised when domain is not one of the allowed domains."""
+
+
+class UneditableFieldError(ReviewError):
+    """Raised when field_updates contains a key outside the allow-list for the proposal's proposed_item_type."""

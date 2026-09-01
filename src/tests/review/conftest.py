@@ -78,3 +78,29 @@ def make_proposal_file(tmp_path, make_source_file):
         _write_frontmatter_file(path, frontmatter, body)
         return proposal_id, path
     return _make
+
+
+@pytest.fixture
+def make_entity_proposal_file(make_proposal_file):
+    def _make(**overrides):
+        overrides.setdefault("entity_type", "person")
+        return make_proposal_file(proposed_item_type="entity", **overrides)
+    return _make
+
+
+@pytest.fixture
+def make_event_proposal_file(make_proposal_file):
+    def _make(**overrides):
+        overrides.setdefault("starts_at", "2026-01-01T00:00:00")
+        overrides.setdefault("ends_at", "2026-01-02T00:00:00")
+        return make_proposal_file(proposed_item_type="event", **overrides)
+    return _make
+
+
+@pytest.fixture
+def make_relationship_proposal_file(make_proposal_file):
+    def _make(**overrides):
+        overrides.setdefault("relationship_type", "knows")
+        overrides.setdefault("endpoints", {"from": "entity-a", "to": "entity-b"})
+        return make_proposal_file(proposed_item_type="relationship", **overrides)
+    return _make

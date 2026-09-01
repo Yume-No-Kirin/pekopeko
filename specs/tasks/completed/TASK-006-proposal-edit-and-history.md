@@ -1,6 +1,6 @@
 # TASK-006: Proposal EDITED Status and History Versioning (V1)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -262,3 +262,94 @@ atomicity (AC12), no-git (AC13).
 - Widening `accept_proposal`/`reject_proposal`'s type restriction beyond assertion — TASK-005.
 - Any GUI or CLI.
 - Cross-domain edit, reviewer authentication/authorization — same as TASK-002.
+
+## Verification record (2026-09-01)
+
+Implemented by Claude (this session) as an in-place extension of `src/app/review/` (`errors.py`,
+`storage.py`, `pipeline.py`), plus new/extended tests in `src/tests/review/` (`conftest.py`,
+`test_pipeline_edit.py` new, `test_storage.py`/`test_pipeline_accept.py`/`test_pipeline_reject.py`
+extended). Per this project's verification discipline: code was copied to an isolated scratch
+directory outside the repo (`/tmp/task006_verify/`) and the full `src/tests/review/` suite re-run
+independently there (94/94 pass, 100% line coverage), rather than trusting the in-repo run alone.
+Each acceptance criterion checked individually:
+
+- `[PASS]` AC1 (body edit archives pre-edit content to `history/<ts>--v1.md` with
+  `lifecycle_status: SUPERSEDED`/`superseded_by: v2`, live file updated with new body,
+  `proposal_status: EDITED`, `edited_by`/`edited_at` set, other fields unchanged) —
+  `test_edit_proposal_body_archives_pre_edit_content_and_updates_live_file` passes in both runs.
+  Also manually reproduced end-to-end outside pytest (hand-built fixture, called `edit_proposal`
+  directly, inspected the live file and the archived `v1` snapshot by eye — output matches contract
+  exactly, including `superseded_by: v2` on the archived copy).
+- `[PASS]` AC2 (allow-listed field edit works per type, only passed field(s) change) —
+  `test_edit_proposal_field_update_assertion`/`_entity`/`_event`/`_relationship` pass, one per
+  `proposed_item_type`, using new `make_entity_proposal_file`/`make_event_proposal_file`/
+  `make_relationship_proposal_file` fixtures added to `conftest.py`.
+- `[PASS]` AC3 (disallowed `field_updates` key raises `UneditableFieldError` before any write) —
+  `test_edit_proposal_uneditable_field_raises_before_any_write` (`id`),
+  `test_edit_proposal_uneditable_cross_type_field_raises` (`endpoints` on an assertion),
+  `test_edit_proposal_system_managed_field_raises` (`provenance`) all pass; each asserts the live
+  file is byte-identical to before and no `history/` dir was created.
+- `[PASS]` AC4 (editing an already-`EDITED` proposal again creates an independent `v2` snapshot,
+  `v1` unchanged) — `test_edit_proposal_twice_creates_independent_snapshots` passes, explicitly
+  comparing `v1`'s file bytes before/after the second edit. Also manually reproduced: double-edit
+  script confirms `v1` byte-for-byte identical after the second edit, `v2` carries
+  `superseded_by: v3`.
+- `[PASS]` AC5 (`edit_proposal` succeeds for all 4 `proposed_item_type` values) —
+  `test_edit_proposal_succeeds_for_assertion`/`_entity`/`_event`/`_relationship` all pass.
+- `[PASS]` AC6 (no `body` and no/empty `field_updates` raises `ValidationError`, no-op) —
+  `test_edit_proposal_no_body_and_no_field_updates_raises_validation_error` and
+  `test_edit_proposal_empty_field_updates_and_no_body_raises_validation_error` pass, both confirming
+  the live file is untouched and no `history/` dir is created.
+- `[PASS]` AC7 (edit on `ACCEPTED`/`REJECTED` proposal raises `InvalidProposalStatusError`, no
+  files touched) — `test_edit_proposal_on_accepted_proposal_raises_invalid_status` and
+  `test_edit_proposal_on_rejected_proposal_raises_invalid_status` pass.
+- `[PASS]` AC8 (`accept_proposal` succeeds on `EDITED`, writes canonical Assertion from the
+  edited body/fields) — `test_accept_proposal_succeeds_on_edited_status` (status-check regression)
+  and `test_accept_proposal_after_edit_writes_assertion_from_edited_body_and_fields` (integration:
+  calls `edit_proposal` then `accept_proposal`, confirms the resulting Assertion body/fields reflect
+  the edit, not the original) both pass.
+- `[PASS]` AC9 (`reject_proposal` succeeds on `EDITED`, edited content preserved unchanged) —
+  `test_reject_proposal_succeeds_on_edited_status` and
+  `test_reject_proposal_after_edit_preserves_edited_content_unchanged` (integration: edit then
+  reject, confirms the live file still holds the edited body, not the original) both pass.
+- `[PASS]` AC10 (accept/reject still blocked outside `{PROPOSED, EDITED}`) — TASK-002's original
+  regression tests (`test_reject_already_rejected_proposal_raises_invalid_status`,
+  `test_reject_then_accept_raises_invalid_status`, `test_reject_accepted_proposal_raises_invalid_status`,
+  `test_accept_already_accepted_proposal_raises_and_leaves_files_unchanged`,
+  `test_accept_then_reject_raises_invalid_status`) all pass unmodified; plus two new
+  edit-path-specific cases (`test_accept_already_edited_then_accepted_proposal_raises_on_second_accept`,
+  `test_reject_already_edited_then_rejected_proposal_raises_on_second_reject`) confirming the
+  widened check still correctly excludes `ACCEPTED`/`REJECTED`.
+- `[PASS]` AC11 (simulated archive-write failure leaves the live file untouched, no orphaned
+  history file) — `test_edit_proposal_archive_write_failure_leaves_live_file_untouched` and
+  `test_edit_proposal_archive_write_failure_no_orphaned_history_file` pass, via monkeypatching
+  `storage.archive_proposal_version` to raise before any file is touched.
+- `[PASS]` AC12 (all history-snapshot writes and live-file edit overwrites are atomic) —
+  `test_edit_proposal_archive_write_is_atomic_no_partial_file_on_replace_failure` (monkeypatches
+  `os.replace` to fail on the first call, confirms no partial/orphaned file) and
+  `test_edit_proposal_live_overwrite_failure_leaves_archived_snapshot_and_pre_edit_live_content`
+  (monkeypatches `os.replace` to fail specifically on the *second* call, confirming the archived
+  snapshot survives as an inert extra file while the live proposal file's pre-edit content is left
+  intact) both pass — same idiom as `test_storage.py`'s existing `_write_atomic_file` atomicity
+  test, applied to the two-write `edit_proposal` sequence specifically.
+- `[PASS]` AC13 (no git usage) — `grep -rin "git" src/app/review/` returns nothing (checked
+  independently, not just via `test_no_git.py`, which also passes and automatically covers the new
+  files since it globs `*.py`).
+- `[PASS]` Test coverage — `pytest --cov=src.app.review` reports 100% line coverage (258/258
+  statements), in both the working tree and the isolated copy (project requirement: ≥80%). Two
+  branches not exercised by any of the 13 ACs directly (`DomainMismatchError` and empty-`reviewer_id`
+  in the new `_load_and_validate_for_edit`) were given explicit regression tests
+  (`test_edit_proposal_wrong_domain_raises_domain_mismatch`,
+  `test_edit_proposal_missing_reviewer_id_raises_validation_error`) to close the gap, matching the
+  module's existing near-100% standard.
+- `[PASS]` 94/94 tests pass in the working tree and again, independently, in an isolated scratch
+  copy of the code (not just re-running in place).
+- `[NOT RUN]` Real Obsidian vault / GUI interaction — not applicable, ticket has no GUI/CLI
+  requirement (function entry points only, per Constraints).
+
+**Honesty note on independence**: this verification was performed by the same Claude session that
+wrote the implementation, not by a separate reviewer or model — same limitation flagged in
+TASK-001a/TASK-001b/TASK-002/TASK-003/TASK-004's own verification records. It does follow the
+isolated-copy-and-independently-rerun discipline the project asks for, and includes a byte-level
+manual end-to-end reproduction (not just trusting pytest's assertions), but is not the same
+strength of evidence as an independent second reviewer.

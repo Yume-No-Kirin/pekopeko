@@ -20,11 +20,10 @@
 Phase : implémentation des tickets `TASK-XXX` (en cours).
 
 - **Décisions** : ADI-001 à ADI-010 toutes `Accepted` (voir ci-dessous). Aucune décision d'architecture en attente.
-- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, et par TASK-001b, journal d'événements de tâche), `src/app/review/` (TASK-002, revue des propositions), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), tests sous `src/tests/`. Ces six tickets sont dans `specs/tasks/completed/`.
-- **Suite** : neuf tickets `backlog` existent maintenant (dix moins TASK-001a, complété le
-  2026-08-31). Cœur GUI : TASK-005 (revue
-  Entity/Event/Relationship) et TASK-006 (statut EDITED + historisation des Proposals) ne
-  dépendent que du contrat de fichiers TASK-001/003 ; TASK-007 (couche API backend,
+- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, et par TASK-001b, journal d'événements de tâche), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), tests sous `src/tests/`. Ces sept tickets sont dans `specs/tasks/completed/`.
+- **Suite** : huit tickets `backlog` restent maintenant (neuf moins TASK-006, complété le
+  2026-09-01). Cœur GUI : TASK-005 (revue Entity/Event/Relationship) ne dépend que du
+  contrat de fichiers TASK-001/003 ; TASK-007 (couche API backend,
   premier ticket du socle GUI, voir ADI-010) ne dépend que des fonctions déjà `completed`
   de TASK-001/002/003/004 ; TASK-008/009/010/011 (scaffold + Dashboard/Settings,
   Ingestion Logs, Validation, Détail de proposition) forment une chaîne de dépendance
@@ -190,13 +189,24 @@ Branchement minimal : `ingestion/pipeline.py` et `extraction/pipeline.py` tirent
 
 `specs/tasks/backlog/TASK-005-entity-event-relationship-review.md`. Miroir de TASK-002 pour la sortie de TASK-003 : listing/détail/accept/reject pour `proposed_item_type` entity/event/relationship, plus résolution des `endpoints` d'une relation acceptée vers des IDs canoniques stables (ADI-003), une fois ses propres endpoints eux-mêmes acceptés. Ticket entièrement rédigé (objectif, contrat de fichiers, 10 critères d'acceptation) mais jamais implémenté — aucune section « Verification record » ni « Implementation notes ».
 
-### TASK-006 — Statut EDITED et historisation des Proposals — `backlog`
+### TASK-006 — Statut EDITED et historisation des Proposals — `completed`
 
-`specs/tasks/backlog/TASK-006-proposal-edit-and-history.md`. Ajoute `PROPOSED → EDITED` (édition du contenu d'une Proposal avant décision, UC-011 stage 5) et le mécanisme `history/` pour les Proposals qu'ADI-001 exige dès que le contenu change — engagement pris explicitement dans TASK-002 (« Le futur ticket qui introduira EDITED devra impérativement ajouter le mécanisme history/ pour les Proposals »). Rédigé le 2026-08-31, jamais implémenté.
+`specs/tasks/completed/TASK-006-proposal-edit-and-history.md`. Ajoute `PROPOSED → EDITED` (édition du contenu d'une Proposal avant décision, UC-011 stage 5) et le mécanisme `history/` pour les Proposals qu'ADI-001 exige dès que le contenu change — engagement pris explicitement dans TASK-002 (« Le futur ticket qui introduira EDITED devra impérativement ajouter le mécanisme history/ pour les Proposals »). Rédigé le 2026-08-31, implémenté le 2026-09-01.
 
 - **Décision de scope notable** : `edit_proposal` est générique aux 4 `proposed_item_type` (assertion/entity/event/relationship) — indépendant de TASK-005, car éditer ne touche que le frontmatter/body de la Proposal, jamais un writer canonique type-spécifique. `accept_proposal`/`reject_proposal` restent assertion-only (TASK-002/TASK-005), ce ticket élargit seulement leur statut accepté (`PROPOSED` ou `EDITED`), pas leur type. Conséquence assumée et documentée dans le ticket : une proposition entity/event/relationship éditée par ce ticket ne pourra toujours pas être acceptée avant TASK-005.
-- **Historisation sans nouveau champ `version`** : numéro de version dérivé du nombre de fichiers déjà présents dans `history/` au moment de l'édition ; chaque snapshot archivé reçoit `lifecycle_status: SUPERSEDED` + `superseded_by: v<n+1>`, jamais réécrit après coup (INV-004).
+- **Historisation sans nouveau champ `version`** : numéro de version dérivé (par parsing du nom de fichier `--v<n>.md`, pas par comptage — robuste à un fichier parasite dans `history/`) plutôt que du nombre de fichiers déjà présents dans `history/` au moment de l'édition ; chaque snapshot archivé reçoit `lifecycle_status: SUPERSEDED` + `superseded_by: v<n+1>`, jamais réécrit après coup (INV-004).
 - TASK-005 et TASK-006 sont indépendants entre eux (aucune dépendance de code) — les implémenter dans n'importe quel ordre est possible.
+- Code : extension en place de `src/app/review/` (`errors.py` : `UneditableFieldError` ; `storage.py` :
+  `EDITABLE_FIELDS_BY_TYPE`, `proposal_history_dir`, `archive_proposal_version`,
+  `_validate_editable_fields` ; `pipeline.py` : `edit_proposal`, `_load_and_validate_for_edit`,
+  élargissement du check de statut de `_load_and_validate_for_review` à `PROPOSED`/`EDITED`), tests
+  sous `src/tests/review/` (94 tests, 100 % de couverture de lignes).
+- Vérifié par Claude selon la discipline du projet (environnement isolé hors dépôt, 94/94 tests
+  rejoués indépendamment, couverture 100 % reconfirmée à l'identique, 13 critères d'acceptation un
+  par un, plus un script de reproduction manuelle bout-en-bout double-édition inspectant par l'œil
+  le fichier Proposal live et les deux snapshots `history/` produits). Rapport dans la section
+  « Verification record » du ticket. Même limite que TASK-001a/001b/002/003/004 : vérification
+  faite par la même session Claude que l'implémentation, pas par un second réviseur indépendant.
 
 ### TASK-007 — Couche API backend pour le Knowledge Core — `backlog`
 
@@ -332,15 +342,15 @@ bloquer l'écran. Rédigé le 2026-08-31, jamais implémenté.
 
 ## Prochaine action exacte
 
-**TASK-001, TASK-002, TASK-003, TASK-004, TASK-001a et TASK-001b sont tous `completed`**
-(TASK-001a et TASK-001b le 2026-08-31, les quatre autres le 2026-08-30). **Neuf tickets
-restent rédigés (`backlog`), aucun implémenté** — voir leurs sections ci-dessus (TASK-005,
-006, 007, 007a, 008, 009, 010, 011, 012 — compte vérifié contre
-`specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus).
+**TASK-001, TASK-002, TASK-003, TASK-004, TASK-001a, TASK-001b et TASK-006 sont tous
+`completed`** (TASK-006 le 2026-09-01, TASK-001a et TASK-001b le 2026-08-31, les quatre
+autres le 2026-08-30). **Huit tickets restent rédigés (`backlog`), aucun implémenté** — voir
+leurs sections ci-dessus (TASK-005, 007, 007a, 008, 009, 010, 011, 012 — compte vérifié
+contre `specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus).
 
-- Indépendants entre eux et de tout le reste : TASK-005, TASK-006 (TASK-005 est désormais
-  aussi le scope backend de TASK-012, voir ci-dessous — toujours implémentable seul, mais
-  plus totalement indépendant du reste du socle GUI).
+- Indépendant de tout le reste : TASK-005 (désormais aussi le scope backend de TASK-012,
+  voir ci-dessous — toujours implémentable seul, mais plus totalement indépendant du reste
+  du socle GUI).
 - Chaîne GUI, à implémenter dans cet ordre relatif : TASK-007 → TASK-008 → TASK-009 →
   TASK-010 → TASK-011 → TASK-012 (chacun dépend du/des précédent(s) pour son
   shell/composants/wrappers API ; TASK-012 dépend en plus de TASK-005 côté backend — voir
@@ -354,7 +364,7 @@ restent rédigés (`backlog`), aucun implémenté** — voir leurs sections ci-d
 Prochaine action : demander à Cleo l'ordre d'implémentation. Suggestion si aucune
 préférence : TASK-007 → TASK-007a → TASK-008 → TASK-009 → TASK-010 →
 TASK-011 → TASK-005 → TASK-012 dans l'ordre (TASK-005 doit précéder TASK-012, qui reprend
-son backend par référence), TASK-006 intercalable à tout moment.
+son backend par référence).
 
 ---
 
