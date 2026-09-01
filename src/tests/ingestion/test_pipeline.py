@@ -391,11 +391,15 @@ def test_fake_provider_yields_null_model_temperature():
 
 
 def test_ingest_source_signature_unchanged():
-    """AC6: ingest_source's public parameter list is unchanged by this ticket."""
+    """AC6: ingest_source's public parameter list is unchanged by this ticket, except for
+    TASK-007's additive, backward-compatible optional task_id parameter."""
     sig = inspect.signature(ingest_source)
-    assert list(sig.parameters.keys()) == ['vault_root', 'domain', 'source_path', 'provider', 'state_dir']
+    assert list(sig.parameters.keys()) == [
+        'vault_root', 'domain', 'source_path', 'provider', 'state_dir', 'task_id'
+    ]
+    assert sig.parameters['task_id'].default is None
 
-    print("✓ ingest_source signature unchanged")
+    print("✓ ingest_source signature unchanged (plus additive task_id)")
 
 
 def _events_from_last_task_state(state_dir):

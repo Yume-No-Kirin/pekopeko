@@ -195,9 +195,13 @@ def _last_task_state(state_dir):
 
 
 def test_extract_source_signature_unchanged():
-    """TASK-001b AC7: extract_source's public parameter list is unchanged."""
+    """TASK-001b AC7: extract_source's public parameter list is unchanged, except for
+    TASK-007's additive, backward-compatible optional task_id parameter."""
     sig = inspect.signature(extract_source)
-    assert list(sig.parameters.keys()) == ['vault_root', 'domain', 'source_path', 'provider', 'state_dir']
+    assert list(sig.parameters.keys()) == [
+        'vault_root', 'domain', 'source_path', 'provider', 'state_dir', 'task_id'
+    ]
+    assert sig.parameters['task_id'].default is None
 
 
 def test_successful_extraction_event_sequence(tmp_path, source_file):

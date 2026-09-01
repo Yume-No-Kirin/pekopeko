@@ -38,7 +38,8 @@ def ingest_source(
     domain: str,
     source_path: Path,
     provider: Provider,
-    state_dir: Path = None
+    state_dir: Path = None,
+    task_id: Optional[str] = None
 ) -> IngestionResult:
     """
     Ingest a single source file and extract assertions.
@@ -49,6 +50,7 @@ def ingest_source(
         source_path: Path to the source file
         provider: LLM provider to use for extraction
         state_dir: Directory for task state storage (optional)
+        task_id: Pre-minted task id to use verbatim (optional)
 
     Returns:
         IngestionResult with details of the operation
@@ -62,7 +64,7 @@ def ingest_source(
     if state_dir is None:
         state_dir = load_config().task_state.dir / "ingestion"
 
-    task_state = create_task_state(str(source_path), domain, state_dir)
+    task_state = create_task_state(str(source_path), domain, state_dir, task_id=task_id)
     update_task_state(task_state, state_dir)
     append_task_event(task_state, state_dir, "info", "Ingestion task started",
                        {"source_path": str(source_path), "domain": domain})

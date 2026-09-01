@@ -48,4 +48,4 @@ def test_build_configured_provider_raises_on_unknown_provider():
 
 def test_ingest_source_signature_is_unchanged():
     params = list(inspect.signature(ingest_source).parameters)
-    assert params == ["vault_root", "domain", "source_path", "provider", "state_dir"]
+    assert params == ["vault_root", "domain", "source_path", "provider", "state_dir", "task_id"]

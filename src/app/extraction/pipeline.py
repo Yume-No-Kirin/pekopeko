@@ -52,6 +52,7 @@ def extract_source(
     source_path: Path,
     provider: Provider,
     state_dir: Path = None,
+    task_id: Optional[str] = None,
 ) -> ExtractionPipelineResult:
     if domain not in storage.VALID_DOMAINS:
         raise InvalidDomainError(f"Invalid domain '{domain}'. Must be one of {sorted(storage.VALID_DOMAINS)}")
@@ -59,7 +60,7 @@ def extract_source(
     if state_dir is None:
         state_dir = load_config().task_state.dir / "extraction"
 
-    task_state = create_task_state(str(source_path), domain, state_dir)
+    task_state = create_task_state(str(source_path), domain, state_dir, task_id=task_id)
     update_task_state(task_state, state_dir)
     append_task_event(task_state, state_dir, "info", "Extraction task started",
                        {"source_path": str(source_path), "domain": domain})

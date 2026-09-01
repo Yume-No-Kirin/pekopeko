@@ -20,12 +20,11 @@
 Phase : implémentation des tickets `TASK-XXX` (en cours).
 
 - **Décisions** : ADI-001 à ADI-010 toutes `Accepted` (voir ci-dessous). Aucune décision d'architecture en attente.
-- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, et par TASK-001b, journal d'événements de tâche), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), tests sous `src/tests/`. Ces sept tickets sont dans `specs/tasks/completed/`.
-- **Suite** : huit tickets `backlog` restent maintenant (neuf moins TASK-006, complété le
-  2026-09-01). Cœur GUI : TASK-005 (revue Entity/Event/Relationship) ne dépend que du
-  contrat de fichiers TASK-001/003 ; TASK-007 (couche API backend,
-  premier ticket du socle GUI, voir ADI-010) ne dépend que des fonctions déjà `completed`
-  de TASK-001/002/003/004 ; TASK-008/009/010/011 (scaffold + Dashboard/Settings,
+- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, par TASK-001b, journal d'événements de tâche, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), `src/app/api/` (TASK-007, couche API HTTP REST — Flask, ADI-010), tests sous `src/tests/`. Ces huit tickets sont dans `specs/tasks/completed/`.
+- **Suite** : sept tickets `backlog` restent maintenant (neuf moins TASK-006 et TASK-007,
+  complétés respectivement le 2026-09-01 et le 2026-09-01). Cœur GUI : TASK-005 (revue
+  Entity/Event/Relationship) ne dépend que du contrat de fichiers TASK-001/003 ;
+  TASK-008/009/010/011 (scaffold + Dashboard/Settings,
   Ingestion Logs, Validation, Détail de proposition) forment une chaîne de dépendance
   (008→009→010→011, chacun réutilisant les composants/wrappers API du précédent).
   **Trois tickets backend satellites** (2026-08-31, voir leurs sections ci-dessous) ont été
@@ -208,30 +207,47 @@ Branchement minimal : `ingestion/pipeline.py` et `extraction/pipeline.py` tirent
   « Verification record » du ticket. Même limite que TASK-001a/001b/002/003/004 : vérification
   faite par la même session Claude que l'implémentation, pas par un second réviseur indépendant.
 
-### TASK-007 — Couche API backend pour le Knowledge Core — `backlog`
+### TASK-007 — Couche API backend pour le Knowledge Core — `completed`
 
-`specs/tasks/backlog/TASK-007-backend-api-layer.md`. Premier ticket du socle GUI de
+`specs/tasks/completed/TASK-007-backend-api-layer.md`. Premier ticket du socle GUI de
 `specs/tasks/BACKLOG-CLAUDE-V2.md` (correspond à l'ancien `TASK-022` de
 `BACKLOG-CLAUDE.md`) : expose `ingestion`/`extraction`/`review` (accept/reject
 uniquement)/`config` (lecture seule) via une API HTTP REST, levant pour la première fois
 la contrainte explicite "no GUI or CLI required" de TASK-001/002/003. Pré-requis
 obligatoire avant TASK-008 à TASK-012 — aucun écran ne peut être construit sans ce
-connecteur. Rédigé le 2026-08-31, jamais implémenté.
+connecteur. Rédigé le 2026-08-31, implémenté le 2026-09-01.
 
-- Implémente **ADI-010** (rédigée dans la même session, en butant sur 4 gaps bloquants
-  pour écrire ce ticket : aucun framework HTTP existant, forme du contrat de job
+- Implémente **ADI-010** (rédigée dans la même session que le ticket, en butant sur 4
+  gaps bloquants pour l'écrire : aucun framework HTTP existant, forme du contrat de job
   asynchrone jamais tranchée par ADI-005, absence totale de surface de config pour
   `vault_root`, absence de tout mécanisme d'authentification) — voir la section ADI-010
   ci-dessus pour le détail des décisions.
-- Nécessite deux changements additifs et rétrocompatibles à du code déjà `completed` :
+- Code : nouveau paquet `src/app/api/` (10 fichiers : `app.py`, `settings.py`,
+  `serialization.py`, `tasks.py`, `domains.py`, `routes_ingestion.py`,
+  `routes_extraction.py`, `routes_review.py`, `routes_config.py`, `__init__.py`), plus
+  deux changements additifs et rétrocompatibles à du code déjà `completed` :
   `ingest_source`/`extract_source` et leurs `create_task_state` respectifs
   (`src/app/ingestion/` et `src/app/extraction/`) gagnent un paramètre optionnel
-  `task_id: Optional[str] = None` (défaut `None` préserve le comportement actuel), plus
-  une nouvelle fonction `list_task_states` dans chacun des deux modules — même catégorie
-  de "branchement minimal" que celui déjà fait par TASK-004. Aucun changement à
-  `review/` ni `config/`.
-- Indépendant de TASK-005/TASK-006 (ne dépend que de TASK-001/002/003/004, tous
-  `completed`) — implémentable dans n'importe quel ordre par rapport à eux.
+  `task_id: Optional[str] = None`, plus une nouvelle fonction `list_task_states` dans
+  chacun des deux modules — même catégorie de "branchement minimal" que celui déjà fait
+  par TASK-004. Aucun changement à `review/` ni `config/`. `flask>=3.0` ajouté à
+  `src/requirements.txt`. Tests : `src/tests/api/` (66 tests, 99 % de couverture de
+  lignes), plus tests de régression ajoutés à `src/tests/ingestion/` et
+  `src/tests/extraction/` pour `task_id`/`list_task_states`.
+- Indépendant de TASK-005/TASK-006 (ne dépendait que de TASK-001/002/003/004, tous
+  `completed`) — confirmé implémentable indépendamment d'eux.
+- **Bug trouvé et corrigé pendant la vérification** : l'écriture de `TaskState.save()`
+  (code TASK-001/003 préexistant, non modifié par ce ticket au-delà des deux
+  changements additifs ci-dessus) n'est pas atomique — un `GET` immédiat après le `202`
+  peut, rarement, tomber sur une lecture concurrente à la première mise à jour de statut
+  du thread d'arrière-plan et voir un fichier tronqué, que `load_task_state` avale en
+  `None` comme si la tâche n'existait pas (`404` erroné, violant l'AC1 "an immediate GET
+  on that task_id never returns 404"). Corrigé uniquement côté couche API (aucune
+  modification de `task_state.py`) via un nouvel helper `load_task_state_resilient`
+  (`src/app/api/tasks.py`) qui retente brièvement tant que le fichier existe sur disque
+  mais ne s'est pas encore parsé, et renvoie `None` immédiatement si le fichier n'a
+  jamais existé. Détail complet et reproduction dans la section « Implementation
+  notes » du ticket.
 
 ### TASK-007a — Pagination sur les endpoints de liste — `backlog`
 
@@ -258,9 +274,8 @@ maquettes). Rédigé le 2026-08-31, jamais implémenté.
   seule pour V1 (affiche le chemin du `config.yaml` local avec une note d'édition
   manuelle, pas de nouvel endpoint d'écriture) — le libellé "visualise/édite" de
   `BACKLOG-CLAUDE-V2.md` est superseded par cette décision.
-- Dépend de TASK-007 (`backlog` — connecteur API obligatoire, ne peut pas être implémenté
-  avant lui) et transitivement de TASK-004 (`completed`, forme de `GET /config`).
-  Indépendant de TASK-005/TASK-006.
+- Dépend de TASK-007 (`completed` — connecteur API obligatoire) et transitivement de
+  TASK-004 (`completed`, forme de `GET /config`). Indépendant de TASK-005/TASK-006.
 - Prérequis pour TASK-009 à TASK-012 : la structure de routing/composants posée ici est
   ce à quoi ces tickets ajoutent des écrans, sans la refondre.
 
@@ -320,7 +335,7 @@ les données déjà récupérées par chaque écran (N+1 déjà existant sur Val
 nouveau N+1 ciblé par endpoint sur Détail), id non résolu affiché tel quel plutôt que de
 bloquer l'écran. Rédigé le 2026-08-31, jamais implémenté.
 
-- Dépend de TASK-005 et TASK-007 (tous deux `backlog`) côté backend ; de la chaîne
+- Dépend de TASK-005 (`backlog`) et TASK-007 (`completed`) côté backend ; de la chaîne
   TASK-008 → TASK-009 → TASK-010 → TASK-011 (tous `backlog`) côté frontend. Indépendant
   de TASK-006/TASK-013/TASK-015.
 - Avec ce ticket, **le socle GUI (TASK-007 → TASK-012) est entièrement rédigé** —
@@ -342,27 +357,28 @@ bloquer l'écran. Rédigé le 2026-08-31, jamais implémenté.
 
 ## Prochaine action exacte
 
-**TASK-001, TASK-002, TASK-003, TASK-004, TASK-001a, TASK-001b et TASK-006 sont tous
-`completed`** (TASK-006 le 2026-09-01, TASK-001a et TASK-001b le 2026-08-31, les quatre
-autres le 2026-08-30). **Huit tickets restent rédigés (`backlog`), aucun implémenté** — voir
-leurs sections ci-dessus (TASK-005, 007, 007a, 008, 009, 010, 011, 012 — compte vérifié
-contre `specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus).
+**TASK-001, TASK-002, TASK-003, TASK-004, TASK-001a, TASK-001b, TASK-006 et TASK-007
+sont tous `completed`** (TASK-007 le 2026-09-01, TASK-006 le 2026-09-01, TASK-001a et
+TASK-001b le 2026-08-31, les quatre autres le 2026-08-30). **Sept tickets restent
+rédigés (`backlog`), aucun implémenté** — voir leurs sections ci-dessus (TASK-005, 007a,
+008, 009, 010, 011, 012 — compte vérifié contre `specs/tasks/backlog/`, cohérent avec
+« État actuel » ci-dessus).
 
 - Indépendant de tout le reste : TASK-005 (désormais aussi le scope backend de TASK-012,
   voir ci-dessous — toujours implémentable seul, mais plus totalement indépendant du reste
   du socle GUI).
-- Chaîne GUI, à implémenter dans cet ordre relatif : TASK-007 → TASK-008 → TASK-009 →
+- Chaîne GUI, à implémenter dans cet ordre relatif : TASK-008 → TASK-009 →
   TASK-010 → TASK-011 → TASK-012 (chacun dépend du/des précédent(s) pour son
   shell/composants/wrappers API ; TASK-012 dépend en plus de TASK-005 côté backend — voir
-  sa propre section ci-dessus). Le socle GUI est maintenant entièrement rédigé de
-  TASK-007 à TASK-012.
-- Satellite backend restant : TASK-007a dépend de TASK-007 (`backlog`) — pas avant lui.
-  TASK-009 tire pleinement parti de TASK-007a s'il est fait en premier ; TASK-011 tire déjà
-  pleinement parti de TASK-001a et TASK-001b (tous deux `completed`) pour ses sections
-  Provenance et Logs respectivement.
+  sa propre section ci-dessus). TASK-008 peut démarrer dès maintenant : son unique
+  prérequis backend, TASK-007, est `completed`.
+- Satellite backend restant : TASK-007a dépend de TASK-007 (`completed`) — peut être fait
+  dès maintenant. TASK-009 tire pleinement parti de TASK-007a s'il est fait en premier ;
+  TASK-011 tire déjà pleinement parti de TASK-001a et TASK-001b (tous deux `completed`)
+  pour ses sections Provenance et Logs respectivement.
 
 Prochaine action : demander à Cleo l'ordre d'implémentation. Suggestion si aucune
-préférence : TASK-007 → TASK-007a → TASK-008 → TASK-009 → TASK-010 →
+préférence : TASK-007a → TASK-008 → TASK-009 → TASK-010 →
 TASK-011 → TASK-005 → TASK-012 dans l'ordre (TASK-005 doit précéder TASK-012, qui reprend
 son backend par référence).
 

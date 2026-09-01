@@ -127,7 +127,8 @@ def load_task_state(state_dir: Path, task_id: str) -> Optional[TaskState]:
 def create_task_state(
     source_path: str,
     domain: str,
-    state_dir: Path
+    state_dir: Path,
+    task_id: Optional[str] = None
 ) -> TaskState:
     """
     Create a new task state.
@@ -136,17 +137,46 @@ def create_task_state(
         source_path: Path to the source file
         domain: Domain name
         state_dir: Directory for task state storage
+        task_id: Pre-minted task id to use verbatim (optional). If not given,
+            a new id is minted as before.
 
     Returns:
         New TaskState object
     """
-    task_id = f"ingest-{uuid.uuid4()}"
+    if task_id is None:
+        task_id = f"ingest-{uuid.uuid4()}"
     return TaskState(
         task_id=task_id,
         source_path=source_path,
         domain=domain,
         status="pending"
     )
+
+
+def list_task_states(state_dir: Path) -> List[TaskState]:
+    """
+    List all task states persisted under state_dir.
+
+    Args:
+        state_dir: Directory for task state storage
+
+    Returns:
+        TaskState objects for every parseable *.json file in state_dir.
+        Files that fail to parse are skipped, same swallow behavior as
+        load_task_state.
+    """
+    if not state_dir.exists():
+        return []
+
+    states = []
+    for file_path in sorted(state_dir.glob("*.json")):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            states.append(TaskState.from_dict(data))
+        except (json.JSONDecodeError, OSError, TypeError, KeyError):
+            continue
+    return states
 
 
 def update_task_state(task_state: TaskState, state_dir: Path):
