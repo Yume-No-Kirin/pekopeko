@@ -20,10 +20,11 @@
 Phase : implémentation des tickets `TASK-XXX` (en cours).
 
 - **Décisions** : ADI-001 à ADI-010 toutes `Accepted` (voir ci-dessous). Aucune décision d'architecture en attente.
-- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, par TASK-001b, journal d'événements de tâche, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), `src/app/api/` (TASK-007, couche API HTTP REST — Flask, ADI-010), tests sous `src/tests/`. Ces huit tickets sont dans `specs/tasks/completed/`.
+- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, par TASK-001b, journal d'événements de tâche, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), `src/app/api/` (TASK-007, couche API HTTP REST — Flask, ADI-010 ; étendu par TASK-007a, pagination `?limit=`/`?offset=` sur les 3 endpoints de liste), tests sous `src/tests/`. Ces neuf tickets sont dans `specs/tasks/completed/`.
 - **Cahier de tests** (2026-09-02) : `specs/tests/test-plan.md`, tracé aux 18 UC de `specs/product/use-cases.md` et aux 8 tickets `completed`. Deux couches sous `src/tests/` : `acceptance/` (déterministe, appels directs aux pipelines, provider factice fixe — exécutée par défaut) et `e2e/` (serveur Flask réel + vrai Ollama local, marker `pytest -m e2e`, exclue par défaut via `pytest.ini`). **Deux écarts réels découverts et vérifiés contre un serveur réel** (documentés dans le cahier, section « Findings ») : (1) les propositions entity/event/relationship de `extraction/` (contrat `item_type`, pas de champ `id`) sont invisibles pour tout `review/` — `list_proposals` les omet silencieusement et `get_proposal`/`accept` renvoient `400 ValidationError` — pas seulement bloquées côté métier ; (2) l'AC10 de TASK-007 (« accept sur entity/event/relationship → 422 ») ne se déclenche jamais avec une vraie proposition d'extraction (elle renvoie `400` avant d'atteindre ce chemin) — le test existant qui la vérifie construit sa proposition avec le contrat d'`ingestion`/`review`, pas celui réel d'`extraction`. **TASK-005 devra réconcilier les deux contrats de champs, pas seulement ajouter la logique métier d'acceptation.** Problème préexistant signalé au passage (non corrigé, hors périmètre) : `pytest src/tests/` en un seul run échoue à la collecte sur plusieurs `_helpers.py` de même nom sans `__init__.py` — voir la section dédiée du cahier.
-- **Suite** : sept tickets `backlog` restent maintenant (neuf moins TASK-006 et TASK-007,
-  complétés respectivement le 2026-09-01 et le 2026-09-01). Cœur GUI : TASK-005 (revue
+- **Suite** : six tickets `backlog` restent maintenant (neuf moins TASK-006, TASK-007 et
+  TASK-007a, complétés respectivement le 2026-09-01, le 2026-09-01 et le 2026-09-02).
+  Cœur GUI : TASK-005 (revue
   Entity/Event/Relationship) ne dépend que du contrat de fichiers TASK-001/003 ;
   TASK-008/009/010/011 (scaffold + Dashboard/Settings,
   Ingestion Logs, Validation, Détail de proposition) forment une chaîne de dépendance
@@ -34,8 +35,9 @@ Phase : implémentation des tickets `TASK-XXX` (en cours).
   montre, un ticket satellite additif comble le trou plutôt que de couper la fonctionnalité
   GUI — TASK-001a (provenance d'extraction enrichie, étend TASK-001, **`completed`** le
   2026-08-31), TASK-001b (journal d'événements de tâche, étend TASK-001+TASK-003,
-  **`completed`** le 2026-08-31), TASK-007a (pagination sur les endpoints de liste, étend TASK-007, encore
-  `backlog`). Suffixe lettré délibéré pour ne renuméroter ni les tickets déjà écrits ni
+  **`completed`** le 2026-08-31), TASK-007a (pagination sur les endpoints de liste, étend
+  TASK-007, **`completed`** le 2026-09-02 — les trois satellites sont maintenant tous
+  `completed`). Suffixe lettré délibéré pour ne renuméroter ni les tickets déjà écrits ni
   leurs citations croisées. Le reste du travail du Knowledge Core (retrieval, etc.) n'est
   pas encore ticketé — voir `specs/tasks/BACKLOG-CLAUDE.md` pour l'inventaire complet avant
   d'écrire le prochain ticket.
@@ -250,15 +252,35 @@ connecteur. Rédigé le 2026-08-31, implémenté le 2026-09-01.
   jamais existé. Détail complet et reproduction dans la section « Implementation
   notes » du ticket.
 
-### TASK-007a — Pagination sur les endpoints de liste — `backlog`
+### TASK-007a — Pagination sur les endpoints de liste — `completed`
 
-`specs/tasks/backlog/TASK-007a-list-endpoint-pagination.md`. Ticket satellite
-(2026-08-31) étendant TASK-007 : `?limit=`/`?offset=` sur les 3 endpoints de liste
-(ingestions/extractions/proposals), enveloppe de réponse `{items, total, limit, offset}`.
-Écrit comme ticket séparé plutôt qu'édition en place de TASK-007, pour ne pas invalider la
-numérotation de ses critères d'acceptation déjà cités ailleurs (TASK-008 cite l'AC12 de
-TASK-007). TASK-009/TASK-010 en dépendent pour une vraie pagination serveur. Jamais
-implémenté.
+`specs/tasks/completed/TASK-007a-list-endpoint-pagination.md`. Ticket satellite
+(rédigé 2026-08-31, implémenté 2026-09-02) étendant TASK-007 : `?limit=`/`?offset=` sur
+les 3 endpoints de liste (ingestions/extractions/proposals), enveloppe de réponse
+`{items, total, limit, offset}`. Écrit comme ticket séparé plutôt qu'édition en place de
+TASK-007, pour ne pas invalider la numérotation de ses critères d'acceptation déjà cités
+ailleurs (TASK-008 cite l'AC12 de TASK-007). TASK-009/TASK-010 en dépendent pour une vraie
+pagination serveur.
+
+- Code : `src/app/api/errors.py` (nouveau, `ValidationError` dédiée aux paramètres de
+  pagination invalides, enregistrée dans la table d'erreurs de `app.py`), extension de
+  `serialization.py` (`parse_pagination_args`, `paginate`, partagés par les 3 routes),
+  extension de `routes_ingestion.py`/`routes_extraction.py`/`routes_review.py`. **Écart
+  signalé** : le périmètre de fichiers du ticket ne citait pas `app.py`/`errors.py`, mais
+  satisfaire l'AC4 littéralement (`error.type == "ValidationError"`) l'exigeait — ajout
+  additif seul (nouvelle clé dans `ERROR_STATUS_MAP`), aucun mapping existant modifié.
+  Détail dans la section « Deviation » du ticket.
+- 31 nouveaux tests dans `src/tests/api/test_pagination.py` (paramétrés sur les 3
+  endpoints), plus 3 tests TASK-007 existants mis à jour en place (forme de réponse
+  liste bare-list → `{items, ...}`, seul changement aux tests déjà écrits par TASK-007).
+  97/97 tests `api/` passent (66 + 31), 98 % de couverture sur `src/app/api/` (100 % sur
+  chaque fichier touché par ce ticket).
+- Vérifié par Claude selon la discipline du projet (copie isolée hors dépôt
+  `/tmp/task007a_verify/`, 97/97 rejoués à l'identique, 8 critères d'acceptation un par un,
+  script de reproduction manuelle bout-en-bout par l'œil du JSON réellement renvoyé).
+  Rapport dans la section « Verification record » du ticket. Même limite que les tickets
+  précédents : vérification faite par la même session Claude que l'implémentation, pas par
+  un second réviseur indépendant.
 
 ### TASK-008 — Scaffold React + écrans Dashboard et Settings — `backlog`
 
@@ -358,12 +380,13 @@ bloquer l'écran. Rédigé le 2026-08-31, jamais implémenté.
 
 ## Prochaine action exacte
 
-**TASK-001, TASK-002, TASK-003, TASK-004, TASK-001a, TASK-001b, TASK-006 et TASK-007
-sont tous `completed`** (TASK-007 le 2026-09-01, TASK-006 le 2026-09-01, TASK-001a et
-TASK-001b le 2026-08-31, les quatre autres le 2026-08-30). **Sept tickets restent
-rédigés (`backlog`), aucun implémenté** — voir leurs sections ci-dessus (TASK-005, 007a,
-008, 009, 010, 011, 012 — compte vérifié contre `specs/tasks/backlog/`, cohérent avec
-« État actuel » ci-dessus).
+**TASK-001, TASK-002, TASK-003, TASK-004, TASK-001a, TASK-001b, TASK-006, TASK-007 et
+TASK-007a sont tous `completed`** (TASK-007a le 2026-09-02, TASK-007 le 2026-09-01,
+TASK-006 le 2026-09-01, TASK-001a et TASK-001b le 2026-08-31, les quatre autres le
+2026-08-30). **Six tickets restent rédigés (`backlog`), aucun implémenté** — voir leurs
+sections ci-dessus (TASK-005, 008, 009, 010, 011, 012 — compte vérifié contre
+`specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus). Les trois satellites
+backend (TASK-001a, TASK-001b, TASK-007a) sont désormais tous `completed`.
 
 - Indépendant de tout le reste : TASK-005 (désormais aussi le scope backend de TASK-012,
   voir ci-dessous — toujours implémentable seul, mais plus totalement indépendant du reste
@@ -371,17 +394,15 @@ rédigés (`backlog`), aucun implémenté** — voir leurs sections ci-dessus (T
 - Chaîne GUI, à implémenter dans cet ordre relatif : TASK-008 → TASK-009 →
   TASK-010 → TASK-011 → TASK-012 (chacun dépend du/des précédent(s) pour son
   shell/composants/wrappers API ; TASK-012 dépend en plus de TASK-005 côté backend — voir
-  sa propre section ci-dessus). TASK-008 peut démarrer dès maintenant : son unique
-  prérequis backend, TASK-007, est `completed`.
-- Satellite backend restant : TASK-007a dépend de TASK-007 (`completed`) — peut être fait
-  dès maintenant. TASK-009 tire pleinement parti de TASK-007a s'il est fait en premier ;
-  TASK-011 tire déjà pleinement parti de TASK-001a et TASK-001b (tous deux `completed`)
-  pour ses sections Provenance et Logs respectivement.
+  sa propre section ci-dessus). TASK-008 peut démarrer dès maintenant : ses deux
+  prérequis backend, TASK-007 et TASK-007a, sont `completed`. TASK-009 tire pleinement
+  parti de TASK-007a (`completed`) pour sa pagination serveur ; TASK-011 tire déjà
+  pleinement parti de TASK-001a et TASK-001b (tous deux `completed`) pour ses sections
+  Provenance et Logs respectivement.
 
 Prochaine action : demander à Cleo l'ordre d'implémentation. Suggestion si aucune
-préférence : TASK-007a → TASK-008 → TASK-009 → TASK-010 →
-TASK-011 → TASK-005 → TASK-012 dans l'ordre (TASK-005 doit précéder TASK-012, qui reprend
-son backend par référence).
+préférence : TASK-008 → TASK-009 → TASK-010 → TASK-011 → TASK-005 → TASK-012 dans l'ordre
+(TASK-005 doit précéder TASK-012, qui reprend son backend par référence).
 
 ---
 

@@ -83,7 +83,7 @@ def test_list_extractions_scoped_to_domain(client, auth_headers, source_file, st
 
     listed = client.get("/domains/PERSONAL/extractions", headers=auth_headers)
     assert listed.status_code == 200
-    ids = [t["task_id"] for t in listed.get_json()]
+    ids = [t["task_id"] for t in listed.get_json()["items"]]
     assert task_id_personal in ids
     assert task_id_fiction not in ids
 

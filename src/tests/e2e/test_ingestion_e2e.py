@@ -35,7 +35,7 @@ def test_ingestion_round_trip_via_real_server_and_ollama(live_server, auth_heade
 
     proposals_resp = requests.get(f"{live_server}/domains/FICTION/proposals", headers=auth_headers, timeout=10)
     assert proposals_resp.status_code == 200
-    proposals = proposals_resp.json()
+    proposals = proposals_resp.json()["items"]
     assert len(proposals) >= 1
     for p in proposals:
         assert p["epistemic_status"] in VALID_EPISTEMIC_STATUSES

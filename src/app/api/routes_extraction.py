@@ -70,9 +70,11 @@ def list_extractions(domain):
     if domain not in VALID_DOMAINS:
         raise InvalidDomainError(f"Invalid domain '{domain}'. Must be one of {sorted(VALID_DOMAINS)}")
 
+    limit, offset = serialization.parse_pagination_args(request.args)
     status = request.args.get("status")
     states = [
         s for s in list_task_states(_state_dir())
         if s.domain == domain and (status is None or s.status == status)
     ]
-    return jsonify([serialization.task_state_to_dict(s) for s in states]), 200
+    serialization.sort_by_recency(states, "started_at")
+    return jsonify(serialization.paginated_response(states, limit, offset, serialization.task_state_to_dict)), 200

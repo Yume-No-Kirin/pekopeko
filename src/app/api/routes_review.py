@@ -25,9 +25,11 @@ def _check_domain(domain):
 @review_bp.route("/domains/<domain>/proposals", methods=["GET"])
 def get_proposals(domain):
     _check_domain(domain)
+    limit, offset = serialization.parse_pagination_args(request.args)
     status = request.args.get("status")
     summaries = list_proposals(_vault_root(), domain, status=status)
-    return jsonify([serialization.proposal_summary_to_dict(s) for s in summaries]), 200
+    serialization.sort_by_recency(summaries, "created_at")
+    return jsonify(serialization.paginated_response(summaries, limit, offset, serialization.proposal_summary_to_dict)), 200
 
 
 @review_bp.route("/domains/<domain>/proposals/<proposal_id>", methods=["GET"])

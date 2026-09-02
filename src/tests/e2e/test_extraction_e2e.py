@@ -73,7 +73,7 @@ def test_extraction_proposals_are_invisible_to_the_review_queue_endpoint(live_se
 
     list_resp = requests.get(f"{live_server}/domains/FICTION/proposals", headers=auth_headers, timeout=10)
     assert list_resp.status_code == 200
-    listed_ids = {p["id"] for p in list_resp.json()}
+    listed_ids = {p["id"] for p in list_resp.json()["items"]}
     assert listed_ids.isdisjoint(final["proposal_ids"])  # none of the real ones are listed
 
 

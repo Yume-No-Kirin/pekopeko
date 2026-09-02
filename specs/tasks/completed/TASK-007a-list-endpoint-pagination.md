@@ -1,6 +1,6 @@
 # TASK-007a: Pagination for List Endpoints (V1)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -138,3 +138,95 @@ effectively tripling coverage of 1-5 across the three endpoints).
 - Changing `review.list_proposals`/`*.list_task_states`' own Python signatures — they stay
   as TASK-007 already defines them; pagination lives entirely in the `api/` orchestration
   layer.
+
+## Deviation from the ticket's file list
+
+Implemented 2026-09-02. The "Files/modules concerned" list above names only the three
+`routes_*.py` files and `serialization.py`. Satisfying AC4 literally
+(`error.type == "ValidationError"`) required a real exception class named `ValidationError`
+registered in `src/app/api/app.py`'s `ERROR_STATUS_MAP` — `src/app/ingestion/` has no
+`errors.py` at all (its route raises bare `ValueError` for bad domain, a pre-existing
+TASK-007 quirk this ticket does not touch). Added a new, small `src/app/api/errors.py`
+(one class, `ValidationError(Exception)`), used identically by all three list routes for
+`limit`/`offset` validation only, plus a two-line addition to `app.py`'s
+`ERROR_STATUS_MAP` (new key, no existing mapping changed). Flagged here per this project's
+"flag disagreement, don't silently deviate" convention.
+
+## Implementation notes
+
+- `src/app/api/serialization.py` gained two shared helpers reused by all three list
+  routes: `parse_pagination_args(args) -> (limit, offset)` (defaults + validation, raises
+  `api.errors.ValidationError`) and `paginate(items, limit, offset) -> dict` (slice +
+  envelope metadata, operates on raw pre-serialization objects — the route applies its own
+  per-item serializer to `page["items"]` afterward).
+- Each list route now: validates `limit`/`offset` first (before any listing I/O), then
+  applies the existing domain/status filtering unchanged, then sorts
+  (`started_at` desc for ingestion/extraction `TaskState`, `created_at` desc for
+  `ProposalSummary`) via Python's stable `list.sort`, then slices via `paginate`. Ties in
+  timestamp break by the pre-existing deterministic order (`list_task_states`' glob-sorted
+  order / `list_proposals`' storage order) — no secondary sort key needed for AC2's
+  no-overlap/no-gap guarantee.
+- Three pre-existing TASK-007 tests in `test_ingestion_routes.py`/`test_extraction_routes.py`/
+  `test_review_routes.py` asserted the old bare-list response shape for these three routes;
+  updated in place to read `resp.get_json()["items"]` instead of `resp.get_json()` directly,
+  matching this ticket's explicit, documented response-shape change (V1 scope decision above).
+  Code review (2026-09-02) found two more pre-existing callers with the same stale
+  assumption — `src/tests/e2e/test_ingestion_e2e.py` and `test_extraction_e2e.py`, both
+  marked `pytest.mark.e2e` and excluded from the default run, which is why they weren't
+  caught by this ticket's own verification pass — fixed in the same pass as this note.
+
+## Verification record
+
+Verified 2026-09-02 by Claude, same session as the implementation (same limitation as
+TASK-001a/001b/002/003/004/006/007's own verification records: not a second independent
+reviewer). Environment: working tree, plus an independent isolated copy
+(`/tmp/task007a_verify/src`, outside the repo) with `__pycache__` stripped, tests rerun
+there separately.
+
+- `[PASS]` AC1 (limit/offset return exact page + total) —
+  `test_limit_and_offset_return_exact_page[ingestions|extractions|proposals]`, 3/3 pass.
+- `[PASS]` AC2 (next page has no overlap/no gap) —
+  `test_second_page_has_no_overlap_or_gap[ingestions|extractions|proposals]`, 3/3 pass.
+- `[PASS]` AC3 (omitted params → documented defaults, full filtered `total`) —
+  `test_defaults_applied_when_omitted[ingestions|extractions|proposals]`, 3/3 pass.
+- `[PASS]` AC4 (`limit=0`/`limit=501`/`offset=-1`/non-integer → 400,
+  `error.type == "ValidationError"`) — `test_invalid_pagination_params_return_400`,
+  parametrized over 5 invalid queries x 3 endpoint kinds, 15/15 pass.
+- `[PASS]` AC5 (pagination applied after status/domain filtering) —
+  `test_pagination_applied_after_status_filter[ingestions|extractions|proposals]`, 3/3
+  pass (2 items of the filtered-out status created alongside 3 of the target status; only
+  the target status's 2 items are ever returned).
+- `[PASS]` AC6 (AC1-5 hold identically for all three endpoints) — every test above is
+  `@pytest.mark.parametrize("kind", ["ingestions", "extractions", "proposals"])`, all
+  three kinds pass identically.
+- `[PASS]` AC7 (sort order: `started_at` desc for ingestion/extraction, `created_at` desc
+  for proposals) — `test_sort_order_is_most_recent_first[ingestions|extractions|proposals]`,
+  fixture items built with known, strictly increasing timestamps, response order asserted
+  to be the exact reverse of creation order, 3/3 pass.
+- `[PASS]` AC8 (no change to single-item/`GET /config` shape or behavior) —
+  `test_single_item_and_config_endpoints_unaffected` (new, explicit `"items" not in body`
+  check on both) plus TASK-007's own pre-existing single-item/`config`/`accept`/`reject`
+  tests in `test_ingestion_routes.py`, `test_extraction_routes.py`, `test_review_routes.py`,
+  `test_config_route.py` all pass unmodified.
+- `[PASS]` 97/97 tests in `src/tests/api/` pass (66 pre-existing + 31 new), in the working
+  tree and again, independently, in the isolated scratch copy — identical results both
+  times.
+- `[PASS]` Test coverage on touched files — `pytest --cov=src.app.api` reports 98% overall
+  (299 statements, 6 missed, all pre-existing gaps in `app.py`'s generic-exception fallback
+  and `tasks.py`'s retry-timeout branch, neither touched by this ticket); every file this
+  ticket edited or added (`errors.py`, `serialization.py`, `routes_ingestion.py`,
+  `routes_extraction.py`, `routes_review.py`) is at 100%. Same result in the isolated copy.
+- `[PASS]` Regression — `src/tests/ingestion/`, `src/tests/extraction/`,
+  `src/tests/review/` rerun independently: extraction 56/56 and review 101/101 pass;
+  ingestion 48/50 pass with the same 2 pre-existing, unrelated failures
+  (`test_acceptance_criteria_compliance`, `test_import_isolation`) documented repeatedly
+  in `docs/ROADMAP.md` for prior tickets (TASK-001a/TASK-004) — confirmed unrelated: this
+  ticket does not touch any file under `src/app/ingestion/`.
+- `[PASS]` Manual end-to-end reproduction — a standalone script created 3 `TaskState`
+  fixtures with distinct `started_at` values directly via the real `TaskState.save()` path
+  (no mocking), hit the real Flask app (`create_app`/`test_client`) at
+  `/domains/PERSONAL/ingestions?limit=2`, `?limit=0`, and with no query params; eyeballed
+  the raw JSON for all three — envelope shape, most-recent-first order, and the
+  `ValidationError` 400 body all matched the spec exactly.
+- `[NOT RUN]` Real Obsidian vault / GUI interaction — not applicable, no GUI in this
+  ticket's scope (TASK-009/TASK-010 consume the output, implemented separately).

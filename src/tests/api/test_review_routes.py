@@ -13,12 +13,12 @@ def test_list_proposals_matches_and_filters_by_status(client, auth_headers, make
 
     resp = client.get("/domains/PERSONAL/proposals", headers=auth_headers)
     assert resp.status_code == 200
-    ids = [p["id"] for p in resp.get_json()]
+    ids = [p["id"] for p in resp.get_json()["items"]]
     assert id_proposed in ids
     assert id_rejected in ids
 
     filtered = client.get("/domains/PERSONAL/proposals?status=PROPOSED", headers=auth_headers)
-    filtered_ids = [p["id"] for p in filtered.get_json()]
+    filtered_ids = [p["id"] for p in filtered.get_json()["items"]]
     assert id_proposed in filtered_ids
     assert id_rejected not in filtered_ids
 

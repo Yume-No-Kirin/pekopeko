@@ -21,6 +21,7 @@ from ..review.errors import (
     UnsupportedProposalTypeError,
 )
 from ..review.errors import ValidationError as ReviewValidationError
+from .errors import ValidationError as PaginationValidationError
 from .routes_config import config_bp
 from .routes_extraction import extraction_bp
 from .routes_ingestion import ingestion_bp
@@ -34,6 +35,7 @@ ERROR_STATUS_MAP = {
     ReviewInvalidDomainError: 400,
     ExtractionValidationError: 400,
     ReviewValidationError: 400,
+    PaginationValidationError: 400,
     ProposalNotFoundError: 404,
     SourceNotFoundError: 404,
     DomainMismatchError: 400,

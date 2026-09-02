@@ -13,6 +13,8 @@ import pytest
 import yaml
 
 from src.app.api import ApiSettings, create_app
+from src.app.extraction.task_state import TaskState as ExtractionTaskState
+from src.app.ingestion.task_state import TaskState as IngestionTaskState
 
 API_KEY = "test-api-key"
 
@@ -45,6 +47,30 @@ def client(app):
 @pytest.fixture
 def auth_headers():
     return {"X-API-Key": API_KEY}
+
+
+@pytest.fixture
+def make_ingestion_task_state(state_dir):
+    def _make(domain="PERSONAL", task_id=None, started_at="2026-08-24T10:00:00", status="completed"):
+        task_id = task_id or f"ingest-{uuid.uuid4()}"
+        ts = IngestionTaskState(
+            task_id=task_id, source_path="dummy.md", domain=domain, status=status, started_at=started_at
+        )
+        ts.save(state_dir / "ingestion")
+        return task_id
+    return _make
+
+
+@pytest.fixture
+def make_extraction_task_state(state_dir):
+    def _make(domain="PERSONAL", task_id=None, started_at="2026-08-24T10:00:00", status="completed"):
+        task_id = task_id or f"extract-{uuid.uuid4()}"
+        ts = ExtractionTaskState(
+            task_id=task_id, source_path="dummy.md", domain=domain, status=status, started_at=started_at
+        )
+        ts.save(state_dir / "extraction")
+        return task_id
+    return _make
 
 
 @pytest.fixture
