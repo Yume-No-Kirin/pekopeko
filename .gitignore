@@ -33,3 +33,7 @@ temp/
 # .env holds secrets/local overrides for the PEKOPEKO_* config keys — never
 # committed. .env.example (the template) stays tracked.
 .env
+
+# start-pekopeko.bat's generated local dev config (vault_root path + a
+# random PEKOPEKO_API_KEY) — machine-specific, never committed.
+.pekopeko-local.env

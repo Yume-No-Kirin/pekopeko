@@ -20,15 +20,18 @@
 Phase : implémentation des tickets `TASK-XXX` (en cours).
 
 - **Décisions** : ADI-001 à ADI-010 toutes `Accepted` (voir ci-dessous). Aucune décision d'architecture en attente.
-- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, par TASK-001b, journal d'événements de tâche, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), `src/app/api/` (TASK-007, couche API HTTP REST — Flask, ADI-010 ; étendu par TASK-007a, pagination `?limit=`/`?offset=` sur les 3 endpoints de liste), tests sous `src/tests/`. Ces neuf tickets sont dans `specs/tasks/completed/`.
+- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, par TASK-001b, journal d'événements de tâche, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), `src/app/api/` (TASK-007, couche API HTTP REST — Flask, ADI-010 ; étendu par TASK-007a, pagination `?limit=`/`?offset=` sur les 3 endpoints de liste), tests sous `src/tests/`. `frontend/` (TASK-008, scaffold React + Dashboard/Settings — premier code frontend du dépôt). Ces dix tickets sont dans `specs/tasks/completed/`.
 - **Cahier de tests** (2026-09-02) : `specs/tests/test-plan.md`, tracé aux 18 UC de `specs/product/use-cases.md` et aux 8 tickets `completed`. Deux couches sous `src/tests/` : `acceptance/` (déterministe, appels directs aux pipelines, provider factice fixe — exécutée par défaut) et `e2e/` (serveur Flask réel + vrai Ollama local, marker `pytest -m e2e`, exclue par défaut via `pytest.ini`). **Deux écarts réels découverts et vérifiés contre un serveur réel** (documentés dans le cahier, section « Findings ») : (1) les propositions entity/event/relationship de `extraction/` (contrat `item_type`, pas de champ `id`) sont invisibles pour tout `review/` — `list_proposals` les omet silencieusement et `get_proposal`/`accept` renvoient `400 ValidationError` — pas seulement bloquées côté métier ; (2) l'AC10 de TASK-007 (« accept sur entity/event/relationship → 422 ») ne se déclenche jamais avec une vraie proposition d'extraction (elle renvoie `400` avant d'atteindre ce chemin) — le test existant qui la vérifie construit sa proposition avec le contrat d'`ingestion`/`review`, pas celui réel d'`extraction`. **TASK-005 devra réconcilier les deux contrats de champs, pas seulement ajouter la logique métier d'acceptation.** Problème préexistant signalé au passage (non corrigé, hors périmètre) : `pytest src/tests/` en un seul run échoue à la collecte sur plusieurs `_helpers.py` de même nom sans `__init__.py` — voir la section dédiée du cahier.
-- **Suite** : six tickets `backlog` restent maintenant (neuf moins TASK-006, TASK-007 et
-  TASK-007a, complétés respectivement le 2026-09-01, le 2026-09-01 et le 2026-09-02).
+- **Suite** : cinq tickets `backlog` restent maintenant (neuf moins TASK-006, TASK-007,
+  TASK-007a et TASK-008, complétés respectivement le 2026-09-01, le 2026-09-01, le
+  2026-09-02 et le 2026-09-02).
   Cœur GUI : TASK-005 (revue
   Entity/Event/Relationship) ne dépend que du contrat de fichiers TASK-001/003 ;
   TASK-008/009/010/011 (scaffold + Dashboard/Settings,
   Ingestion Logs, Validation, Détail de proposition) forment une chaîne de dépendance
   (008→009→010→011, chacun réutilisant les composants/wrappers API du précédent).
+  TASK-008 (premier maillon de cette chaîne) est désormais `completed` — TASK-009 peut
+  démarrer.
   **Trois tickets backend satellites** (2026-08-31, voir leurs sections ci-dessous) ont été
   ajoutés en écrivant TASK-009/010/011, suite à la décision de Cleo que les maquettes
   `specs/ux-design/` sont la cible : là où le backend manquait une donnée qu'une maquette
@@ -282,14 +285,14 @@ pagination serveur.
   précédents : vérification faite par la même session Claude que l'implémentation, pas par
   un second réviseur indépendant.
 
-### TASK-008 — Scaffold React + écrans Dashboard et Settings — `backlog`
+### TASK-008 — Scaffold React + écrans Dashboard et Settings — `completed`
 
-`specs/tasks/backlog/TASK-008-react-scaffold-dashboard-settings.md`. Premier code frontend
-du dépôt : projet React (Vite, JS, React Router — décisions tranchées par ce ticket,
-ADI-009 les avait explicitement laissées ouvertes), nouveau répertoire `frontend/`
+`specs/tasks/completed/TASK-008-react-scaffold-dashboard-settings.md`. Premier code
+frontend du dépôt : projet React (Vite, JS, React Router — décisions tranchées par ce
+ticket, ADI-009 les avait explicitement laissées ouvertes), nouveau répertoire `frontend/`
 (sibling de `src/`). Livre `pekopeko-dashboard.html` (stats agrégées sur les 5 domaines
 côté client, cartes de modules) et un écran Settings lecture seule (nouveau, absent des
-maquettes). Rédigé le 2026-08-31, jamais implémenté.
+maquettes). Rédigé le 2026-08-31, implémenté le 2026-09-02.
 
 - Deux clarifications tranchées par Cleo avant rédaction (aucune spec ne les couvrait) :
   la clé `X-API-Key` est injectée au build via une variable d'environnement Vite
@@ -301,6 +304,28 @@ maquettes). Rédigé le 2026-08-31, jamais implémenté.
   TASK-004 (`completed`, forme de `GET /config`). Indépendant de TASK-005/TASK-006.
 - Prérequis pour TASK-009 à TASK-012 : la structure de routing/composants posée ici est
   ce à quoi ces tickets ajoutent des écrans, sans la refondre.
+- **Écart réel trouvé et tranché avec l'utilisatrice avant implémentation** : le ticket
+  supposait que `GET /domains/<d>/proposals?status=` renvoie `reviewed_at` par item pour
+  le calcul du « Taux d'acceptation » — faux, `ProposalSummary`
+  (`src/app/review/pipeline.py`) ne porte pas ce champ, seul le détail par item
+  (`GET .../proposals/<id>`, `ProposalDetail.frontmatter`) l'a. Résolu en suivant le
+  précédent déjà posé par TASK-010 (N+1 sur l'endpoint de détail) plutôt qu'en écrivant un
+  ticket satellite pour étendre `ProposalSummary` — aucun changement backend. Détail
+  complet dans la section « Deviation found and resolved during implementation » du
+  ticket.
+- Code : nouveau répertoire `frontend/` (Vite + React + React Router, JS/JSX, pas de
+  TypeScript) — `src/api/client.js` (wrapper fetch unique, `ApiError` typée),
+  `src/api/domains.js`, `src/components/` (`Sidebar`, `StatCard`, `ModuleCard`),
+  `src/pages/` (`Dashboard`, `Settings`). Vitest + React Testing Library, 13 tests (un par
+  groupe de critère d'acceptation), 96 % de couverture sur `src/api/`+`src/pages/`. Aucun
+  fichier sous `src/` (Python) modifié.
+- Vérifié par Claude selon la discipline du projet (`npm run build` rejoué, 13/13 tests
+  rejoués, couverture recalculée, grep confirmant qu'aucun `fetch()` direct n'existe hors
+  `api/client.js`, `git status --porcelain -- src/` vide). Rapport dans la section
+  « Verification record » du ticket. Limite explicite : pas de second réviseur
+  indépendant, et pas de test de fumée contre une vraie instance Flask/vault (aucun vault
+  local disponible dans cette session) — recommandé comme vérification manuelle de suivi
+  avant usage opérationnel de cet écran.
 
 ### TASK-009 — Écran Logs d'ingestion — `backlog`
 
@@ -359,8 +384,8 @@ nouveau N+1 ciblé par endpoint sur Détail), id non résolu affiché tel quel p
 bloquer l'écran. Rédigé le 2026-08-31, jamais implémenté.
 
 - Dépend de TASK-005 (`backlog`) et TASK-007 (`completed`) côté backend ; de la chaîne
-  TASK-008 → TASK-009 → TASK-010 → TASK-011 (tous `backlog`) côté frontend. Indépendant
-  de TASK-006/TASK-013/TASK-015.
+  TASK-008 (`completed`) → TASK-009 → TASK-010 → TASK-011 (ces trois derniers `backlog`)
+  côté frontend. Indépendant de TASK-006/TASK-013/TASK-015.
 - Avec ce ticket, **le socle GUI (TASK-007 → TASK-012) est entièrement rédigé** —
   framework tranché (ReactJS, ADI-009), contrat d'intégration backend tranché (Flask,
   ADI-010). Le reste de `specs/tasks/BACKLOG-CLAUDE-V2.md` (section 2, TASK-013 à
@@ -380,29 +405,32 @@ bloquer l'écran. Rédigé le 2026-08-31, jamais implémenté.
 
 ## Prochaine action exacte
 
-**TASK-001, TASK-002, TASK-003, TASK-004, TASK-001a, TASK-001b, TASK-006, TASK-007 et
-TASK-007a sont tous `completed`** (TASK-007a le 2026-09-02, TASK-007 le 2026-09-01,
-TASK-006 le 2026-09-01, TASK-001a et TASK-001b le 2026-08-31, les quatre autres le
-2026-08-30). **Six tickets restent rédigés (`backlog`), aucun implémenté** — voir leurs
-sections ci-dessus (TASK-005, 008, 009, 010, 011, 012 — compte vérifié contre
-`specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus). Les trois satellites
-backend (TASK-001a, TASK-001b, TASK-007a) sont désormais tous `completed`.
+**TASK-001, TASK-002, TASK-003, TASK-004, TASK-001a, TASK-001b, TASK-006, TASK-007,
+TASK-007a et TASK-008 sont tous `completed`** (TASK-008 le 2026-09-02, TASK-007a le
+2026-09-02, TASK-007 le 2026-09-01, TASK-006 le 2026-09-01, TASK-001a et TASK-001b le
+2026-08-31, les quatre autres le 2026-08-30). **Cinq tickets restent rédigés (`backlog`),
+aucun implémenté** — voir leurs sections ci-dessus (TASK-005, 009, 010, 011, 012 — compte
+vérifié contre `specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus). Les trois
+satellites backend (TASK-001a, TASK-001b, TASK-007a) sont désormais tous `completed`.
 
 - Indépendant de tout le reste : TASK-005 (désormais aussi le scope backend de TASK-012,
   voir ci-dessous — toujours implémentable seul, mais plus totalement indépendant du reste
   du socle GUI).
-- Chaîne GUI, à implémenter dans cet ordre relatif : TASK-008 → TASK-009 →
+- Chaîne GUI, à implémenter dans cet ordre relatif : TASK-009 →
   TASK-010 → TASK-011 → TASK-012 (chacun dépend du/des précédent(s) pour son
   shell/composants/wrappers API ; TASK-012 dépend en plus de TASK-005 côté backend — voir
-  sa propre section ci-dessus). TASK-008 peut démarrer dès maintenant : ses deux
-  prérequis backend, TASK-007 et TASK-007a, sont `completed`. TASK-009 tire pleinement
-  parti de TASK-007a (`completed`) pour sa pagination serveur ; TASK-011 tire déjà
-  pleinement parti de TASK-001a et TASK-001b (tous deux `completed`) pour ses sections
-  Provenance et Logs respectivement.
+  sa propre section ci-dessus). TASK-008 (`completed`, scaffold React + Dashboard/Settings)
+  a posé le shell de routing/composants que TASK-009 étend maintenant. TASK-009 peut
+  démarrer dès maintenant : ses prérequis (TASK-007, TASK-007a, TASK-001b, TASK-008) sont
+  tous `completed`, et tire pleinement parti de TASK-007a pour sa pagination serveur ;
+  TASK-011 tire déjà pleinement parti de TASK-001a et TASK-001b (tous deux `completed`)
+  pour ses sections Provenance et Logs respectivement.
 
-Prochaine action : demander à Cleo l'ordre d'implémentation. Suggestion si aucune
-préférence : TASK-008 → TASK-009 → TASK-010 → TASK-011 → TASK-005 → TASK-012 dans l'ordre
-(TASK-005 doit précéder TASK-012, qui reprend son backend par référence).
+Prochaine action : TASK-009 (Écran Logs d'ingestion) — tous ses prérequis sont
+`completed`. TASK-005 reste implémentable en parallèle si Cleo préfère avancer le backend
+Entity/Event/Relationship en même temps que la chaîne GUI. Suggestion si aucune préférence
+contraire : TASK-009 → TASK-010 → TASK-011 → TASK-005 → TASK-012 dans l'ordre (TASK-005
+doit précéder TASK-012, qui reprend son backend par référence).
 
 ---
 

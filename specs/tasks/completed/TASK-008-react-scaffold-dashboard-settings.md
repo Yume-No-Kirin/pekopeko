@@ -1,6 +1,6 @@
 # TASK-008: React Scaffold, Dashboard and Settings Screens (V1)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -260,3 +260,67 @@ and `frontend/src/pages/`.
 - Polling/live updates, WebSocket/SSE.
 - TypeScript, global state management library, E2E/browser test tooling.
 - Authentication beyond the single shared `X-API-Key` already decided by ADI-010.
+
+## Deviation found and resolved during implementation (2026-09-02)
+
+This ticket's "Taux d'acceptation" spec assumed `GET /domains/<d>/proposals?status=` returns
+`reviewed_at` per item. Reading the actual implemented contract
+(`src/app/review/pipeline.py`) showed `ProposalSummary` only carries `id, domain,
+proposal_status, proposed_item_type, epistemic_status, created_at` — no `reviewed_at`.
+That field only exists inside `frontmatter` on the per-item `GET
+/domains/<d>/proposals/<id>` detail response. Flagged to Cleo before implementing; resolved
+by following TASK-010's existing precedent (N+1 detail fetches) rather than writing a
+satellite ticket to extend TASK-007's `ProposalSummary`: for the acceptance-rate stat only,
+after fetching `ACCEPTED`/`REJECTED` `ProposalSummary` pages per domain,
+`frontend/src/pages/Dashboard.jsx`'s `countRecentlyReviewed` fetches
+`GET /domains/<d>/proposals/<id>` for each of those items to read `frontmatter.reviewed_at`
+client-side, bounded by TASK-007a's default `limit=50` per domain/status (documented as a
+V1 approximation in a code comment, consistent with the ticket's own accepted approximation
+for the count-only stats). No backend change; TASK-007/TASK-007a's contracts are untouched.
+
+## Implementation notes
+
+- `frontend/` scaffolded with Vite + React (plain JS/JSX) + React Router 6, exactly per the
+  V1 scope decisions above (no TypeScript, no global state library, no E2E tooling).
+- `frontend/src/api/client.js` is the single `fetch` wrapper (`get`/`post`), attaching
+  `X-API-Key` from `import.meta.env.VITE_API_KEY` and throwing a typed `ApiError`
+  (`type`/`message`/`status`) parsed from the `{"error": {...}}` envelope on any non-2xx
+  response. Confirmed by grep that no other file under `frontend/src` calls `fetch`
+  directly (AC15).
+- `frontend/.env.test` (committed, placeholder key only — distinct from the gitignored real
+  `frontend/.env`) supplies `VITE_API_KEY`/`VITE_API_BASE_URL` for Vitest's `test` mode, per
+  Vite's standard `.env.<mode>` convention.
+- Test-environment fix: `@testing-library/react`'s auto-cleanup relies on detecting a global
+  `afterEach`; since every test file imports `afterEach` explicitly from `vitest` rather
+  than relying on globals, auto-cleanup never registered and DOM from prior tests leaked
+  into later ones. Fixed by explicitly calling `afterEach(cleanup)` in
+  `frontend/src/test/setup.js`.
+- The navigation test (AC2) originally used React Router's `createMemoryRouter` +
+  `RouterProvider` (the "data router" API) to test back-navigation, but that crashed in
+  jsdom with `TypeError: RequestInit: Expected signal (AbortSignal {}) to be an instance of
+  AbortSignal` — a cross-realm bug between jsdom's `AbortController` and Node's
+  undici-backed `fetch`/`Request` internals that the data router constructs for its
+  fetcher. Worked around by using the plain (non-data) `MemoryRouter`/`Routes` API instead,
+  with a test-only `BackButton` component calling `useNavigate(-1)` to drive back
+  navigation — avoids the data router entirely, no production code affected.
+
+## Verification record
+
+- `cd frontend && npm install && npm run build` — completes without error, produces
+  `dist/index.html` + `dist/assets/*.js` (AC1).
+- `npx vitest run` — 13/13 tests pass across `client.test.js` (2), `Dashboard.test.jsx` (8),
+  `Settings.test.jsx` (3), one test per acceptance criterion group (AC2-13 covered
+  directly; AC1/14/15/16 verified by the manual commands in this section).
+- `npx vitest run --coverage` — 96.34% statements/lines, 100% functions, 86.79% branches
+  overall on `src/api/` + `src/pages/` (per-file: `client.js` 90.9%, `domains.js` 100%,
+  `Dashboard.jsx` 100%, `Settings.jsx` 91.48%) — all above the project's 80% floor
+  (`AGENTS.md`).
+- `grep -rn "fetch(" frontend/src --include=*.js --include=*.jsx` — only match is
+  `frontend/src/api/client.js` (AC15).
+- `frontend/.env.example` contains only placeholder values (`VITE_API_KEY=changeme`);
+  `frontend/.gitignore` excludes `.env`, `node_modules`, `dist`, `coverage` (AC14).
+- `git status --porcelain -- src/` — empty after this ticket's changes (AC16).
+- Not independently re-verified by a second reviewer (same limitation as every prior
+  ticket in this project) — nor smoke-tested against a real running Flask instance in a
+  browser (no local vault/API process available in this session); recommended as a
+  follow-up manual check before this screen is relied on operationally.

@@ -1,0 +1,300 @@
+/* Ported from specs/ux-design/pekopeko-dashboard.html's <style> block - kept
+   verbatim where the mockup already defines a class this app's components
+   use, since that mockup is the design target (per docs/ROADMAP.md).
+   Sections not covered by any mockup (Settings' field list, loading/error
+   states) are added below in the same visual language. */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f5f5f5;
+  color: #333;
+}
+
+/* Sidebar Navigation */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 240px;
+  height: 100vh;
+  background: #fff;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 24px 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sidebar-logo {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 16px 0;
+  overflow-y: auto;
+}
+
+.nav-section {
+  margin-bottom: 24px;
+}
+
+.nav-section-title {
+  padding: 8px 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+}
+
+.nav-item {
+  display: block;
+  padding: 10px 20px;
+  color: #666;
+  text-decoration: none;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.nav-item:hover {
+  background: #f8f8f8;
+  color: #333;
+}
+
+.nav-item.active {
+  background: #f0f0f0;
+  color: #000;
+  border-left-color: #333;
+  font-weight: 500;
+}
+
+.nav-item.disabled {
+  color: #ccc;
+  cursor: not-allowed;
+}
+
+.nav-item.disabled:hover {
+  background: transparent;
+}
+
+/* Main Content Area */
+.main-content {
+  margin-left: 240px;
+  min-height: 100vh;
+}
+
+.page-header {
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 24px 32px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: #666;
+}
+
+.content-wrapper {
+  padding: 32px;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.stat-detail {
+  font-size: 13px;
+  color: #999;
+}
+
+.stat-link {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #333;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.stat-link:hover {
+  text-decoration: underline;
+}
+
+/* Module Cards */
+.modules-section {
+  margin-top: 32px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.module-card {
+  display: block;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s;
+}
+
+.module-card:hover {
+  border-color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.module-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.module-card.disabled:hover {
+  border-color: #e0e0e0;
+  box-shadow: none;
+}
+
+.module-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.module-description {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.module-badge {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 4px 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.module-badge.available {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.module-badge.coming-soon {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+/* Loading / error states (Dashboard + Settings) - not in any mockup, since
+   the mockups only show the fully-loaded static state; styled here in the
+   same visual language as the stat/module cards. */
+.dashboard-loading,
+.settings-loading {
+  color: #666;
+  font-size: 14px;
+}
+
+.dashboard-error,
+.settings-error {
+  background: #fdecea;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  padding: 16px 20px;
+  color: #b71c1c;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+/* Settings field list - Settings has no mockup (added explicitly for this
+   ticket per Cleo's request), so this reuses the stat-card surface. */
+.settings-fields {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px 32px;
+  margin-bottom: 24px;
+}
+
+.settings-fields dt {
+  font-size: 13px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-top: 16px;
+}
+
+.settings-fields dt:first-child {
+  margin-top: 0;
+}
+
+.settings-fields dd {
+  font-size: 16px;
+  margin-top: 4px;
+}
+
+.settings-help {
+  font-size: 13px;
+  color: #999;
+  line-height: 1.6;
+}
+
+.settings-help code {
+  background: #f0f0f0;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 12px;
+}
