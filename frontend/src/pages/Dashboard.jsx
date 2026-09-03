@@ -123,12 +123,14 @@ export default function Dashboard() {
             <ModuleCard
               title="Validation"
               description="Vue unifiée de l'ingestion à la validation : toutes les notes proposées groupées par source, édition et validation directe dans la liste."
-              status="coming-soon"
+              status="available"
+              to="/validation"
             />
             <ModuleCard
               title="Logs d'ingestion"
               description="Vue détaillée des tâches d'ingestion : logs complets, gestion des erreurs, ingestions rejetées ou échouées."
-              status="coming-soon"
+              status="available"
+              to="/ingestion-logs"
             />
             <ModuleCard
               title="Settings"

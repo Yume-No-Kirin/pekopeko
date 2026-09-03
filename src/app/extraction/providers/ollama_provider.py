@@ -71,8 +71,21 @@ class OllamaProvider(Provider):
 
             result_data = response.json()
             extracted_text = result_data.get("response", "")
+            done_reason = result_data.get("done_reason")
 
-            return self._parse_extraction_result(extracted_text)
+            if not extracted_text.strip():
+                raise ValueError(
+                    f"Ollama returned 0 entities/events/relationships (done_reason={done_reason!r}, "
+                    f"model={self.config.model!r}, response_chars={len(extracted_text)})"
+                )
+
+            result = self._parse_extraction_result(extracted_text)
+            if not (result.entities or result.events or result.relationships):
+                raise ValueError(
+                    f"Ollama returned 0 entities/events/relationships (done_reason={done_reason!r}, "
+                    f"model={self.config.model!r}, response_chars={len(extracted_text)})"
+                )
+            return result
 
         except Exception as e:
             raise Exception(f"Failed to extract entities/events/relationships using Ollama: {str(e)}")
@@ -100,6 +113,9 @@ Instructions:
    - "contested" if the statement is disputed or debatable
 6. A relationship's endpoints list must reference the local_id of the
    entities/events it connects, and must contain at least 2 identifiers.
+7. Write every "text" field in the same language as the input text. Do not
+   translate it into English or any other language. (entity_type and
+   relationship_type stay in English, as taxonomy labels.)
 
 Return ONLY a single JSON object, no other text, in exactly this shape:
 {{

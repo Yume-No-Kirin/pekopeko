@@ -64,9 +64,16 @@ class OllamaProvider(Provider):
             # Parse the response
             result_data = response.json()
             extracted_text = result_data.get("response", "")
+            done_reason = result_data.get("done_reason")
 
             # Parse the extracted assertions from the LLM response
             assertions = self._parse_assertions(extracted_text)
+
+            if not assertions:
+                raise ValueError(
+                    f"Ollama returned 0 assertions (done_reason={done_reason!r}, "
+                    f"model={self.config.model!r}, response_chars={len(extracted_text)})"
+                )
 
             return ExtractionResult(
                 assertions=assertions,
@@ -95,11 +102,14 @@ Instructions:
    - "inferred" if it's logically derived from the text
    - "uncertain" if there's ambiguity or incomplete information
    - "contested" if the statement is disputed or debatable
+5. Write each assertion in the same language as the input text. Do not
+   translate it into English or any other language.
 
 Return only the extracted assertions, one per line, with format:
 <epistemic_status>: <assertion_text>
 
-Example response format:
+Example response format (illustrating the format only - match the input
+text's language instead of English if it differs):
 inferred: The main character was born in a small town.
 direct: The author published this book in 2023.
 uncertain: The exact date of the event is unknown.

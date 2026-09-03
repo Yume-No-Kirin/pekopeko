@@ -2,9 +2,7 @@
 AC1: with no config file present and no relevant environment variable set,
 load_config() returns the documented built-in defaults and never raises.
 """
-from pathlib import Path
-
-from _helpers import REPO_ROOT  # noqa: F401
+from _helpers import REPO_ROOT
 
 from src.app.config import load_config
 
@@ -30,5 +28,5 @@ def test_defaults_when_no_file_and_no_env(tmp_path, monkeypatch):
     assert cfg.llm_provider.ollama.model == "llama3"
     assert cfg.llm_provider.ollama.timeout == 60
     assert cfg.llm_provider.ollama.temperature == 0.7
-    assert cfg.retrieval.index_dir == Path.home() / ".pekopeko" / "retrieval_index"
-    assert cfg.task_state.dir == Path.home() / ".pekopeko" / "task_state"
+    assert cfg.retrieval.index_dir == REPO_ROOT / ".pekopeko" / "retrieval_index"
+    assert cfg.task_state.dir == REPO_ROOT / ".pekopeko" / "task_state"

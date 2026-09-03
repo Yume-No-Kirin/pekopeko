@@ -2,7 +2,7 @@
 Loader for the Pekopeko local device configuration (ADI-008).
 
 Resolution order: explicit `path` argument > PEKOPEKO_CONFIG_PATH env var >
-default ~/.pekopeko/config.yaml. A missing file (at any resolution step) is
+default <project>/src/config.yaml. A missing file (at any resolution step) is
 not an error - built-in defaults are returned. A malformed file, or a
 present-but-invalid value, raises ConfigError.
 """
@@ -23,6 +23,9 @@ from .schema import (
     TaskStateConfig,
 )
 
+# src/app/config/loader.py -> src/
+_SRC_DIR = Path(__file__).resolve().parents[2]
+
 VALID_PROVIDERS = frozenset({"ollama"})
 
 _ENV_CONFIG_PATH = "PEKOPEKO_CONFIG_PATH"
@@ -41,7 +44,7 @@ def _resolve_path(path: Optional[Path]) -> Path:
     env_path = os.environ.get(_ENV_CONFIG_PATH)
     if env_path:
         return Path(env_path)
-    return Path.home() / ".pekopeko" / "config.yaml"
+    return _SRC_DIR / "config.yaml"
 
 
 def _load_dotenv(resolved_path: Path) -> None:

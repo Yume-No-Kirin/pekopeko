@@ -19,19 +19,25 @@
 
 Phase : implémentation des tickets `TASK-XXX` (en cours).
 
-- **Décisions** : ADI-001 à ADI-010 toutes `Accepted` (voir ci-dessous). Aucune décision d'architecture en attente.
-- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, par TASK-001b, journal d'événements de tâche, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), `src/app/api/` (TASK-007, couche API HTTP REST — Flask, ADI-010 ; étendu par TASK-007a, pagination `?limit=`/`?offset=` sur les 3 endpoints de liste), tests sous `src/tests/`. `frontend/` (TASK-008, scaffold React + Dashboard/Settings — premier code frontend du dépôt). Ces dix tickets sont dans `specs/tasks/completed/`.
+- **Décisions** : ADI-001 à ADI-011 toutes `Accepted` (voir ci-dessous). ADI-011 (contrat
+  zero-output des providers) confirmée par Cleo le 2026-09-03. Aucune décision
+  d'architecture en attente.
+- **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, par TASK-001b, journal d'événements de tâche, par TASK-001c, échec explicite sur extraction à zéro résultat (ADI-011), par TASK-001d, détection de doublon basée sur le succès d'une tâche antérieure plutôt que sur la seule existence du fichier source, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b, TASK-001c, TASK-001d et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), `src/app/api/` (TASK-007, couche API HTTP REST — Flask, ADI-010 ; étendu par TASK-007a, pagination `?limit=`/`?offset=` sur les 3 endpoints de liste), tests sous `src/tests/`. `frontend/` (TASK-008, scaffold React + Dashboard/Settings — premier code frontend du dépôt ; étendu par TASK-009, écran Logs d'ingestion, et par TASK-010, écran Validation, dont le bug de statut de groupe par `source_id` est corrigé par TASK-001d). Ces quatorze tickets sont dans `specs/tasks/completed/`.
 - **Cahier de tests** (2026-09-02) : `specs/tests/test-plan.md`, tracé aux 18 UC de `specs/product/use-cases.md` et aux 8 tickets `completed`. Deux couches sous `src/tests/` : `acceptance/` (déterministe, appels directs aux pipelines, provider factice fixe — exécutée par défaut) et `e2e/` (serveur Flask réel + vrai Ollama local, marker `pytest -m e2e`, exclue par défaut via `pytest.ini`). **Deux écarts réels découverts et vérifiés contre un serveur réel** (documentés dans le cahier, section « Findings ») : (1) les propositions entity/event/relationship de `extraction/` (contrat `item_type`, pas de champ `id`) sont invisibles pour tout `review/` — `list_proposals` les omet silencieusement et `get_proposal`/`accept` renvoient `400 ValidationError` — pas seulement bloquées côté métier ; (2) l'AC10 de TASK-007 (« accept sur entity/event/relationship → 422 ») ne se déclenche jamais avec une vraie proposition d'extraction (elle renvoie `400` avant d'atteindre ce chemin) — le test existant qui la vérifie construit sa proposition avec le contrat d'`ingestion`/`review`, pas celui réel d'`extraction`. **TASK-005 devra réconcilier les deux contrats de champs, pas seulement ajouter la logique métier d'acceptation.** Problème préexistant signalé au passage (non corrigé, hors périmètre) : `pytest src/tests/` en un seul run échoue à la collecte sur plusieurs `_helpers.py` de même nom sans `__init__.py` — voir la section dédiée du cahier.
-- **Suite** : cinq tickets `backlog` restent maintenant (neuf moins TASK-006, TASK-007,
-  TASK-007a et TASK-008, complétés respectivement le 2026-09-01, le 2026-09-01, le
-  2026-09-02 et le 2026-09-02).
+- **Suite** : trois tickets `backlog` restent maintenant (TASK-005, TASK-011, TASK-012 —
+  TASK-001c, satellite additif à TASK-001+TASK-003 implémentant ADI-011, a été rédigé
+  **et** implémenté le 2026-09-03 dans la même session, voir sa propre section ci-dessous,
+  désormais `completed` ; TASK-001d, satellite additif à TASK-001+TASK-003 corrigeant
+  aussi `Validation.jsx` de TASK-010, rédigé le 2026-09-03 par un autre agent suite à un
+  bug réel trouvé en usage par Cleo, a été implémenté et vérifié le 2026-09-03 dans cette
+  même session, voir sa propre section ci-dessous, désormais `completed`).
   Cœur GUI : TASK-005 (revue
   Entity/Event/Relationship) ne dépend que du contrat de fichiers TASK-001/003 ;
   TASK-008/009/010/011 (scaffold + Dashboard/Settings,
   Ingestion Logs, Validation, Détail de proposition) forment une chaîne de dépendance
   (008→009→010→011, chacun réutilisant les composants/wrappers API du précédent).
-  TASK-008 (premier maillon de cette chaîne) est désormais `completed` — TASK-009 peut
-  démarrer.
+  TASK-008, TASK-009 et TASK-010 (trois premiers maillons de cette chaîne) sont désormais
+  `completed` — TASK-011 peut démarrer.
   **Trois tickets backend satellites** (2026-08-31, voir leurs sections ci-dessous) ont été
   ajoutés en écrivant TASK-009/010/011, suite à la décision de Cleo que les maquettes
   `specs/ux-design/` sont la cible : là où le backend manquait une donnée qu'une maquette
@@ -60,7 +66,7 @@ Phase : implémentation des tickets `TASK-XXX` (en cours).
   re-priorisation (section 2, TASK-013 à TASK-037) demeure une proposition, pas une
   décision actée par Cleo.
 
-## Décisions d'architecture (ADI-001 à ADI-010, toutes `Accepted`)
+## Décisions d'architecture (ADI-001 à ADI-011, toutes `Accepted`)
 
 **Lecture requise avant de rédiger une nouvelle ADR :** `specs/product/vision.md`, `user-needs.md`, `scope.md`, `non-goals.md`, `product-model.md`, `use-cases.md` (cité comme justification derrière presque chaque exigence, et seul document porteur des signaux de volume), `specs/domain/knowledge-model.md`, `specs/domain/knowledge-invariants.md`, `specs/architecture/principles.md`, `specs/architecture/capabilities.md`, la section 23 (« Architectural Decision Inputs ») de `specs/architecture/technical-requirements.md`, et les ADR déjà écrites. Le format attendu est défini dans `specs/decisions/README.md`.
 
@@ -76,6 +82,7 @@ Les 6 premières répondent aux questions ouvertes de la section 23 ; ADI-007/00
 - **ADI-008 — Architecture des providers LLM.** Cleo veut pouvoir changer de LLM d'extraction librement, jamais verrouillée sur un provider. Le pipeline passe toujours par une interface d'abstraction (`extract(text, context) -> ExtractionResult`), jamais un appel direct ; le provider actif est choisi par **config locale** (hors vault, par appareil, comme ADI-002/005). Changer de provider = changer la config, pas le code. L'ADR tranche l'architecture (pluggable), pas quel provider est le défaut.
 - **ADI-009 — Framework frontend.** **ReactJS**, choisi pour familiarité (pas d'évaluation exhaustive des alternatives — même logique pragmatique qu'ADI-007). Déclenchée par `specs/ux-design/` (4 maquettes HTML/CSS/JS statiques et framework-agnostiques : Dashboard, Validation, Ingestion Logs, Proposal Detail — voir le README du dossier). L'ADR ne tranche que le framework : ni le scope V1 de l'interface ni son découpage en tickets.
 - **ADI-010 — Couche API backend et contrat d'intégration frontend.** Tranche ce qu'ADI-009 avait explicitement laissé ouvert ("comment l'interface parle au backend"). REST/HTTP via **Flask** (synchrone, pas de nouveau paradigme async — rien dans le backend n'est `asyncio`-natif). Ingestion/extraction restent asynchrones (ADI-005 règle 1) via un job HTTP `202` + `task_id` miné et persisté de façon synchrone avant la réponse, puis polling `GET .../<task_id>` (pas de push/websocket) ; review/config restent synchrones (ADI-005 règle 3), appel direct. `vault_root` (qui n'a aujourd'hui aucune surface de config, cf. amendement TASK-004 ci-dessous) est lu par le process API via une variable d'environnement dédiée `PEKOPEKO_VAULT_ROOT`, jamais par requête, et sans étendre le schéma partagé de `config/`. Sécurité : bind `127.0.0.1` uniquement + jeton partagé (`X-API-Key` contre `PEKOPEKO_API_KEY`) — pas d'authentification multi-utilisateur, `reviewer_id`/`domain` restent "trusted as given" comme dans tous les tickets précédents.
+- **ADI-011 — Contrat zero-output des providers.** Confirmée par Cleo le 2026-09-03. Déclenchée par un incident réel : gpt-oss:20b a épuisé sa fenêtre de contexte (`done_reason: "length"`, réponse vide) et `OllamaProvider.extract()` (ingestion et extraction) a silencieusement renvoyé une liste vide, faisant passer la tâche en `completed` avec 0 propositions — indiscernable d'une source n'ayant vraiment rien à extraire. Décide que le contrat `Provider.extract()` doit lever une exception dès que 0 élément est extrait pour un contenu source non vide (jamais un `ExtractionResult` vide "réussi"), qu'une source réellement vide/blanche est un cas distinct intercepté par le pipeline **avant** l'appel au provider, et que le provider doit si possible remonter la raison machine-lisible d'une génération tronquée (ex. `done_reason` d'Ollama) dans le message d'erreur. Implémentée par TASK-001c (`completed`, 2026-09-03).
 
 ## Conventions d'identifiants (issues du nettoyage de cohérence, terminé)
 
@@ -160,6 +167,98 @@ déjà sur disque. Écrit en préparant TASK-009/TASK-011, qui en dépendent.
   « Verification record » du ticket. Même limite que TASK-001a/002/003/004 : vérification
   faite par la même session Claude que l'implémentation, pas par un second réviseur
   indépendant.
+
+### TASK-001c — Échec explicite sur extraction à zéro résultat — `completed`
+
+`specs/tasks/completed/TASK-001c-zero-output-extraction-failure.md`. Ticket satellite
+(rédigé et implémenté le 2026-09-03) étendant TASK-001 **et** TASK-003 de façon additive et
+symétrique (même posture que TASK-001b) : implémente ADI-011 (`Accepted`) —
+`OllamaProvider.extract()` (ingestion et extraction) lève désormais une exception si 0
+élément est extrait pour un contenu source non vide, message incluant `done_reason=...`
+quand Ollama l'expose, plutôt que de renvoyer un `ExtractionResult` vide traité comme un
+succès ; un fichier source réellement vide est intercepté séparément par le pipeline
+(`if not content.strip()`) avant l'appel au provider, erreur distincte `"Source file is
+empty"`. Déclenché par un incident réel avec gpt-oss:20b (contexte épuisé,
+`done_reason: "length"`, réponse vide, tâche enregistrée `completed` avec 0 propositions).
+
+- **Écart trouvé et corrigé pendant l'implémentation, via reproduction manuelle** : la
+  première version du correctif côté `extraction/` ne vérifiait la sortie vide qu'*après*
+  `_parse_extraction_result()`, mais cette fonction lève elle-même `"did not contain a JSON
+  object"` dès que `extracted_text` est une chaîne vide — exactement la forme de l'incident
+  gpt-oss:20b réel — court-circuitant le nouveau contrôle avant qu'il n'ajoute
+  `done_reason` au message. Un script de reproduction manuelle bout-en-bout (appelant les
+  vrais `OllamaProvider.extract()` via `ingest_source()`/`extract_source()`, `requests.post`
+  simulé) l'a révélé alors que les tests unitaires seuls ne l'avaient pas détecté. Corrigé
+  en ajoutant un contrôle *avant* l'appel à `_parse_extraction_result()` : si
+  `extracted_text.strip()` est vide, lever immédiatement avec le diagnostic `done_reason`.
+- Code : `ingestion/providers/ollama_provider.py`, `extraction/providers/ollama_provider.py`,
+  `ingestion/pipeline.py`, `extraction/pipeline.py`. Nouveau fichier
+  `src/tests/ingestion/test_ollama_provider.py` (n'existait pas avant ce ticket). Un test
+  extraction pré-existant (`test_extract_handles_missing_lists`) renommé et son assertion
+  inversée en place, changement de comportement volontaire (ADI-011), pas une régression.
+  Aucun changement de signature publique, aucun nouveau statut `TaskState`, aucun champ
+  structuré ajouté (`done_reason` reste uniquement dans le texte du message d'erreur).
+- Vérifié par Claude selon la discipline du projet (copie isolée hors dépôt dans
+  `scratchpad/task001c_verify/`, `tests/extraction` 61/61 rejoués (100 % couverture, +5
+  tests nets vs 56/56 avant ce ticket), `tests/ingestion` 56/58 rejoués (98 % couverture,
+  +8 tests nets vs 48/50 avant ce ticket, mêmes 2 échecs préexistants et non liés que
+  TASK-001a/001b/003/004 reconfirmés par `git stash`/`git stash pop` ciblé sur les seuls
+  fichiers de ce ticket), 7 critères d'acceptation un par un, plus un script de
+  reproduction manuelle bout-en-bout à 5 scénarios (incident réel ingestion+extraction,
+  garde-fou source vide ingestion+extraction, non-régression du chemin nominal) — c'est ce
+  script qui a révélé l'écart ci-dessus. Rapport dans la section « Verification record » du
+  ticket. Même limite que les tickets précédents : vérification faite par la même session
+  Claude que l'implémentation, pas par un second réviseur indépendant.
+
+### TASK-001d — Détection de doublon ignore les retries après échec partiel — `completed`
+
+`specs/tasks/completed/TASK-001d-duplicate-detection-partial-failure.md`. Ticket satellite
+(rédigé 2026-09-03, implémenté 2026-09-03) étendant TASK-001 **et** TASK-003 de façon
+additive et symétrique (même posture que TASK-001b/TASK-001c), et corrigeant en plus un
+bug dans le code déjà `completed` de TASK-010. Bug réel trouvé en usage par Cleo
+(2026-09-03) : `ingest_source`/`extract_source` écrivent le fichier source **avant**
+d'appeler le provider ; si le provider échoue ensuite, la tâche passe `failed` mais le
+fichier source reste sur disque, et toute tentative suivante ne vérifiait que
+`Path.exists()` → retombait en `skipped_duplicate` pour toujours, sans jamais rappeler le
+provider. Distinct de TASK-001c/ADI-011 (provider qui renvoie silencieusement zéro
+résultat) — ici le provider lève une exception après écriture du source ; les deux bugs
+sont indépendants, ce ticket n'était pas bloqué par ADI-011 et ne le remplace pas. Corrige
+aussi `Validation.jsx` (TASK-010) : le statut de groupe par `source_id` était calculé en
+écrasant sans condition à chaque tâche itérée, ce qui — la liste étant déjà triée
+`started_at` décroissant côté API — faisait gagner la tâche la plus **ancienne** au lieu de
+la plus récente.
+
+- Fix retenu pour la détection de doublon : skip seulement si `list_task_states` trouve une
+  tâche antérieure `completed` pour ce `source_id` (cohérent avec ADI-005 — perte d'état de
+  tâche = resoumettre, jamais corrompre le canonique), sinon réutiliser le fichier source
+  déjà écrit (sans le réécrire) et relancer l'extraction comme une tentative normale.
+  Nouveau message d'événement distinct (`"Existing source reused, retrying
+  ingestion/extraction"`) pour ce troisième chemin, désormais visible séparément du skip
+  de vrai doublon et de l'écriture initiale dans `TaskState.events` (TASK-001b).
+- Code : `src/app/ingestion/pipeline.py` et `src/app/extraction/pipeline.py`
+  (restructuration à trois branches du bloc de détection de doublon, deux éditions
+  séparées et symétriques sans import croisé, même discipline que TASK-001b/TASK-001c) ;
+  `frontend/src/pages/Validation.jsx` (`fetchGroups()` — garde `!taskStatusBySourceId.has()`
+  avant le `.set()`, plus un commentaire signalant la dépendance à l'ordre de tri de
+  l'API). 8 nouveaux tests Python (4 `src/tests/ingestion/test_pipeline.py`, 4
+  `src/tests/extraction/test_pipeline.py`, un par critère d'acceptation backend/pipeline)
+  et 1 nouveau test Vitest (`Validation.test.jsx`, critère AC6 frontend). Limitation
+  assumée et documentée dans le ticket (non traitée) : un échec ayant déjà écrit certaines
+  Proposals avant de planter en cours de boucle peut produire des Proposals dupliquées au
+  retry — déduplication idempotente hors scope.
+- Vérifié par Claude selon la discipline du projet : `pytest src/tests/ingestion/` 60/62
+  (les 2 échecs sont préexistants et non liés, confirmés par `git stash`/`git stash pop` —
+  mêmes échecs sur le code d'avant ce ticket), `pytest src/tests/extraction/` 65/65 (aucun
+  échec préexistant dans cette suite), couverture 99 %/100 % sur les deux `pipeline.py`
+  touchés ; `npx vitest run --coverage` 45/45 (couverture globale 97,77 %, `Validation.jsx`
+  96,5 %) ; script de reproduction manuelle bout-en-bout en environnement isolé
+  (`scratchpad/task001d_manual_repro.py`, non commité) rejouant le scénario réel de Cleo
+  pour les deux pipelines indépendamment (échec après écriture du source → retry réussi
+  sans réécriture du fichier, contenu/mtime identiques → doublon réel toujours skippé),
+  plus inspection par l'œil des trois séquences d'événements distinctes. 8 critères
+  d'acceptation vérifiés un par un. Rapport dans la section « Verification record » du
+  ticket. Même limite que tous les tickets précédents : vérification faite par la même
+  session Claude que l'implémentation, pas par un second réviseur indépendant.
 
 ### TASK-002 — Workflow de revue des propositions (V1) — `completed`
 
@@ -327,21 +426,52 @@ maquettes). Rédigé le 2026-08-31, implémenté le 2026-09-02.
   local disponible dans cette session) — recommandé comme vérification manuelle de suivi
   avant usage opérationnel de cet écran.
 
-### TASK-009 — Écran Logs d'ingestion — `backlog`
+### TASK-009 — Écran Logs d'ingestion — `completed`
 
-`specs/tasks/backlog/TASK-009-ingestion-logs-screen.md`. Implémente
+`specs/tasks/completed/TASK-009-ingestion-logs-screen.md`. Implémente
 `pekopeko-ingestion.html` : table filtrable/paginée des tâches d'ingestion **et**
 extraction, détail des erreurs/doublons/événements par tâche (via TASK-001b), pagination
 serveur réelle (via TASK-007a). Fait passer la carte de module « Logs d'ingestion » du
 Dashboard à `available`. Rédigé le 2026-08-31 en appliquant le principe « les maquettes
 sont la cible » (voir note en tête de section « Suite » ci-dessus) : aucun élément de la
 maquette n'a été silencieusement supprimé — pagination et journal d'événements comblés par
-TASK-007a/TASK-001b plutôt que retirés. Dépend de TASK-007/TASK-007a/TASK-001b/TASK-008.
-Jamais implémenté.
+TASK-007a/TASK-001b plutôt que retirés. Dépend de TASK-007/TASK-007a/TASK-001b/TASK-008
+(tous `completed`). Implémenté le 2026-09-03.
 
-### TASK-010 — Écran Validation (Assertions) — `backlog`
+- Code : `frontend/src/api/tasks.js` (`listIngestions`/`listExtractions`, nouveau),
+  `frontend/src/components/TaskStatusBadge.jsx`/`TaskEventLog.jsx` (nouveaux, génériques
+  ingestion/extraction — `TaskEventLog` réutilisable tel quel par TASK-011),
+  `frontend/src/pages/IngestionLogs.jsx` (nouveau — fan-out paginé sur les 5 domaines × 2
+  types, fusion/tri client `started_at` desc, filtre Période client-side), extension de
+  `App.jsx` (route `/ingestion-logs`), `Dashboard.jsx` (carte `available`), `Sidebar.jsx`
+  (déviation signalée : pas listé dans le ticket, mais nécessaire pour ne pas laisser un
+  lien mort grisé alors que la page est joignable), `index.css` (classes portées de la
+  maquette `pekopeko-ingestion.html` + nouvelles classes pour l'accordéon de détail et le
+  badge Type, absentes de toute maquette). Aucun fichier sous `src/` (Python) modifié.
+- **Deux déviations signalées avant implémentation, tranchées avec Cleo** (détail dans la
+  section « Deviations » du ticket) : (1) `Sidebar.jsx` modifié malgré son absence du
+  périmètre déclaré du ticket ; (2) fidélité à la maquette allégée sur la pagination
+  (Précédent/Suivant + compteur plutôt que les boutons numérotés 1-5 — le vrai nombre de
+  pages n'est pas proprement connaissable à travers le fan-out à 10 sources) et sur l'en-tête
+  (bouton « + Nouvelle ingestion » non porté, hors périmètre déjà assumé par le ticket ;
+  bouton « ↻ Rafraîchir » porté à la demande explicite de Cleo malgré son absence des
+  items de Scope du ticket).
+- 25/25 tests Vitest (`tasks.test.js` 3 nouveaux, `IngestionLogs.test.jsx` 8 nouveaux — un
+  par critère d'acceptation AC1-7/9 —, `Dashboard.test.jsx` 9 dont 1 mis à jour en place et
+  1 nouveau bout-en-bout), couverture 100 % lignes sur `api/tasks.js` et
+  `pages/IngestionLogs.jsx` (90,5 % branches), largement au-dessus du seuil 80 % du projet.
+  Vérifié par Claude selon la discipline du projet (`npm run build`, `npx vitest run
+  --coverage`, `grep` confirmant qu'aucun `fetch()` direct n'existe hors `api/client.js`,
+  `git status --porcelain -- src/` vide). Rapport dans la section « Verification record »
+  du ticket. Même limite que les tickets précédents : pas de second réviseur indépendant,
+  pas de test de fumée contre une vraie instance Flask/vault (aucun vault local disponible
+  dans cette session) — recommandé en suivi avant usage opérationnel, en particulier pour la
+  stratégie de pagination fusionnée (approximative par construction, à valider manuellement
+  contre un domaine/type réel avec plus de 10 tâches).
 
-`specs/tasks/backlog/TASK-010-validation-screen.md`. Implémente `pekopeko-workflow.html`,
+### TASK-010 — Écran Validation (Assertions) — `completed`
+
+`specs/tasks/completed/TASK-010-validation-screen.md`. Implémente `pekopeko-workflow.html`,
 scope assertion-only (miroir de TASK-002) : propositions groupées par source (jointure
 client sur `provenance.source_id`, y compris un N+1 assumé sur `GET /proposals/<id>` faute
 de `body`/`source_id` sur `ProposalSummary` — décision explicite de Cleo plutôt qu'étendre
@@ -350,7 +480,46 @@ Sans folder-path builder ni bulk actions — déféré **pré-existant** (TASK-0
 acté avant cette session dans `BACKLOG-CLAUDE-V2.md`/TASK-007), pas une coupe de ce
 ticket. `reviewer_id` fourni par une variable d'env au build (`VITE_REVIEWER_ID`, même
 pattern que `VITE_API_KEY`). Dépend de TASK-007/TASK-007a/TASK-008/TASK-009 (réutilise
-`api/tasks.js`). Jamais implémenté.
+`api/tasks.js`, tous `completed`). Implémenté le 2026-09-03.
+
+- Code : `frontend/src/api/review.js` (`listProposals`/`getProposal`/`acceptProposal`/
+  `rejectProposal`, nouveau), `frontend/src/components/EpistemicStatusBadge.jsx`/
+  `SourceGroupHeader.jsx`/`RejectReasonModal.jsx` (nouveaux — `RejectReasonModal` partagé
+  avec TASK-011), `frontend/src/pages/Validation.jsx` (nouveau — fetch en 3 étapes :
+  liste paginée par domaine → jointure N+1 sur le détail → jointure avec les tâches
+  d'ingestion pour le statut de groupe), extension de `App.jsx` (route `/validation`),
+  `Dashboard.jsx` (carte `available`), `Sidebar.jsx` (déviation signalée, même raison que
+  TASK-009), `.env.example`/`.env.test` (`VITE_REVIEWER_ID`), `index.css` (classes
+  portées de `pekopeko-workflow.html` + nouvelles classes pour la modale de rejet, absente
+  de toute maquette). Aucun fichier sous `src/` (Python) modifié.
+- **Pagination confirmée avec Cleo avant implémentation** (question posée explicitement :
+  fetch borné unique façon `Dashboard.jsx` vs. Précédent/Suivant réel façon TASK-009 adapté
+  pour ne jamais couper un groupe source entre deux pages — Cleo a choisi la seconde
+  option). Détail complet dans la section « Deviations » du ticket : un seul appel borné
+  (`limit=500`) par domaine, regroupement complet par `source_id` (impossible à couper
+  puisque le regroupement n'a lieu qu'une fois la page domaine entière en main), puis
+  pagination d'affichage sur la liste complète de groupes (empaquetage glouton vers une
+  cible de ~10 notes/page, sans jamais scinder un groupe) — Précédent/Suivant navigue entre
+  ces pages déjà construites, sans round-trip réseau par clic (différent de TASK-009).
+- **Autre déviation signalée** : l'étape 2 (jointure détail N+1) utilise
+  `Promise.allSettled`, pas `Promise.all` — une proposition malformée (sans
+  `provenance.source_id`) fait échouer son seul appel de détail (`400 ValidationError`,
+  `review/pipeline.py::get_proposal`) ; l'écran ignore cette seule proposition plutôt que
+  de planter entièrement, reprenant le principe déjà documenté de `list_proposals`
+  (« a single malformed proposal file must not break the whole review queue »).
+- 42/42 tests Vitest (`review.test.js` 5 nouveaux, `Validation.test.jsx` 11 nouveaux — un
+  par critère d'acceptation AC1-8/10, plus AC5b et un test bonus sur la pagination —,
+  `Dashboard.test.jsx` 10 dont 1 mis à jour en place et 1 nouveau bout-en-bout), couverture
+  100 % lignes sur `api/review.js`, 94,17 % lignes sur `pages/Validation.jsx` (87,8 %
+  branches), largement au-dessus du seuil 80 % du projet. Vérifié par Claude selon la
+  discipline du projet (`npm run build`, `npx vitest run --coverage`, `grep` confirmant
+  qu'aucun `fetch()` direct n'existe hors `api/client.js`, `git status --porcelain --
+  src/` vide). Rapport dans la section « Verification record » du ticket. Même limite que
+  les tickets précédents : pas de second réviseur indépendant, pas de test de fumée
+  contre une vraie instance Flask/vault (aucun vault local disponible dans cette
+  session) — recommandé en suivi avant usage opérationnel, en particulier pour valider la
+  pagination adaptée contre un domaine ayant un groupe source dépassant la cible de ~10
+  notes/page.
 
 ### TASK-011 — Écran Détail de proposition (Assertions) — `backlog`
 
@@ -384,7 +553,7 @@ nouveau N+1 ciblé par endpoint sur Détail), id non résolu affiché tel quel p
 bloquer l'écran. Rédigé le 2026-08-31, jamais implémenté.
 
 - Dépend de TASK-005 (`backlog`) et TASK-007 (`completed`) côté backend ; de la chaîne
-  TASK-008 (`completed`) → TASK-009 → TASK-010 → TASK-011 (ces trois derniers `backlog`)
+  TASK-008 → TASK-009 → TASK-010 (`completed`) → TASK-011 (`backlog`)
   côté frontend. Indépendant de TASK-006/TASK-013/TASK-015.
 - Avec ce ticket, **le socle GUI (TASK-007 → TASK-012) est entièrement rédigé** —
   framework tranché (ReactJS, ADI-009), contrat d'intégration backend tranché (Flask,
@@ -405,31 +574,31 @@ bloquer l'écran. Rédigé le 2026-08-31, jamais implémenté.
 
 ## Prochaine action exacte
 
-**TASK-001, TASK-002, TASK-003, TASK-004, TASK-001a, TASK-001b, TASK-006, TASK-007,
-TASK-007a et TASK-008 sont tous `completed`** (TASK-008 le 2026-09-02, TASK-007a le
-2026-09-02, TASK-007 le 2026-09-01, TASK-006 le 2026-09-01, TASK-001a et TASK-001b le
-2026-08-31, les quatre autres le 2026-08-30). **Cinq tickets restent rédigés (`backlog`),
-aucun implémenté** — voir leurs sections ci-dessus (TASK-005, 009, 010, 011, 012 — compte
-vérifié contre `specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus). Les trois
-satellites backend (TASK-001a, TASK-001b, TASK-007a) sont désormais tous `completed`.
+**TASK-001, TASK-002, TASK-003, TASK-004, TASK-001a, TASK-001b, TASK-001c, TASK-001d,
+TASK-006, TASK-007, TASK-007a, TASK-008, TASK-009 et TASK-010 sont tous `completed`**
+(TASK-001d le 2026-09-03, TASK-001c le 2026-09-03, TASK-010 le 2026-09-03, TASK-009 le
+2026-09-03, TASK-008 le 2026-09-02, TASK-007a le 2026-09-02, TASK-007 le 2026-09-01,
+TASK-006 le 2026-09-01, TASK-001a et TASK-001b le 2026-08-31, les quatre autres le
+2026-08-30). **Trois tickets restent rédigés (`backlog`), aucun implémenté** — voir leurs
+sections ci-dessus (TASK-005, 011, 012 — compte vérifié contre `specs/tasks/backlog/`,
+cohérent avec « État actuel » ci-dessus).
 
 - Indépendant de tout le reste : TASK-005 (désormais aussi le scope backend de TASK-012,
   voir ci-dessous — toujours implémentable seul, mais plus totalement indépendant du reste
   du socle GUI).
-- Chaîne GUI, à implémenter dans cet ordre relatif : TASK-009 →
-  TASK-010 → TASK-011 → TASK-012 (chacun dépend du/des précédent(s) pour son
-  shell/composants/wrappers API ; TASK-012 dépend en plus de TASK-005 côté backend — voir
-  sa propre section ci-dessus). TASK-008 (`completed`, scaffold React + Dashboard/Settings)
-  a posé le shell de routing/composants que TASK-009 étend maintenant. TASK-009 peut
-  démarrer dès maintenant : ses prérequis (TASK-007, TASK-007a, TASK-001b, TASK-008) sont
-  tous `completed`, et tire pleinement parti de TASK-007a pour sa pagination serveur ;
-  TASK-011 tire déjà pleinement parti de TASK-001a et TASK-001b (tous deux `completed`)
-  pour ses sections Provenance et Logs respectivement.
+- Chaîne GUI, à implémenter dans cet ordre relatif : TASK-011 →
+  TASK-012 (TASK-012 dépend en plus de TASK-005 côté backend — voir sa propre section
+  ci-dessus). TASK-008 → TASK-009 → TASK-010 (scaffold, Logs d'ingestion, Validation) sont
+  désormais tous `completed` — TASK-011 peut démarrer dès maintenant, ses prérequis
+  (TASK-007, TASK-008, TASK-009, TASK-010) étant tous `completed`. TASK-011 tire déjà
+  pleinement parti de TASK-001a et TASK-001b (tous deux `completed`) pour ses sections
+  Provenance et Logs respectivement, peut réutiliser `TaskEventLog` (TASK-009) tel quel pour
+  cette dernière, et `RejectReasonModal` (TASK-010) pour son propre rejet.
 
-Prochaine action : TASK-009 (Écran Logs d'ingestion) — tous ses prérequis sont
+Prochaine action : TASK-011 (Écran Détail de proposition) — tous ses prérequis sont
 `completed`. TASK-005 reste implémentable en parallèle si Cleo préfère avancer le backend
 Entity/Event/Relationship en même temps que la chaîne GUI. Suggestion si aucune préférence
-contraire : TASK-009 → TASK-010 → TASK-011 → TASK-005 → TASK-012 dans l'ordre (TASK-005
+contraire : TASK-011 → TASK-005 → TASK-012 dans l'ordre (TASK-005
 doit précéder TASK-012, qui reprend son backend par référence).
 
 ---

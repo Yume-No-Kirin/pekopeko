@@ -33,6 +33,21 @@ class FakeProvider:
         return self.result
 
 
+class FlakyProvider:
+    """Fails on its first call, succeeds on every subsequent call - models a
+    provider that raises after the source has already been written."""
+
+    def __init__(self, result: ExtractionResult):
+        self.result = result
+        self.calls = 0
+
+    def extract(self, text: str, context: dict) -> ExtractionResult:
+        self.calls += 1
+        if self.calls == 1:
+            raise Exception("provider exploded")
+        return self.result
+
+
 def _full_extraction_result() -> ExtractionResult:
     return ExtractionResult(
         entities=[
@@ -279,3 +294,137 @@ def test_duplicate_extraction_event_sequence(tmp_path, source_file):
         "Source content read",
         "Duplicate source detected, skipping extraction",
     ]
+
+
+def test_provider_zero_output_failure(tmp_path, source_file):
+    """TASK-001c AC4: a provider raising on zero output fails the task with
+    the diagnostic in the error; no Proposal files are written."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    provider = Mock()
+    provider.extract.side_effect = Exception(
+        "Failed to extract entities/events/relationships using Ollama: Ollama "
+        "returned 0 entities/events/relationships (done_reason='length', "
+        "model='gpt-oss:20b', response_chars=0)"
+    )
+
+    result = extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+
+    assert result.status == "failed"
+    assert "done_reason='length'" in result.error
+    assert result.proposal_ids == []
+    proposals_dir = vault_root / "PERSONAL" / "proposals"
+    assert not proposals_dir.exists() or len(list(proposals_dir.iterdir())) == 0
+
+
+def test_retry_after_failure_calls_provider_again_and_completes(tmp_path, source_file):
+    """TASK-001d AC1/AC3: a first extract_source attempt that fails after the
+    source file is written, followed by a second attempt on the same
+    content, calls the provider again (no skip) and completes."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    provider = FlakyProvider(_full_extraction_result())
+
+    result1 = extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    assert result1.status == "failed"
+
+    result2 = extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    assert result2.status == "completed"
+    assert len(result2.proposal_ids) == 3
+    assert provider.calls == 2
+
+
+def test_duplicate_still_skips_after_prior_completed_task(tmp_path, source_file):
+    """TASK-001d AC2/AC3: a genuine duplicate (a prior attempt on the same
+    source content already reached status == 'completed') still returns
+    skipped_duplicate without calling the provider again - non-regression of
+    current behavior, with the retry-capable code path in place."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    provider = FakeProvider(_full_extraction_result())
+
+    result1 = extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    assert result1.status == "completed"
+
+    result2 = extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    assert result2.status == "skipped_duplicate"
+    assert result2.source_id == result1.source_id
+    assert provider.calls == 1
+
+
+def test_retry_does_not_rewrite_source_file(tmp_path, source_file):
+    """TASK-001d AC4: the reused-source-on-retry path does not rewrite
+    sources/<id>/<id>.md - content/mtime unchanged from the first, failed
+    attempt's write."""
+    import time
+    from src.app.extraction import storage
+
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    provider = FlakyProvider(_full_extraction_result())
+
+    result1 = extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    assert result1.status == "failed"
+
+    content = source_file.read_text(encoding="utf-8")
+    source_id = storage._generate_source_id(content)
+    written_source_path = vault_root / "PERSONAL" / "sources" / source_id / f"{source_id}.md"
+    assert written_source_path.exists()
+    content_before = written_source_path.read_bytes()
+    mtime_before = written_source_path.stat().st_mtime_ns
+
+    time.sleep(0.01)
+
+    result2 = extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    assert result2.status == "completed"
+
+    content_after = written_source_path.read_bytes()
+    mtime_after = written_source_path.stat().st_mtime_ns
+
+    assert content_after == content_before
+    assert mtime_after == mtime_before
+
+
+def test_retry_after_failure_event_message_distinct(tmp_path, source_file):
+    """TASK-001d AC5: append_task_event's log for a retry-after-failure
+    attempt contains a distinct event message identifying it as a retry
+    reusing an existing source, different from both the real-duplicate-skip
+    message and the fresh-write message."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    provider = FlakyProvider(_full_extraction_result())
+
+    extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    files_before_second_call = set(state_dir.glob("extract-*.json"))
+
+    result2 = extract_source(vault_root, "PERSONAL", source_file, provider, state_dir=state_dir)
+    assert result2.status == "completed"
+
+    new_state_file = (set(state_dir.glob("extract-*.json")) - files_before_second_call).pop()
+    loaded = load_task_state(state_dir, new_state_file.stem)
+
+    messages = [e.message for e in loaded.events]
+    assert "Existing source reused, retrying extraction" in messages
+    assert "Duplicate source detected, skipping extraction" not in messages
+    assert "Source file written" not in messages
+
+
+def test_empty_source_file_fails_before_provider_call(tmp_path):
+    """TASK-001c AC5: an empty/whitespace-only source file fails the task
+    with a distinct error, without ever calling the provider."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    empty_file = tmp_path / "empty.md"
+    empty_file.write_text("   \n\n  ", encoding="utf-8")
+    provider = FakeProvider(_full_extraction_result())
+
+    result = extract_source(vault_root, "PERSONAL", empty_file, provider, state_dir=state_dir)
+
+    assert result.status == "failed"
+    assert result.error == "Source file is empty"
+    assert provider.calls == 0
+
+    loaded = _last_task_state(state_dir)
+    warning_events = [e for e in loaded.events if e.level == "warning"]
+    assert len(warning_events) == 1
+    assert warning_events[0].message == "Source file is empty"

@@ -15,7 +15,7 @@ from .errors import InvalidDomainError
 from .providers.base import Provider
 from .readers.base import SourceReaderRegistry
 from .readers.markdown_reader import MarkdownReader
-from .task_state import TaskState, create_task_state, update_task_state, append_task_event
+from .task_state import TaskState, create_task_state, update_task_state, append_task_event, list_task_states
 
 
 class ExtractionPipelineResult:
@@ -74,27 +74,48 @@ def extract_source(
         append_task_event(task_state, state_dir, "info", "Source content read",
                            {"source_path": str(source_path)})
 
-        source_id = storage._generate_source_id(content)
-
-        if storage.source_exists(vault_root, domain, source_id):
-            append_task_event(task_state, state_dir, "info", "Duplicate source detected, skipping extraction",
-                               {"source_id": source_id})
-            task_state.source_id = source_id
-            task_state.status = "skipped_duplicate"
+        if not content.strip():
+            append_task_event(task_state, state_dir, "warning", "Source file is empty",
+                               {"source_path": str(source_path)})
+            task_state.status = "failed"
+            task_state.error = "Source file is empty"
             task_state.completed_at = datetime.now().isoformat()
             update_task_state(task_state, state_dir)
             return ExtractionPipelineResult(
-                source_id=source_id, proposal_ids=[], status="skipped_duplicate", skipped_duplicate=True
+                source_id=None, proposal_ids=[], status="failed", error=task_state.error
             )
 
-        append_task_event(task_state, state_dir, "info", "No duplicate found, continuing extraction",
-                           {"source_id": source_id})
+        source_id = storage._generate_source_id(content)
 
-        storage.write_source_file(vault_root, domain, content)
-        task_state.source_id = source_id
-        update_task_state(task_state, state_dir)
-        append_task_event(task_state, state_dir, "info", "Source file written",
-                           {"source_id": source_id})
+        if storage.source_exists(vault_root, domain, source_id):
+            prior_completed = any(
+                s.source_id == source_id and s.task_id != task_state.task_id and s.status == "completed"
+                for s in list_task_states(state_dir)
+            )
+            if prior_completed:
+                append_task_event(task_state, state_dir, "info", "Duplicate source detected, skipping extraction",
+                                   {"source_id": source_id})
+                task_state.source_id = source_id
+                task_state.status = "skipped_duplicate"
+                task_state.completed_at = datetime.now().isoformat()
+                update_task_state(task_state, state_dir)
+                return ExtractionPipelineResult(
+                    source_id=source_id, proposal_ids=[], status="skipped_duplicate", skipped_duplicate=True
+                )
+
+            task_state.source_id = source_id
+            update_task_state(task_state, state_dir)
+            append_task_event(task_state, state_dir, "info", "Existing source reused, retrying extraction",
+                               {"source_id": source_id})
+        else:
+            append_task_event(task_state, state_dir, "info", "No duplicate found, continuing extraction",
+                               {"source_id": source_id})
+
+            storage.write_source_file(vault_root, domain, content)
+            task_state.source_id = source_id
+            update_task_state(task_state, state_dir)
+            append_task_event(task_state, state_dir, "info", "Source file written",
+                               {"source_id": source_id})
 
         extraction_provider = type(provider).__name__
         append_task_event(task_state, state_dir, "info", "Provider extraction call started",

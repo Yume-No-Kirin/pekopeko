@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route, useNavigate } from "react-router-dom";
 import Dashboard from "./Dashboard.jsx";
 import Settings from "./Settings.jsx";
+import IngestionLogs from "./IngestionLogs.jsx";
+import Validation from "./Validation.jsx";
 
 function jsonResponse(status, body) {
   return {
@@ -206,24 +208,62 @@ describe("Dashboard", () => {
     expect(value.closest(".stat-card")).toHaveTextContent("Taux d'acceptation");
   });
 
-  it("renders Validation and Ingestion Logs as coming-soon and non-navigable, Settings as available", async () => {
+  it("renders Validation, Ingestion Logs and Settings as available module cards", async () => {
     global.fetch = makeFetchMock();
     renderRoutedDashboard();
     await screen.findByRole("heading", { name: "Dashboard" });
 
     const validationCard = screen.getByText("Validation").closest(".module-card");
-    expect(validationCard).toHaveClass("disabled");
-    expect(validationCard.tagName).not.toBe("A");
+    expect(validationCard).not.toHaveClass("disabled");
+    expect(validationCard).toHaveAttribute("href", "/validation");
 
     const ingestionLogsCard = screen.getByText("Logs d'ingestion").closest(".module-card");
-    expect(ingestionLogsCard).toHaveClass("disabled");
-    expect(ingestionLogsCard.tagName).not.toBe("A");
+    expect(ingestionLogsCard).not.toHaveClass("disabled");
+    expect(ingestionLogsCard).toHaveAttribute("href", "/ingestion-logs");
 
     const settingsCard = screen.getByText("Settings", { selector: ".module-title" }).closest(
       ".module-card"
     );
     expect(settingsCard).not.toHaveClass("disabled");
     expect(settingsCard).toHaveAttribute("href", "/settings");
+  });
+
+  it("navigates to Ingestion Logs via the module card", async () => {
+    global.fetch = makeFetchMock();
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/ingestion-logs" element={<IngestionLogs />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: /Logs d'ingestion/ }));
+
+    expect(await screen.findByRole("heading", { name: "Ingestion de données" })).toBeInTheDocument();
+  });
+
+  it("navigates to Validation via the module card", async () => {
+    global.fetch = makeFetchMock();
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/validation" element={<Validation />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: /^Validation/ }));
+
+    expect(await screen.findByRole("heading", { name: "Validation" })).toBeInTheDocument();
   });
 
   it("shows a loading state while requests are in flight, then an error state on failure", async () => {

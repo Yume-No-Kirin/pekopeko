@@ -239,17 +239,21 @@ body {
   color: #e65100;
 }
 
-/* Loading / error states (Dashboard + Settings) - not in any mockup, since
-   the mockups only show the fully-loaded static state; styled here in the
-   same visual language as the stat/module cards. */
+/* Loading / error states (Dashboard + Settings + Ingestion Logs) - not in
+   any mockup, since the mockups only show the fully-loaded static state;
+   styled here in the same visual language as the stat/module cards. */
 .dashboard-loading,
-.settings-loading {
+.settings-loading,
+.ingestion-logs-loading,
+.validation-loading {
   color: #666;
   font-size: 14px;
 }
 
 .dashboard-error,
-.settings-error {
+.settings-error,
+.ingestion-logs-error,
+.validation-error {
   background: #fdecea;
   border: 1px solid #f5c6cb;
   border-radius: 8px;
@@ -257,6 +261,313 @@ body {
   color: #b71c1c;
   font-size: 14px;
   margin-bottom: 24px;
+}
+
+/* Ported from specs/ux-design/pekopeko-ingestion.html's <style> block
+   (TASK-009) - page header action buttons, filters bar, table, badges,
+   pagination and empty state. */
+.header-left {
+  flex: 1;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Modifier, not a redefinition of the shared .page-header - Dashboard/
+   Settings' headers have no .header-actions and must stay stacked, not
+   flex-row. */
+.page-header.with-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  background: #f8f8f8;
+  border-color: #333;
+}
+
+.filters-bar {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  background: #fff;
+  min-width: 160px;
+}
+
+.table-container {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background: #f8f8f8;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #666;
+}
+
+.table td {
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background: #fafafa;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.status-badge.pending {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.status-badge.running {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.status-badge.completed {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge.failed {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.status-badge.skipped_duplicate {
+  background: #f5f5f5;
+  color: #757575;
+}
+
+.domain-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #666;
+}
+
+/* Type badge (ingestion/extraction) - not in the mockup, added by TASK-009
+   because this screen merges both task types into one table. Same visual
+   language as .domain-badge. */
+.task-type-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #ede7f6;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #5e35b1;
+}
+
+.action-link {
+  color: #333;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.action-link:hover {
+  text-decoration: underline;
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: #fff;
+  border-top: 1px solid #e0e0e0;
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #666;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f8f8f8;
+  border-color: #333;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-state-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #666;
+}
+
+.empty-state-text {
+  font-size: 14px;
+  color: #999;
+}
+
+.file-name {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 13px;
+  color: #333;
+}
+
+.source-id {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #999;
+}
+
+/* Row-detail accordion (events log + error) - not in the mockup (which has
+   no interactive expand state), styled in the same visual language as the
+   rest of the table. */
+.task-error {
+  color: #c62828;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.task-event-log {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-event {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.task-event-timestamp {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  color: #999;
+}
+
+.task-event-level {
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+}
+
+.task-event-level.warning {
+  color: #e65100;
+}
+
+.task-event-level.success {
+  color: #2e7d32;
+}
+
+.task-event-details {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #999;
+}
+
+.task-event-log-empty {
+  color: #999;
+  font-size: 14px;
 }
 
 /* Settings field list - Settings has no mockup (added explicitly for this
@@ -297,4 +608,216 @@ body {
   border-radius: 4px;
   padding: 2px 5px;
   font-size: 12px;
+}
+
+/* Ported from specs/ux-design/pekopeko-workflow.html's <style> block
+   (TASK-010) - source group header, note rows, epistemic badges, mini
+   action buttons. Folder-path builder / bulk accept-all / reject-all are
+   deliberately not ported - pre-existing deferrals (TASK-013/TASK-015), not
+   used by this screen. */
+.btn-primary {
+  background: #333;
+  color: #fff;
+  border-color: #333;
+}
+
+.btn-primary:hover {
+  background: #000;
+  border-color: #000;
+}
+
+.source-header-row {
+  background: #f8f8f8;
+  border-top: 2px solid #d0d0d0;
+}
+
+.source-header-row td {
+  padding: 14px 16px !important;
+  font-weight: 600;
+  border-bottom: 1px solid #e0e0e0 !important;
+}
+
+.source-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.source-file {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 14px;
+  color: #333;
+}
+
+.source-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.source-count {
+  color: #666;
+  font-weight: 400;
+}
+
+.note-row {
+  background: #fff;
+}
+
+.note-row:hover {
+  background: #fafafa;
+}
+
+.note-row td {
+  padding: 16px !important;
+  border-bottom: 1px solid #f5f5f5 !important;
+  vertical-align: top;
+}
+
+.note-content-cell {
+  max-width: 500px;
+}
+
+.note-content-display {
+  width: 100%;
+  min-height: 70px;
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.6;
+  background: #f9f9f9;
+  color: #333;
+}
+
+.epistemic-badge {
+  display: inline-block;
+  background: #fff3e0;
+  color: #e65100;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.epistemic-badge.direct {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+/* uncertain/contested have no mockup variant - reusing TaskStatusBadge's
+   established running/failed palette for visual consistency. */
+.epistemic-badge.uncertain {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.epistemic-badge.contested {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.note-actions {
+  display: flex;
+  gap: 6px;
+  flex-direction: column;
+  min-width: 100px;
+}
+
+.btn-mini {
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  text-align: center;
+  text-decoration: none;
+  display: block;
+}
+
+.btn-mini:hover {
+  background: #f8f8f8;
+}
+
+.btn-mini.accept {
+  background: #2e7d32;
+  color: #fff;
+  border-color: #2e7d32;
+}
+
+.btn-mini.accept:hover {
+  background: #1b5e20;
+}
+
+.btn-mini.reject {
+  color: #c62828;
+  border-color: #c62828;
+}
+
+.btn-mini.reject:hover {
+  background: #c62828;
+  color: #fff;
+}
+
+.btn-mini.detail {
+  color: #666;
+  font-size: 11px;
+}
+
+/* Reject reason modal - not in any mockup (pekopeko-workflow.html's reject
+   button has no confirmation step), styled in the same visual language as
+   the rest of the file. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 480px;
+  padding: 24px;
+}
+
+.modal-header {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.modal-textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }

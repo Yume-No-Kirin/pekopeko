@@ -23,7 +23,7 @@ def _write_atomic_file(path: Path, content: str):
     path.parent.mkdir(parents=True, exist_ok=True)
 
     # Write to temporary file in the same directory
-    with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, delete=False, suffix='.tmp') as tmp_file:
+    with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, delete=False, suffix='.tmp', encoding='utf-8') as tmp_file:
         tmp_file.write(content)
         tmp_file.flush()
         os.fsync(tmp_file.fileno())

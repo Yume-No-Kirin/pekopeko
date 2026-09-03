@@ -14,10 +14,13 @@ from src.app.extraction.providers.ollama_provider import OllamaProvider, OllamaP
 from src.app.extraction.providers.base import ExtractionResult
 
 
-def _mock_response(payload: dict):
+def _mock_response(payload: dict, done_reason: str = None):
     response = Mock()
     response.raise_for_status = Mock()
-    response.json.return_value = {"response": json.dumps(payload)}
+    response_json = {"response": json.dumps(payload)}
+    if done_reason is not None:
+        response_json["done_reason"] = done_reason
+    response.json.return_value = response_json
     return response
 
 
@@ -45,14 +48,55 @@ def test_extract_parses_full_json_response():
     assert call_kwargs["timeout"] == 60
 
 
-def test_extract_handles_missing_lists():
+def test_extract_raises_on_all_empty_lists():
+    # ADI-011: 0 extracted items is a failure, not a successful empty result.
     provider = OllamaProvider(OllamaProviderConfig())
     provider.requests = Mock()
     provider.requests.post.return_value = _mock_response({})
 
+    with pytest.raises(Exception) as exc_info:
+        provider.extract("text", {})
+    assert "0 entities/events/relationships" in str(exc_info.value)
+
+
+def test_extract_raises_on_zero_output_includes_done_reason():
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    provider.requests.post.return_value = _mock_response({}, done_reason="length")
+
+    with pytest.raises(Exception) as exc_info:
+        provider.extract("text", {})
+    assert "done_reason='length'" in str(exc_info.value)
+
+
+def test_extract_raises_on_empty_response_text_before_json_parse():
+    # The real gpt-oss:20b incident: response body is "" with done_reason
+    # "length" - must raise (with done_reason surfaced) before ever
+    # attempting JSON parsing, rather than falling through to the unrelated
+    # "did not contain a JSON object" error.
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    response = Mock()
+    response.raise_for_status = Mock()
+    response.json.return_value = {"response": "", "done_reason": "length"}
+    provider.requests.post.return_value = response
+
+    with pytest.raises(Exception) as exc_info:
+        provider.extract("text", {})
+    assert "0 entities/events/relationships" in str(exc_info.value)
+    assert "done_reason='length'" in str(exc_info.value)
+
+
+def test_extract_succeeds_when_at_least_one_list_non_empty():
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    provider.requests.post.return_value = _mock_response({
+        "entities": [{"local_id": "e1", "entity_type": "person", "text": "Ada", "epistemic_status": "direct"}],
+    })
+
     result = provider.extract("text", {})
 
-    assert result.entities == []
+    assert len(result.entities) == 1
     assert result.events == []
     assert result.relationships == []
 

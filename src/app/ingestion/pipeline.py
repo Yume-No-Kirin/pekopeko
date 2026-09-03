@@ -12,7 +12,7 @@ from .providers.base import Provider, ExtractionResult
 from .readers.base import SourceReaderRegistry
 from .readers.markdown_reader import MarkdownReader
 from .storage import write_source_file, write_proposal_file, _generate_source_id
-from .task_state import TaskState, create_task_state, update_task_state, append_task_event
+from .task_state import TaskState, create_task_state, update_task_state, append_task_event, list_task_states
 
 
 class IngestionResult:
@@ -86,31 +86,54 @@ def ingest_source(
         append_task_event(task_state, state_dir, "info", "Source content read",
                            {"source_path": str(source_path)})
 
+        if not content.strip():
+            append_task_event(task_state, state_dir, "warning", "Source file is empty",
+                               {"source_path": str(source_path)})
+            task_state.status = "failed"
+            task_state.error = "Source file is empty"
+            update_task_state(task_state, state_dir)
+            result.status = "failed"
+            result.error = task_state.error
+            return result
+
         # Check for duplicate ingestion
         source_id = _generate_source_id(content)
         existing_source_path = vault_root / domain / "sources" / source_id / f"{source_id}.md"
 
         if existing_source_path.exists():
-            # Skip duplicate ingestion
-            append_task_event(task_state, state_dir, "info", "Duplicate source detected, skipping ingestion",
-                               {"source_id": source_id})
-            task_state.status = "skipped_duplicate"
+            prior_completed = any(
+                s.source_id == source_id and s.task_id != task_state.task_id and s.status == "completed"
+                for s in list_task_states(state_dir)
+            )
+            if prior_completed:
+                # Skip: genuine duplicate (unchanged behavior)
+                append_task_event(task_state, state_dir, "info", "Duplicate source detected, skipping ingestion",
+                                   {"source_id": source_id})
+                task_state.status = "skipped_duplicate"
+                task_state.source_id = source_id
+                update_task_state(task_state, state_dir)
+                result.source_id = source_id
+                result.skipped_duplicate = True
+                result.status = "skipped_duplicate"
+                return result
+
+            # File exists but no prior completed task for it (e.g. every
+            # prior attempt failed) - reuse the source as-is, don't
+            # rewrite it, and fall through into a normal extraction attempt.
             task_state.source_id = source_id
             update_task_state(task_state, state_dir)
-            result.source_id = source_id
-            result.skipped_duplicate = True
-            result.status = "skipped_duplicate"
-            return result
+            append_task_event(task_state, state_dir, "info", "Existing source reused, retrying ingestion",
+                               {"source_id": source_id})
+        else:
+            append_task_event(task_state, state_dir, "info", "No duplicate found, continuing ingestion",
+                               {"source_id": source_id})
 
-        append_task_event(task_state, state_dir, "info", "No duplicate found, continuing ingestion",
-                           {"source_id": source_id})
-
-        # Write source file
-        source_id = write_source_file(vault_root, domain, content, source_path.name)
-        task_state.source_id = source_id
-        update_task_state(task_state, state_dir)
-        append_task_event(task_state, state_dir, "info", "Source file written",
-                           {"source_id": source_id})
+            # Write source file
+            source_id = write_source_file(vault_root, domain, content, source_path.name)
+            task_state.source_id = source_id
+            update_task_state(task_state, state_dir)
+            append_task_event(task_state, state_dir, "info", "Source file written",
+                               {"source_id": source_id})
 
         # Extract assertions using the provider
         extraction_id = f"extract-{uuid.uuid4()}"

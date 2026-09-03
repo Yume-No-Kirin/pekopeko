@@ -38,9 +38,14 @@ app/
 Configuration is local to the device, never inside the vault (ADI-008), and
 lives in a YAML file read by `app.config.load_config()`:
 
-- **Location**: `~/.pekopeko/config.yaml` by default, overridable via the
-  `PEKOPEKO_CONFIG_PATH` environment variable. A missing file is not an
-  error - built-in defaults are used.
+- **Location**: `src/config.yaml` by default (relative to the project's own
+  `src/` folder, resolved independently of the process's cwd), overridable
+  via the `PEKOPEKO_CONFIG_PATH` environment variable. A missing file is not
+  an error - built-in defaults are used. `src/config.yaml` is committed to
+  the repo with real default values (amendment - see TASK-004).
+  `retrieval.index_dir`/`task_state.dir` default separately, under a
+  `.pekopeko/` folder at the project root (not `src/`, and never committed -
+  it's generated runtime data).
 - **Schema**:
   ```yaml
   llm_provider:
@@ -50,9 +55,9 @@ lives in a YAML file read by `app.config.load_config()`:
       model: llama3
       timeout: 60
   retrieval:
-    index_dir: ~/.pekopeko/retrieval_index
+    index_dir: .pekopeko/retrieval_index
   task_state:
-    dir: ~/.pekopeko/task_state
+    dir: .pekopeko/task_state
   ```
 - **Environment-variable overrides** (bounded list, each overrides the
   corresponding file value for that one key): `PEKOPEKO_CONFIG_PATH`,
@@ -60,7 +65,7 @@ lives in a YAML file read by `app.config.load_config()`:
   `PEKOPEKO_OLLAMA_TIMEOUT`, `PEKOPEKO_TASK_STATE_DIR`,
   `PEKOPEKO_RETRIEVAL_INDEX_DIR`.
 - **`.env` companion file** (optional, next to the resolved `config.yaml` -
-  default `~/.pekopeko/.env`): loaded via `python-dotenv` for secrets/
+  default `src/.env`): loaded via `python-dotenv` for secrets/
   sensitive values, recognizing only the same bounded `PEKOPEKO_*` keys
   above - not a separate key namespace. A real process env var still wins
   over a `.env` value.

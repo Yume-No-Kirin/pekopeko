@@ -4,6 +4,9 @@ Typed schema for the Pekopeko local device configuration (ADI-008).
 from dataclasses import dataclass, field
 from pathlib import Path
 
+# src/app/config/schema.py -> project root
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
 
 @dataclass
 class OllamaProviderSettings:
@@ -21,12 +24,12 @@ class LLMProviderConfig:
 
 @dataclass
 class RetrievalConfig:
-    index_dir: Path = field(default_factory=lambda: Path.home() / ".pekopeko" / "retrieval_index")
+    index_dir: Path = field(default_factory=lambda: _PROJECT_ROOT / ".pekopeko" / "retrieval_index")
 
 
 @dataclass
 class TaskStateConfig:
-    dir: Path = field(default_factory=lambda: Path.home() / ".pekopeko" / "task_state")
+    dir: Path = field(default_factory=lambda: _PROJECT_ROOT / ".pekopeko" / "task_state")
 
 
 @dataclass

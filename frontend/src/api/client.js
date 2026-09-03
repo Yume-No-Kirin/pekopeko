@@ -48,3 +48,12 @@ export function get(path) {
 export function post(path, body) {
   return request(path, { method: "POST", body });
 }
+
+export function buildListUrl(path, { status, limit, offset } = {}) {
+  const params = new URLSearchParams();
+  if (status !== undefined && status !== null) params.set("status", status);
+  if (limit !== undefined) params.set("limit", limit);
+  if (offset !== undefined) params.set("offset", offset);
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+}

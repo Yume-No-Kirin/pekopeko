@@ -1,6 +1,6 @@
 # TASK-009: Ingestion Logs Screen (V1)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -169,3 +169,80 @@ Coverage discipline (≥80%) applies to `frontend/src/pages/IngestionLogs.jsx` a
 - A dedicated per-task detail route/page.
 - Server-side date-range filtering.
 - Any change to `src/`.
+
+## Deviations from the ticket text (flagged, not silent)
+
+- **`frontend/src/components/Sidebar.jsx` modified**, though not in this ticket's own
+  "Files/modules concerned" list. Flipping the Dashboard's module card to `available`
+  without also promoting the sidebar's "Logs ingestion" entry out of the disabled "Modules
+  à venir" section would leave a reachable page permanently greyed out in the persistent
+  nav — an inconsistent state, not a scope boundary worth preserving. Mirrors exactly how
+  TASK-008 already listed Settings under "Modules actifs". Confirmed with Cleo before
+  implementing.
+- **Mockup fidelity, two simplifications, both confirmed with Cleo before implementing**:
+  the mockup's numbered 1-5 page-button row is not ported (Prev/Next + the "Affichage X-Y
+  sur Z" count satisfies every acceptance criterion; a true page count isn't cleanly
+  knowable across the 10-source domain/type fan-out this screen's pagination composes
+  across). The header's "+ Nouvelle ingestion" button is not ported (explicitly out of
+  scope above — no backend capability exists to back it). The header's "↻ Rafraîchir"
+  button **is** ported (`.btn`, re-runs the current fetch for the active page/filters via a
+  `refreshKey` counter) — Cleo asked for it to be kept despite it being outside the
+  ticket's own Scope items 1-6.
+
+## Implementation notes
+
+- `frontend/src/api/tasks.js`: `listIngestions(domain, {status, limit, offset})` /
+  `listExtractions(domain, {...})`, thin wrappers over `api/client.js::get`, returning the
+  raw `{items, total, limit, offset}` envelope untouched.
+- `frontend/src/components/TaskStatusBadge.jsx` / `TaskEventLog.jsx`: both generic over the
+  ingestion/extraction `TaskState`/`TaskEvent` shape (identical in both backend modules per
+  `src/app/ingestion/task_state.py` and `src/app/extraction/task_state.py`), no
+  type-specific branching — `TaskEventLog` is reused verbatim by this ticket's own
+  row-detail accordion and is shaped for TASK-011 to reuse for its own log section.
+- `frontend/src/pages/IngestionLogs.jsx`: implements the ticket's "Pagination strategy"
+  section literally — per active filters, fans out to every in-scope domain × type
+  combination (`Promise.all`) with the same `limit`/proportionally-advanced `offset`,
+  merges, sorts descending by `started_at`, and takes the top `pageSize` (10, matching the
+  mockup's "1-10") as the displayed page; `total` is the sum of each source's own `total`.
+  Row-detail expansion needs no extra fetch — `events` already comes back on every list-item
+  (TASK-001b), so there's no N+1 here unlike Dashboard's/Validation's proposal-detail joins.
+  Period filtering is client-side only, applied to the already-fetched page, per the
+  ticket's own explicit V1 decision.
+- `frontend/src/index.css`: ported the ingestion mockup's `.filters-bar`/`.filter-*`/
+  `.table*`/`.status-badge*`/`.domain-badge`/`.action-link`/`.pagination*`/`.empty-state*`/
+  `.file-name`/`.source-id`/`.header-actions`/`.btn` blocks verbatim. Added `.page-header
+  .with-actions` as a *modifier* class (not a redefinition of the shared `.page-header`) so
+  Dashboard/Settings' non-flex, stacked headers are unaffected. Added new, mockup-absent
+  classes for the Type column badge and the row-detail accordion
+  (`.task-error`/`.task-event-log`/`.task-event*`), in the same visual language as the rest
+  of the file.
+
+## Verification record
+
+- `cd frontend && npm run build` — completes without error, produces `dist/index.html` +
+  `dist/assets/*` (build wiring, all new imports resolve).
+- `npx vitest run` — 25/25 tests pass: `client.test.js` (2, pre-existing), `tasks.test.js`
+  (3, new), `Settings.test.jsx` (3, pre-existing), `Dashboard.test.jsx` (9 — 7 pre-existing
+  + 1 updated in place for the now-available Ingestion Logs card + 1 new end-to-end
+  navigation test), `IngestionLogs.test.jsx` (8, one per AC1-7/9 — AC8 covered by
+  `Dashboard.test.jsx`, AC10 verified below, not a runtime assertion).
+- `npx vitest run --coverage` — 98.41% statements/lines overall; `api/tasks.js` 100%
+  statements/lines/branches/functions; `pages/IngestionLogs.jsx` 100% statements/lines,
+  90.54% branches, 87.5% functions — all comfortably above the project's 80% floor
+  (`vite.config.js`'s `coverage.thresholds`, which gates the run).
+- `grep -rn "fetch(" frontend/src --include=*.js --include=*.jsx` — only match is
+  `frontend/src/api/client.js` (Requirements: "No ad hoc fetch() calls outside the api/
+  wrappers").
+- `git status --porcelain -- src/` — empty after this ticket's changes (AC10).
+- Acceptance criteria 1-9 verified directly by the Vitest suites named above (one test per
+  criterion, see `IngestionLogs.test.jsx` test names); AC8 by `Dashboard.test.jsx`'s two
+  Ingestion Logs tests (module-card `available`+`href`, and an end-to-end click-through
+  navigation test rendering `IngestionLogs` at `/ingestion-logs`); AC10 by the `git status`
+  command above.
+- Not independently re-verified by a second reviewer (same limitation as every prior ticket
+  in this project) — nor smoke-tested against a real running Flask instance in a browser
+  (no local vault/API process available in this session); recommended as a follow-up manual
+  check before this screen is relied on operationally. The merge-based pagination strategy
+  in particular (approximate by design per the ticket's own text) would benefit from a
+  manual check against a vault with >10 tasks in a single domain/type to confirm the
+  merge/sort/slice behaves as intended end-to-end.

@@ -37,3 +37,9 @@ temp/
 # start-pekopeko.bat's generated local dev config (vault_root path + a
 # random PEKOPEKO_API_KEY) — machine-specific, never committed.
 .pekopeko-local.env
+
+# --- Pekopeko: config-derived runtime data (amendment) ---
+# retrieval.index_dir / task_state.dir default under a .pekopeko/ folder at
+# the project root — generated runtime data, never committed. This is
+# separate from src/config.yaml, which IS committed.
+.pekopeko/

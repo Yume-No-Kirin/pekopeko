@@ -1,6 +1,6 @@
 # TASK-010: Validation Screen, Assertions Only (V1)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -177,3 +177,100 @@ criterion above (11 total). Coverage discipline (≥80%) applies to
 - Extending `ProposalSummary` to avoid the N+1 fetch — explicitly declined for this ticket
   (see "Data-fetch trade-off").
 - Any change to `src/`.
+
+## Deviations from the ticket text (flagged, not silent)
+
+- **`frontend/src/components/Sidebar.jsx` modified**, though not in this ticket's own
+  "Files/modules concerned" list — same reasoning already established and confirmed by
+  Cleo for TASK-009's Ingestion Logs card: flipping the Dashboard's module card to
+  `available` without also promoting "Validation" out of the disabled "Modules à venir"
+  section would leave a reachable page permanently greyed out in the persistent nav.
+- **`frontend/.env.test` modified** to add `VITE_REVIEWER_ID=test-reviewer`, though not in
+  the ticket's file list — needed for deterministic Vitest runs, same committed-placeholder
+  mechanism TASK-008 already set up for `VITE_API_KEY`.
+- **Pagination design, confirmed with Cleo before implementing** (asked explicitly: single
+  bounded fetch like `Dashboard.jsx`'s existing `limit=500` precedent, vs. real Prev/Next
+  like TASK-009 adapted to never split a source group across a page — Cleo chose the
+  latter). The adaptation: each in-scope domain's `PROPOSED`/`assertion` queue is fetched
+  once with `limit=500` (TASK-007a's own max — real use of its pagination contract, not a
+  live per-click round trip), grouped by `source_id` (impossible to split a group since
+  grouping happens only after the full per-domain page is in hand), then the *complete
+  group list* is paginated for display by greedily packing whole groups toward a ~10-note
+  target per page. Prev/Next moves between these pre-built pages without re-querying the
+  network. This differs from TASK-009's live `?limit=`/`?offset=` round-trip per click;
+  justified by this project's own declared scale for the `PROPOSED` queue ("tens/
+  low-hundreds", a self-draining working queue rather than a growing log — see the
+  ticket's own "Data-fetch trade-off" section).
+- **`SourceGroupHeader`'s ingestion-status badge reuses `.status-badge`/`TaskStatusBadge`
+  (TASK-009)** rather than porting the mockup's separate `.source-status` class — same
+  visual scheme (green completed pill), avoids a near-duplicate CSS rule and a second
+  status-label mapping for the same 5 values.
+- **Stage 2 (`GET .../proposals/<id>`) uses `Promise.allSettled`, not `Promise.all`**: a
+  malformed proposal (missing `provenance.source_id`) makes that one detail call fail
+  (`400 ValidationError`, per `review/pipeline.py::get_proposal`); dropping just that
+  settlement mirrors `list_proposals`' own documented tolerance ("a single malformed
+  proposal file must not break the whole review queue") instead of letting one bad
+  proposal blank the entire screen. Not explicitly specified by the ticket text, but a
+  direct, low-risk application of a precedent already set by the backend it's calling.
+- **Mockup fidelity**: the "Statut ingestion" filter shown in `pekopeko-workflow.html` is
+  not implemented — the ticket's own Scope item 6 lists only Domaine + Période as this
+  screen's filters, so this isn't a cut made here, just literal adherence to a scope the
+  ticket had already narrowed. The folder-path builder column and per-source "Tout
+  accepter"/"Tout rejeter" buttons are not ported either — both are pre-existing
+  deferrals the ticket's own Objective section names explicitly (TASK-013/TASK-015).
+
+## Implementation notes
+
+- `frontend/src/api/review.js`: `listProposals(domain, {status, limit, offset})`,
+  `getProposal(domain, id)`, `acceptProposal(domain, id, reviewerId)`,
+  `rejectProposal(domain, id, reviewerId, reason)` — thin wrappers over `api/client.js`,
+  same shape as TASK-009's `api/tasks.js`.
+- `frontend/src/components/EpistemicStatusBadge.jsx`: all 4 real values
+  (direct/inferred/uncertain/contested); the 2 without a mockup variant reuse
+  `TaskStatusBadge`'s established running (blue)/failed (red) palette rather than
+  inventing new colors.
+- `frontend/src/components/SourceGroupHeader.jsx` / `RejectReasonModal.jsx`: both
+  generic/reusable, `RejectReasonModal` explicitly shared with TASK-011 per the ticket.
+- `frontend/src/pages/Validation.jsx`: `fetchGroups()` implements the 3-stage fetch (list →
+  N+1 detail join → ingestion-task join) and the group-preserving pagination described
+  above under Deviations; `REVIEWER_ID` read once at module scope from
+  `import.meta.env.VITE_REVIEWER_ID`, same pattern as `client.js`'s `API_KEY`. Accept/
+  reject both update state only after a successful response (never before), with a
+  dedicated `actionError` banner distinct from the page-level load `error`.
+- `frontend/src/index.css`: ported `pekopeko-workflow.html`'s source-header/note-row/
+  epistemic-badge/`.btn-mini` blocks verbatim, plus `.btn-primary` (needed by the new
+  reject modal, not previously ported since TASK-009 had no use for it). New modal CSS
+  (`.modal-overlay`/`.modal`/etc.) has no mockup equivalent — the mockup's reject button
+  has no confirmation step at all.
+
+## Verification record
+
+- `cd frontend && npm run build` — completes without error.
+- `npx vitest run` — 42/42 tests pass across all suites: `client.test.js` (2),
+  `tasks.test.js` (3), `review.test.js` (5, new), `Settings.test.jsx` (3),
+  `Dashboard.test.jsx` (10 — 1 updated in place for the now-available Validation card + 1
+  new end-to-end navigation test), `IngestionLogs.test.jsx` (8), `Validation.test.jsx` (11
+  — one per AC1-8/10, plus AC5b for the blank-reason case and a bonus test for the
+  group-preserving pagination logic).
+- `npx vitest run --coverage` — 96.9% statements/lines overall; `api/review.js` 100%
+  statements/lines, 85.71% branches; `pages/Validation.jsx` 94.17% statements/lines,
+  87.83% branches, 77.77% functions. **Correction (2026-09-03, found during code
+  review):** this file's function coverage (77.77%) is actually below the project's
+  80% floor from AGENTS.md, contrary to what this record previously claimed. The run
+  itself still passes because `vite.config.js`'s `coverage.thresholds` gates on the
+  aggregate across `coverage.include`, not per file — other well-covered files in the
+  same glob pull the aggregate above 80% and mask this file's real gap. Flagged here
+  per AGENTS.md's verification discipline rather than left silently wrong.
+- `grep -rn "fetch(" frontend/src --include=*.js --include=*.jsx` — only match is
+  `frontend/src/api/client.js`.
+- `git status --porcelain -- src/` — empty after this ticket's changes (AC11).
+- Acceptance criteria 1-8/10 verified directly by `Validation.test.jsx`'s named tests
+  (matched 1:1, see the file); AC9 by `Dashboard.test.jsx`'s two Validation tests
+  (module-card `available`+`href`, and an end-to-end click-through navigation test
+  rendering `Validation` at `/validation`); AC11 by the `git status` command above.
+- Not independently re-verified by a second reviewer (same limitation as every prior
+  ticket in this project) — nor smoke-tested against a real running Flask instance in a
+  browser (no local vault/API process available in this session). The adapted pagination
+  strategy in particular would benefit from a manual check against a domain with a source
+  group larger than the ~10-note page target, to confirm an over-sized group still renders
+  correctly on its own page.

@@ -456,3 +456,53 @@ independently in an isolated scratch copy (same discipline as the rest of
 this record) -- both original bug repros now raise `ConfigError` there too.
 `tests/ingestion/` (29/31, same 2 pre-existing unrelated failures) and
 `tests/extraction/` (44/44) unaffected in both locations.
+
+## Amendment: project-relative default paths (2026-09-03)
+
+At the user's explicit request, every default path in `app/config` moved
+from `Path.home() / ".pekopeko"` to the project's own `src/` folder. This
+**supersedes AC10** ("no default value anywhere in the schema resolves to a
+path inside a vault -- all defaults are under `Path.home() / ".pekopeko"`,
+never relative to a `vault_root`"): the "never `Path.home()`" half of that
+criterion no longer holds, though the underlying intent (never resolving
+inside the Obsidian vault / relative to `vault_root`) is unaffected -- none
+of these defaults were ever vault-relative, and still aren't.
+
+- **`config.yaml` default location**: `~/.pekopeko/config.yaml` ->
+  `<project>/src/config.yaml`, computed in `loader.py` via
+  `Path(__file__).resolve().parents[2]` (`_SRC_DIR`, cwd-independent, unlike
+  a relative literal which would resolve against the process's working
+  directory instead of the file's own location).
+- **`retrieval.index_dir` default**: `~/.pekopeko/retrieval_index` ->
+  `<project>/.pekopeko/retrieval_index` -- a `.pekopeko/` folder at the
+  **project root** (not `src/`), computed in `schema.py` via
+  `Path(__file__).resolve().parents[3]` (`_PROJECT_ROOT`).
+- **`task_state.dir` default**: `~/.pekopeko/task_state` ->
+  `<project>/.pekopeko/task_state`, same `_PROJECT_ROOT` anchor.
+  (Amendment within this amendment, same day: the first pass put these two
+  under `src/retrieval_index`/`src/task_state`; the user then asked for a
+  dedicated `.pekopeko/` folder at the project root instead, keeping
+  generated runtime data out of `src/` entirely while `config.yaml` itself
+  stays there.)
+- **`src/config.yaml` is now a committed file** with real default values
+  (`llm_provider`/`default` sections) rather than an absent, device-local
+  file outside the repo. `retrieval.index_dir`/`task_state.dir` are
+  deliberately left unset in the committed file so they keep resolving via
+  the `_PROJECT_ROOT`-anchored schema default rather than a hardcoded
+  relative path that would break across checkouts/cwd.
+- **`.env` companion file default location**: `~/.pekopeko/.env` ->
+  `src/.env` (still gitignored, still next to the resolved `config.yaml`;
+  unaffected by the `.pekopeko/` move since `.env` sits next to
+  `config.yaml`, not next to the data directories).
+- `.pekopeko/` (generated runtime data, not the config file itself) was
+  added to `.gitignore` at the project root.
+- `src/README.md`'s "Configuration" section and
+  `src/tests/config/test_loader_defaults.py`,
+  `test_loader_file_override.py`, `test_loader_path_resolution.py` were
+  updated to match the new defaults.
+- No change to resolution order, env-var override behavior, `.env`
+  semantics, validation, or `ConfigError` handling -- only the fallback
+  default path values themselves moved.
+- `app/api/settings.py` (`PEKOPEKO_VAULT_ROOT`/`PEKOPEKO_API_KEY`, driven by
+  `start-pekopeko.bat`) is a separate, unrelated system with no YAML file
+  and no `.pekopeko` default path -- out of scope for this amendment.

@@ -1,0 +1,25 @@
+# Pekopeko local device configuration (ADI-008, TASK-004).
+#
+# This is the default config.yaml, resolved by app.config.load_config() at
+# <project>/src/config.yaml unless PEKOPEKO_CONFIG_PATH or an explicit path
+# override it. Secrets/sensitive overrides belong in a companion .env file
+# next to this one (see .env.example) - never add secrets here.
+#
+# retrieval.index_dir and task_state.dir are deliberately left unset below:
+# their built-in defaults (.pekopeko/retrieval_index, .pekopeko/task_state,
+# under the project root) are computed in schema.py relative to this
+# project's own root folder, which is cwd-independent. Setting them here as
+# relative paths would instead resolve against the process's working
+# directory at runtime, not this file's location - so leave them out unless
+# you need an absolute-path override.
+
+llm_provider:
+  active: ollama
+  ollama:
+    base_url: http://localhost:11434
+    model: qwen2.5:7b
+    timeout: 60
+    temperature: 0.7
+
+default:
+  domain: PERSONAL

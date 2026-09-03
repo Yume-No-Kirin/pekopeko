@@ -571,6 +571,197 @@ def test_unregistered_extension_appends_failure_event_via_outer_handler(tmp_path
     assert "No reader registered" in warning_events[0].details["error"]
 
 
+def test_provider_zero_output_failure(tmp_path):
+    """TASK-001c AC3: a provider raising on zero output fails the task with
+    the diagnostic in task_state.error; no Proposal files are written."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    source_file = tmp_path / "test.md"
+    source_file.write_text("# Test Document\n\nThis is a test.", encoding="utf-8")
+
+    provider = Mock()
+    provider.extract.side_effect = Exception(
+        "Failed to extract assertions using Ollama: Ollama returned 0 assertions "
+        "(done_reason='length', model='gpt-oss:20b', response_chars=0)"
+    )
+
+    result = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+
+    assert result.status == "failed"
+    assert "done_reason='length'" in result.error
+    assert result.proposal_ids == []
+    assert not (vault_root / "PERSONAL" / "proposals").exists()
+
+
+def test_empty_source_file_fails_before_provider_call(tmp_path):
+    """TASK-001c AC5: an empty/whitespace-only source file fails the task
+    with a distinct error, without ever calling the provider."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    source_file = tmp_path / "test.md"
+    source_file.write_text("   \n\n  ", encoding="utf-8")
+
+    provider = Mock()
+
+    result = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+
+    assert result.status == "failed"
+    assert result.error == "Source file is empty"
+    provider.extract.assert_not_called()
+
+    loaded = _events_from_last_task_state(state_dir)
+    warning_events = [e for e in loaded.events if e.level == "warning"]
+    assert len(warning_events) == 1
+    assert warning_events[0].message == "Source file is empty"
+
+
+def test_retry_after_failure_calls_provider_again_and_completes(tmp_path):
+    """TASK-001d AC1: a first ingest_source attempt that fails after the
+    source file is written, followed by a second attempt on the same
+    content, calls the provider again (no skip) and completes."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    source_file = tmp_path / "test.md"
+    source_file.write_text("# Test Document\n\nThis is a test.", encoding="utf-8")
+
+    provider = Mock()
+    provider.extract.side_effect = [
+        Exception("Provider failed"),
+        ExtractionResult(assertions=[ExtractedAssertion(text="Fact A", epistemic_status="direct")]),
+    ]
+
+    result1 = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+    assert result1.status == "failed"
+
+    result2 = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+    assert result2.status == "completed"
+    assert len(result2.proposal_ids) == 1
+    assert provider.extract.call_count == 2
+
+
+def test_duplicate_still_skips_after_prior_completed_task(tmp_path):
+    """TASK-001d AC2: a genuine duplicate (a prior attempt on the same source
+    content already reached status == 'completed') still returns
+    skipped_duplicate without calling the provider again - non-regression of
+    current behavior, with the retry-capable code path in place."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    source_file = tmp_path / "test.md"
+    source_file.write_text("# Test Document\n\nThis is a test.", encoding="utf-8")
+
+    provider = Mock()
+    provider.extract.return_value = ExtractionResult(assertions=[])
+
+    result1 = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+    assert result1.status == "completed"
+
+    result2 = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+    assert result2.status == "skipped_duplicate"
+    assert result2.source_id == result1.source_id
+    assert provider.extract.call_count == 1
+
+
+def test_retry_does_not_rewrite_source_file(tmp_path):
+    """TASK-001d AC4: the reused-source-on-retry path does not rewrite
+    sources/<id>/<id>.md - content/mtime unchanged from the first, failed
+    attempt's write."""
+    from src.app.ingestion.storage import _generate_source_id
+
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    source_file = tmp_path / "test.md"
+    test_content = "# Test Document\n\nThis is a test."
+    source_file.write_text(test_content, encoding="utf-8")
+
+    provider = Mock()
+    provider.extract.side_effect = [
+        Exception("Provider failed"),
+        ExtractionResult(assertions=[]),
+    ]
+
+    result1 = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+    assert result1.status == "failed"
+
+    source_id = _generate_source_id(test_content)
+    written_source_path = vault_root / "PERSONAL" / "sources" / source_id / f"{source_id}.md"
+    assert written_source_path.exists()
+    content_before = written_source_path.read_bytes()
+    mtime_before = written_source_path.stat().st_mtime_ns
+
+    time.sleep(0.01)
+
+    result2 = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+    assert result2.status == "completed"
+
+    content_after = written_source_path.read_bytes()
+    mtime_after = written_source_path.stat().st_mtime_ns
+
+    assert content_after == content_before
+    assert mtime_after == mtime_before
+
+
+def test_retry_after_failure_event_message_distinct(tmp_path):
+    """TASK-001d AC5: append_task_event's log for a retry-after-failure
+    attempt contains a distinct event message identifying it as a retry
+    reusing an existing source, different from both the real-duplicate-skip
+    message and the fresh-write message."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    source_file = tmp_path / "test.md"
+    source_file.write_text("# Test Document\n\nThis is a test.", encoding="utf-8")
+
+    provider = Mock()
+    provider.extract.side_effect = [
+        Exception("Provider failed"),
+        ExtractionResult(assertions=[]),
+    ]
+
+    ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+    files_before_second_call = set(state_dir.glob("ingest-*.json"))
+
+    result2 = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+    assert result2.status == "completed"
+
+    from src.app.ingestion.task_state import load_task_state
+    new_state_file = (set(state_dir.glob("ingest-*.json")) - files_before_second_call).pop()
+    loaded = load_task_state(state_dir, new_state_file.stem)
+
+    messages = [e.message for e in loaded.events]
+    assert "Existing source reused, retrying ingestion" in messages
+    assert "Duplicate source detected, skipping ingestion" not in messages
+    assert "Source file written" not in messages
+
+
 if __name__ == "__main__":
     # Run all tests
     test_import_isolation()
@@ -594,6 +785,12 @@ if __name__ == "__main__":
         test_duplicate_ingestion_event_sequence,
         test_proposal_write_failure_appends_warning_event,
         test_unregistered_extension_appends_failure_event_via_outer_handler,
+        test_provider_zero_output_failure,
+        test_empty_source_file_fails_before_provider_call,
+        test_retry_after_failure_calls_provider_again_and_completes,
+        test_duplicate_still_skips_after_prior_completed_task,
+        test_retry_does_not_rewrite_source_file,
+        test_retry_after_failure_event_message_distinct,
     ):
         with tempfile.TemporaryDirectory() as _tmpdir:
             _test_fn(Path(_tmpdir))

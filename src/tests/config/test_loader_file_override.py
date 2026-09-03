@@ -3,9 +3,7 @@ AC2: a YAML file that sets only a subset of keys applies a partial override -
 keys absent from the file keep their built-in default. One key per
 top-level section is verified.
 """
-from pathlib import Path
-
-from _helpers import REPO_ROOT  # noqa: F401
+from _helpers import REPO_ROOT
 
 from src.app.config import load_config
 
@@ -57,7 +55,7 @@ def test_partial_override_retrieval_index_dir(tmp_path, monkeypatch):
     cfg = load_config(path=config_file)
 
     assert cfg.retrieval.index_dir == custom_index_dir
-    assert cfg.task_state.dir == Path.home() / ".pekopeko" / "task_state"
+    assert cfg.task_state.dir == REPO_ROOT / ".pekopeko" / "task_state"
 
 
 def test_partial_override_task_state_dir(tmp_path, monkeypatch):
@@ -72,7 +70,7 @@ def test_partial_override_task_state_dir(tmp_path, monkeypatch):
     cfg = load_config(path=config_file)
 
     assert cfg.task_state.dir == custom_state_dir
-    assert cfg.retrieval.index_dir == Path.home() / ".pekopeko" / "retrieval_index"
+    assert cfg.retrieval.index_dir == REPO_ROOT / ".pekopeko" / "retrieval_index"
 
 
 def test_partial_override_default_domain(tmp_path):

@@ -27,12 +27,22 @@ export default function Sidebar() {
           >
             Settings
           </NavLink>
+          <NavLink
+            to="/ingestion-logs"
+            className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+          >
+            Logs ingestion
+          </NavLink>
+          <NavLink
+            to="/validation"
+            className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+          >
+            Validation
+          </NavLink>
         </div>
 
         <div className="nav-section">
           <div className="nav-section-title">Modules à venir</div>
-          <span className="nav-item disabled">Validation</span>
-          <span className="nav-item disabled">Logs ingestion</span>
           <span className="nav-item disabled">Analytics</span>
           <span className="nav-item disabled">Export</span>
         </div>
