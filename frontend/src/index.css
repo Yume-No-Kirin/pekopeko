@@ -821,3 +821,252 @@ body {
   justify-content: flex-end;
   gap: 12px;
 }
+
+/* Ported from specs/ux-design/pekopeko-proposal-detail.html's <style> block
+   (TASK-011) - status bar, two-column section-card layout, metadata table,
+   source preview, logs section (spans both columns). Folder-path builder
+   and inline edit mode are deliberately not ported - pre-existing deferrals
+   (TASK-013/TASK-006+TASK-014), not used by this screen. The mockup's own
+   generic `.section-title` (used inside `.section-header`) collides with
+   the different `.section-title` already defined above for Dashboard's
+   "Modules" heading (18px/bold vs. this screen's 14px/uppercase/muted) -
+   renamed to `.card-section-title` here to avoid the clash. Likewise the
+   mockup's own generic `.status-badge` (proposal PROPOSED/ACCEPTED/
+   REJECTED/EDITED pill) is renamed `.proposal-status-badge` to avoid
+   colliding with the existing `.status-badge` already used by
+   TaskStatusBadge (different color semantics: task pending/running/
+   completed/failed/skipped_duplicate) - and given one color variant per
+   real proposal_status value, since the mockup's own static demo only ever
+   shows one state. */
+.breadcrumb {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 8px;
+}
+
+.proposal-id {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 13px;
+  color: #999;
+}
+
+.status-bar {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.status-info {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+/* Harmonizes the 4 status-bar badges (proposal-status/domain/type/epistemic)
+   to the same padding/radius/font-size/line-height, scoped to this bar only
+   - `.domain-badge` and `.epistemic-badge` are shared with other screens
+   (IngestionLogs/SourceGroupHeader, Validation) and must keep their own
+   look there. `.epistemic-badge` has no letter-spacing in its base rule;
+   added here so all 4 badges match exactly within this bar. */
+.status-info > span {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+}
+
+.proposal-status-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.proposal-status-badge.ACCEPTED {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.proposal-status-badge.REJECTED {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.proposal-status-badge.EDITED {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.validation-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-accept {
+  background: #2e7d32;
+  color: #fff;
+  border-color: #2e7d32;
+}
+
+.btn-accept:hover {
+  background: #1b5e20;
+  border-color: #1b5e20;
+}
+
+.btn-reject {
+  background: #fff;
+  color: #c62828;
+  border-color: #c62828;
+}
+
+.btn-reject:hover {
+  background: #c62828;
+  color: #fff;
+}
+
+.btn-nav {
+  background: #fff;
+  color: #666;
+  border-color: #ddd;
+}
+
+.btn-nav:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #999;
+  color: #333;
+}
+
+.btn-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.section-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.section-header {
+  padding: 16px 20px;
+  background: #f8f8f8;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #666;
+}
+
+.section-content {
+  padding: 20px;
+}
+
+.content-display {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #333;
+  min-height: 100px;
+}
+
+.metadata-table {
+  width: 100%;
+}
+
+.metadata-row {
+  display: flex;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.metadata-row:last-child {
+  border-bottom: none;
+}
+
+.metadata-label {
+  flex: 0 0 140px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #999;
+}
+
+.metadata-value {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+}
+
+.metadata-value code {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 12px;
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.logs-section {
+  grid-column: 1 / -1;
+}
+
+.source-preview {
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 16px;
+  margin-top: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #333;
+  white-space: pre-wrap;
+}
