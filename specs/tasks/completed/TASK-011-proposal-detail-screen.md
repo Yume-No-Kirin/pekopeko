@@ -16,8 +16,8 @@ cut, an explicit, documented dependency.
 
 **Explicitly out of scope, per pre-existing decisions already made before this ticket**
 (not new cuts introduced here): content editing (mockup's "✎ Éditer" — needs
-`edit_proposal`, TASK-006 `backlog`, deferred to TASK-014 per `docs/ROADMAP.md`), the
-folder-path builder (TASK-013), video source-type rendering for YouTube/Instagram/TikTok
+`edit_proposal`, TASK-006 `backlog`, deferred to TASK-013 per `docs/ROADMAP.md`), the
+folder-path builder (TASK-014), video source-type rendering for YouTube/Instagram/TikTok
 (TASK-016/TASK-017 — no reader for any of them exists yet, `source_format` is always
 `"markdown"` today).
 
@@ -171,7 +171,7 @@ TASK-001a-absent Provenance variants (criteria 4-5) and both the TASK-001b-prese
 
 ## Out of scope
 
-- Content editing (TASK-006/TASK-014), folder-path builder (TASK-013), video source-type
+- Content editing (TASK-006/TASK-013), folder-path builder (TASK-014), video source-type
   rendering (TASK-016/TASK-017) — pre-existing deferrals, not reopened here.
 - Cross-domain Précédent/Suivant traversal.
 - Any change to `src/`.

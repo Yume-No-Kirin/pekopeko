@@ -48,7 +48,7 @@ already-`completed` ingestion/extraction code (see Files/modules concerned). No 
   citations as TASK-002/005, now surfaced over HTTP rather than changed.
 - `specs/product/use-cases.md`, UC-011 (Review Queue) — same V1 stage scope as
   TASK-002/005 (accumulation/listing, individual review, source inspection only); no
-  bulk actions, no folder-path builder (both explicitly deferred to TASK-013/TASK-015 per
+  bulk actions, no folder-path builder (both explicitly deferred to TASK-014/TASK-015 per
   `specs/tasks/BACKLOG-CLAUDE-V2.md`).
 
 ## Scope
@@ -85,7 +85,7 @@ New package `src/app/api/`:
      with the `RejectResult` fields.
    - No edit endpoint: `review.edit_proposal` does not exist yet (TASK-006 not
      implemented) — out of scope here, matching `BACKLOG-CLAUDE-V2.md`'s TASK-007 scope
-     ("review (accept/reject)" only; edit is TASK-014, once TASK-006 lands).
+     ("review (accept/reject)" only; edit is TASK-013, once TASK-006 lands).
 4. **Config endpoint** (sync, read-only, per ADI-010 §4):
    - `GET /config` → `load_config()`, all `PekopekoConfig` fields serialized as JSON
      (`Path` fields as strings). No write endpoint — out of scope (`BACKLOG-CLAUDE-V2.md`:
@@ -135,7 +135,7 @@ pre-validation, review calls, config read).
 ### V1 scope decisions (explicit — flag disagreement, don't silently deviate)
 
 - No bulk actions, no folder-path builder — same MVP boundary
-  `specs/tasks/BACKLOG-CLAUDE-V2.md` sets for the whole GUI socle (TASK-013/015 add
+  `specs/tasks/BACKLOG-CLAUDE-V2.md` sets for the whole GUI socle (TASK-014/015 add
   these later).
 - No retrieval endpoint — old `BACKLOG-CLAUDE.md`'s TASK-022 mentioned retrieval, but the
   current authoritative backlog (`BACKLOG-CLAUDE-V2.md`, TASK-007 entry) scopes this
@@ -272,8 +272,8 @@ coverage for Criterion 18.
 ## Out of scope
 
 - Retrieval endpoints — TASK-018 (backend)/TASK-019 (frontend).
-- Bulk operations, folder-path builder — TASK-013/TASK-015.
-- `edit_proposal` endpoint — TASK-014, once TASK-006 lands.
+- Bulk operations, folder-path builder — TASK-014/TASK-015.
+- `edit_proposal` endpoint — TASK-013, once TASK-006 lands.
 - Config write endpoint (Settings screen backing) — a future ticket if TASK-008 needs it.
 - Any actual React/frontend code — TASK-008 onward.
 - API versioning, push/streaming job updates, multi-user auth — see ADI-010 Consequences.

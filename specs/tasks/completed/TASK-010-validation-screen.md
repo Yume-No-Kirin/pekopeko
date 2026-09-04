@@ -17,7 +17,7 @@ TASK-008 and TASK-009.
 that `pekopeko-workflow.html` also shows. `specs/tasks/BACKLOG-CLAUDE-V2.md`'s section 1
 intro already states the GUI socle "restent volontairement en MVP: chemin canonique fixe...
 (pas de folder-path builder) et actions individuelles uniquement (pas de bulk actions)" and
-names TASK-013/TASK-015 as the tickets that add them later; TASK-007 repeats the same
+names TASK-014/TASK-015 as the tickets that add them later; TASK-007 repeats the same
 boundary. This ticket does not reopen that decision.
 
 ## Binding context (references, not duplicated here)
@@ -93,11 +93,11 @@ contract stays untouched. If proposal volume ever makes this a real bottleneck, 
 
 ### V1 scope decisions (explicit — flag disagreement, don't silently deviate)
 
-- No folder-path builder, no folder column — pre-existing deferral to TASK-013 (see
+- No folder-path builder, no folder column — pre-existing deferral to TASK-014 (see
   Objective).
 - No per-source bulk accept/reject — pre-existing deferral to TASK-015 (see Objective).
 - No content editing on this screen — `edit_proposal` doesn't exist yet (TASK-006
-  `backlog`); pre-existing deferral to TASK-014.
+  `backlog`); pre-existing deferral to TASK-013.
 - Source icon is always 📄 (Markdown) — only source type TASK-001 can produce; video
   source types are pre-existing deferrals to TASK-016/TASK-017.
 - **Reviewer identity**: no auth/identity system exists anywhere in this stack. Same
@@ -171,8 +171,8 @@ criterion above (11 total). Coverage discipline (≥80%) applies to
 
 ## Out of scope
 
-- Folder-path builder (TASK-013), bulk accept/reject (TASK-015), content editing
-  (TASK-006/TASK-014), video source-type rendering (TASK-016/TASK-017) — all pre-existing
+- Folder-path builder (TASK-014), bulk accept/reject (TASK-015), content editing
+  (TASK-006/TASK-013), video source-type rendering (TASK-016/TASK-017) — all pre-existing
   deferrals, not reopened here.
 - Extending `ProposalSummary` to avoid the N+1 fetch — explicitly declined for this ticket
   (see "Data-fetch trade-off").
@@ -217,7 +217,7 @@ criterion above (11 total). Coverage discipline (≥80%) applies to
   screen's filters, so this isn't a cut made here, just literal adherence to a scope the
   ticket had already narrowed. The folder-path builder column and per-source "Tout
   accepter"/"Tout rejeter" buttons are not ported either — both are pre-existing
-  deferrals the ticket's own Objective section names explicitly (TASK-013/TASK-015).
+  deferrals the ticket's own Objective section names explicitly (TASK-014/TASK-015).
 
 ## Implementation notes
 

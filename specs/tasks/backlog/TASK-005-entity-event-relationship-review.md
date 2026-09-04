@@ -33,6 +33,15 @@ regardless of implementing code.
 - ADI-004 (obsidian-role, Accepted): vault layout `<domain>/<item-type-plural>/<item-id>/<item-id>.md`;
   `entities/`, `events/`, `relationships/` are folders already named by ADI-004 (and referenced
   in TASK-003's binding context) that stay empty until this ticket starts writing to them.
+- **Numbering/layout note (added 2026-09-04, while writing TASK-014)**: ADI-012
+  (folder-path-organization, Accepted) amends the fixed layout cited above and in "File layout
+  (exact contract)" below — but only for `assertion` (TASK-014's own scope). This ticket's file
+  layout is **not** rewritten here since entity/event/relationship support for ADI-012's layout
+  is explicitly out of TASK-014's scope. Whoever implements this ticket after TASK-014 lands
+  must read ADI-012 first and decide there whether `write_entity_file`/`write_event_file`/
+  `write_relationship_file` adopt the same `<domain>/<type-plural>/<segments...>/<id>/<id>.md`
+  layout (extending this ticket) or intentionally stay on the plain fixed path a while longer —
+  a decision for that ticket's own session, not silently assumed by this note.
 - ADI-005 (sync-vs-async, Accepted), Rule 3: accept/reject is synchronous — same as TASK-002.
 - ADI-007 (implementation-language, Accepted): Python.
 - `specs/domain/knowledge-invariants.md`:

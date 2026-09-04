@@ -19,12 +19,14 @@
 
 Phase : implémentation des tickets `TASK-XXX` (en cours).
 
-- **Décisions** : ADI-001 à ADI-011 toutes `Accepted` (voir ci-dessous). ADI-011 (contrat
-  zero-output des providers) confirmée par Cleo le 2026-09-03. Aucune décision
-  d'architecture en attente.
+- **Décisions** : ADI-001 à ADI-012 toutes `Accepted` (voir ci-dessous). ADI-011 (contrat
+  zero-output des providers) confirmée par Cleo le 2026-09-03 ; ADI-012 (organisation en
+  dossiers, amende ADI-004) confirmée par Cleo le 2026-09-04, en rédigeant TASK-014. Aucune
+  décision d'architecture en attente.
 - **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, par TASK-001b, journal d'événements de tâche, par TASK-001c, échec explicite sur extraction à zéro résultat (ADI-011), par TASK-001d, détection de doublon basée sur le succès d'une tâche antérieure plutôt que sur la seule existence du fichier source, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b, TASK-001c, TASK-001d et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), `src/app/api/` (TASK-007, couche API HTTP REST — Flask, ADI-010 ; étendu par TASK-007a, pagination `?limit=`/`?offset=` sur les 3 endpoints de liste), tests sous `src/tests/`. `frontend/` (TASK-008, scaffold React + Dashboard/Settings — premier code frontend du dépôt ; étendu par TASK-009, écran Logs d'ingestion, par TASK-010, écran Validation, dont le bug de statut de groupe par `source_id` est corrigé par TASK-001d, et par TASK-011, écran Détail de proposition — contenu/métadonnées/source/provenance/logs pour une seule proposition, navigation Précédent/Suivant, accepter/rejeter). Ces quinze tickets sont dans `specs/tasks/completed/`.
 - **Cahier de tests** (2026-09-02) : `specs/tests/test-plan.md`, tracé aux 18 UC de `specs/product/use-cases.md` et aux 8 tickets `completed`. Deux couches sous `src/tests/` : `acceptance/` (déterministe, appels directs aux pipelines, provider factice fixe — exécutée par défaut) et `e2e/` (serveur Flask réel + vrai Ollama local, marker `pytest -m e2e`, exclue par défaut via `pytest.ini`). **Deux écarts réels découverts et vérifiés contre un serveur réel** (documentés dans le cahier, section « Findings ») : (1) les propositions entity/event/relationship de `extraction/` (contrat `item_type`, pas de champ `id`) sont invisibles pour tout `review/` — `list_proposals` les omet silencieusement et `get_proposal`/`accept` renvoient `400 ValidationError` — pas seulement bloquées côté métier ; (2) l'AC10 de TASK-007 (« accept sur entity/event/relationship → 422 ») ne se déclenche jamais avec une vraie proposition d'extraction (elle renvoie `400` avant d'atteindre ce chemin) — le test existant qui la vérifie construit sa proposition avec le contrat d'`ingestion`/`review`, pas celui réel d'`extraction`. **TASK-005 devra réconcilier les deux contrats de champs, pas seulement ajouter la logique métier d'acceptation.** Problème préexistant signalé au passage (non corrigé, hors périmètre) : `pytest src/tests/` en un seul run échoue à la collecte sur plusieurs `_helpers.py` de même nom sans `__init__.py` — voir la section dédiée du cahier.
-- **Suite** : deux tickets `backlog` restent maintenant (TASK-005, TASK-012 —
+- **Suite** : quatre tickets `backlog` restent maintenant (TASK-005, TASK-012, TASK-013,
+  TASK-014 — plus le satellite TASK-001e, voir leurs propres sections ci-dessous —
   TASK-001c, satellite additif à TASK-001+TASK-003 implémentant ADI-011, a été rédigé
   **et** implémenté le 2026-09-03 dans la même session, voir sa propre section ci-dessous,
   désormais `completed` ; TASK-001d, satellite additif à TASK-001+TASK-003 corrigeant
@@ -68,6 +70,37 @@ Phase : implémentation des tickets `TASK-XXX` (en cours).
   satellites) en ont été extraits et rédigés (ce fichier) ; le reste de cette
   re-priorisation (section 2, TASK-013 à TASK-037) demeure une proposition, pas une
   décision actée par Cleo.
+- **TASK-013** (mode édition de proposition — endpoint API + frontend) est rédigé
+  (2026-09-04, `backlog`), premier ticket extrait de la section 2 (proposition) de
+  `BACKLOG-CLAUDE-V2.md`. Ferme un vrai écart trouvé en rédigeant ce ticket : TASK-006
+  (`edit_proposal`, `completed`) n'est jamais devenu joignable en HTTP — TASK-007 l'avait
+  explicitement exclu de son scope. Scope assertion-only (même posture que TASK-011),
+  **indépendant de TASK-005/TASK-012** : implémentable dès maintenant, sans attendre la
+  fermeture du socle GUI. En l'écrivant, une incohérence de numérotation a été trouvée et
+  corrigée : `TASK-011`/`TASK-012`/`TASK-007` citaient à l'origine « TASK-014 » pour
+  l'édition et « TASK-013 » pour le folder-path builder — l'inverse de
+  `BACKLOG-CLAUDE-V2.md` actuel. Cleo a confirmé `BACKLOG-CLAUDE-V2.md` comme référence ;
+  les citations croisées dans ces trois tickets et dans ce fichier ont été corrigées en
+  conséquence (le folder-path builder reste TASK-014).
+- **TASK-014** (organisation en dossiers — folder-path builder, API backend + frontend) est
+  rédigé (2026-09-04, `backlog`), deuxième ticket extrait de la section 2 de
+  `BACKLOG-CLAUDE-V2.md`. Rédiger ce ticket a fait surgir une vraie question d'architecture
+  qu'ADI-004 laissait volontairement ouverte (le chemin choisi relocalise-t-il physiquement le
+  fichier canonique, ou reste-t-il une métadonnée séparée ?) — tranchée avec Cleo dans la même
+  session comme **ADI-012** (nouvelle ADR, `Accepted`, amende ADI-004) plutôt que devinée dans
+  le ticket. Nouveau chemin canonique (assertion uniquement, V1) :
+  `<domain>/assertions/<segments...>/<id>/<id>.md`, rétrocompatible (segments vides ≡ ancien
+  chemin). Scope assertion-only (même frontière que TASK-010/011/013). **Dépendance bloquante**
+  côté frontend : TASK-013 (`backlog`, pas encore implémenté) — les segments de dossier
+  s'éditent via le même `edit_proposal`/mode édition que TASK-013 introduit, pas un nouvel
+  endpoint. Amende TASK-002 (`completed`) et TASK-006 (`completed`, `EDITABLE_FIELDS_BY_TYPE`)
+  de façon additive. Un nouveau ticket satellite, **TASK-001e** (`specs/tasks/backlog/TASK-001e-extraction-proposed-folder-path.md`,
+  `backlog`, non-bloquant — dégrade vers une liste vide), étend TASK-001 (`completed`,
+  ingestion/Assertions uniquement — pas `extraction/`, déviation assumée du pattern symétrique
+  TASK-001a/b/c/d faute de consommateur avant TASK-005/012) pour que le LLM propose un chemin
+  initial, comme le montrent les maquettes. Une note a été ajoutée à TASK-005 (`backlog`,
+  toujours non implémenté) signalant qu'ADI-012 amende son propre « File layout » quand il sera
+  un jour implémenté. Jamais implémenté.
 
 ## Décisions d'architecture (ADI-001 à ADI-011, toutes `Accepted`)
 
@@ -86,6 +119,7 @@ Les 6 premières répondent aux questions ouvertes de la section 23 ; ADI-007/00
 - **ADI-009 — Framework frontend.** **ReactJS**, choisi pour familiarité (pas d'évaluation exhaustive des alternatives — même logique pragmatique qu'ADI-007). Déclenchée par `specs/ux-design/` (4 maquettes HTML/CSS/JS statiques et framework-agnostiques : Dashboard, Validation, Ingestion Logs, Proposal Detail — voir le README du dossier). L'ADR ne tranche que le framework : ni le scope V1 de l'interface ni son découpage en tickets.
 - **ADI-010 — Couche API backend et contrat d'intégration frontend.** Tranche ce qu'ADI-009 avait explicitement laissé ouvert ("comment l'interface parle au backend"). REST/HTTP via **Flask** (synchrone, pas de nouveau paradigme async — rien dans le backend n'est `asyncio`-natif). Ingestion/extraction restent asynchrones (ADI-005 règle 1) via un job HTTP `202` + `task_id` miné et persisté de façon synchrone avant la réponse, puis polling `GET .../<task_id>` (pas de push/websocket) ; review/config restent synchrones (ADI-005 règle 3), appel direct. `vault_root` (qui n'a aujourd'hui aucune surface de config, cf. amendement TASK-004 ci-dessous) est lu par le process API via une variable d'environnement dédiée `PEKOPEKO_VAULT_ROOT`, jamais par requête, et sans étendre le schéma partagé de `config/`. Sécurité : bind `127.0.0.1` uniquement + jeton partagé (`X-API-Key` contre `PEKOPEKO_API_KEY`) — pas d'authentification multi-utilisateur, `reviewer_id`/`domain` restent "trusted as given" comme dans tous les tickets précédents.
 - **ADI-011 — Contrat zero-output des providers.** Confirmée par Cleo le 2026-09-03. Déclenchée par un incident réel : gpt-oss:20b a épuisé sa fenêtre de contexte (`done_reason: "length"`, réponse vide) et `OllamaProvider.extract()` (ingestion et extraction) a silencieusement renvoyé une liste vide, faisant passer la tâche en `completed` avec 0 propositions — indiscernable d'une source n'ayant vraiment rien à extraire. Décide que le contrat `Provider.extract()` doit lever une exception dès que 0 élément est extrait pour un contenu source non vide (jamais un `ExtractionResult` vide "réussi"), qu'une source réellement vide/blanche est un cas distinct intercepté par le pipeline **avant** l'appel au provider, et que le provider doit si possible remonter la raison machine-lisible d'une génération tronquée (ex. `done_reason` d'Ollama) dans le message d'erreur. Implémentée par TASK-001c (`completed`, 2026-09-03).
+- **ADI-012 — Organisation en dossiers (amende ADI-004).** Confirmée par Cleo le 2026-09-04, en rédigeant TASK-014. Déclenchée par le folder-path builder des maquettes UX (`specs/ux-design/`), sans équivalent dans le contrat de fichiers déjà écrit — ADI-004 anticipait explicitement qu'une future ADR puisse amender son organisation interne. Décide que le chemin choisi par le reviewer **relocalise physiquement** le fichier canonique (pas une métadonnée séparée sur un chemin fixe inchangé) : `<domain>/<item-type-plural>/<segments...>/<id>/<id>.md` — domaine fixe en premier segment (Domain Isolation, AP-005, inchangé), dossier de type toujours directement sous le domaine (préserve la clarté machine originale d'ADI-004), segments vides par défaut (rétrocompatibilité bit-à-bit avec le chemin ADI-004 existant). Le chemin initial pré-rempli avant toute revue humaine est proposé par le LLM d'extraction (satellite TASK-001e), pas laissé vide par défaut. Scope V1 : `assertion` uniquement (TASK-014) ; entity/event/relationship (TASK-005/012, toujours `backlog`) adopteront ce même schéma plus tard, pas rétroactivement ici. Implémentée par TASK-014 (`backlog`, jamais implémentée).
 
 ## Conventions d'identifiants (issues du nettoyage de cohérence, terminé)
 
@@ -479,7 +513,7 @@ scope assertion-only (miroir de TASK-002) : propositions groupées par source (j
 client sur `provenance.source_id`, y compris un N+1 assumé sur `GET /proposals/<id>` faute
 de `body`/`source_id` sur `ProposalSummary` — décision explicite de Cleo plutôt qu'étendre
 TASK-007), badge de statut épistémique (4 valeurs réelles), accepter/rejeter individuels.
-Sans folder-path builder ni bulk actions — déféré **pré-existant** (TASK-013/TASK-015,
+Sans folder-path builder ni bulk actions — déféré **pré-existant** (TASK-014/TASK-015,
 acté avant cette session dans `BACKLOG-CLAUDE-V2.md`/TASK-007), pas une coupe de ce
 ticket. `reviewer_id` fourni par une variable d'env au build (`VITE_REVIEWER_ID`, même
 pattern que `VITE_API_KEY`). Dépend de TASK-007/TASK-007a/TASK-008/TASK-009 (réutilise
@@ -533,8 +567,8 @@ d'ingestion complets », toutes deux à pleine fidélité puisque TASK-001a et T
 déjà `completed` (dégradation field-by-field / note "Aucun journal disponible." conservée
 si l'un des deux venait à manquer, comme prévu par le ticket). Navigation Précédent/Suivant
 réelle sur la file `PROPOSED`/assertion du domaine courant (remplace le sélecteur de note
-simulé de la maquette) ; sans édition en place (TASK-006/TASK-014, déféré pré-existant) ni
-folder-path builder (TASK-013, déféré pré-existant). Quatrième et dernier maillon de la
+simulé de la maquette) ; sans édition en place (TASK-006/TASK-013, déféré pré-existant) ni
+folder-path builder (TASK-014, déféré pré-existant). Quatrième et dernier maillon de la
 chaîne TASK-008→009→010→011 — le socle GUI n'a plus que TASK-012 (backend TASK-005 +
 intégration frontend) avant d'être entièrement implémenté. Rédigé le 2026-08-31, implémenté
 le 2026-09-03.
@@ -596,11 +630,78 @@ bloquer l'écran. Rédigé le 2026-08-31, jamais implémenté.
 
 - Dépend de TASK-005 (`backlog`) et TASK-007 (`completed`) côté backend ; de la chaîne
   TASK-008 → TASK-009 → TASK-010 → TASK-011 (tous `completed`)
-  côté frontend. Indépendant de TASK-006/TASK-013/TASK-015.
+  côté frontend. Indépendant de TASK-006/TASK-014/TASK-015.
 - Avec ce ticket, **le socle GUI (TASK-007 → TASK-012) est entièrement rédigé** —
   framework tranché (ReactJS, ADI-009), contrat d'intégration backend tranché (Flask,
   ADI-010). Le reste de `specs/tasks/BACKLOG-CLAUDE-V2.md` (section 2, TASK-013 à
   TASK-037) demeure une proposition de re-priorisation, pas une décision actée par Cleo.
+
+### TASK-013 — Mode édition de proposition, endpoint API + frontend — `backlog`
+
+`specs/tasks/backlog/TASK-013-proposal-edit-frontend.md`. Premier ticket écrit à partir de
+la section 2 (proposition de re-priorisation) de `BACKLOG-CLAUDE-V2.md`. Expose
+`review.edit_proposal` (TASK-006, `completed`) sur HTTP — gap laissé ouvert par TASK-007,
+qui l'avait explicitement exclu de son scope ("edit is TASK-013, once TASK-006 lands") —
+via une nouvelle route `POST /domains/<domain>/proposals/<proposal_id>/edit` suivant
+exactement les conventions déjà posées par `/accept`/`/reject`. Côté frontend, ajoute un
+mode édition à `ProposalDetail.jsx` (TASK-011) scope assertion-only : bouton "✎ Éditer"
+togglant un formulaire couvrant exactement l'allow-list `EDITABLE_FIELDS_BY_TYPE["assertion"]`
+de TASK-006 (`body`, `epistemic_status`, `valid_from`, `valid_until`), boutons
+Sauvegarder/Annuler. Corrige aussi un gap réel trouvé en rédigeant ce ticket :
+`Validation.jsx` et `ProposalDetail.jsx` ne récupéraient que les propositions
+`status: "PROPOSED"` — une proposition `EDITED` disparaîtrait sinon silencieusement de la
+file de revue et de la navigation Précédent/Suivant, alors qu'`accept_proposal`/
+`reject_proposal` l'acceptent déjà. Rédigé le 2026-09-04, jamais implémenté.
+
+- Indépendant de TASK-005/TASK-012 : le endpoint backend n'est pas restreint par type
+  (`_load_and_validate_for_edit` ne filtre pas `proposed_item_type`, contrairement à
+  `_load_and_validate_for_review`) — seul le frontend reste assertion-only, en miroir du
+  filtre déjà en place dans `Validation.jsx`/`ProposalDetail.jsx`. Immédiatement
+  implémentable, sans attendre TASK-005/TASK-012.
+- Dépend de TASK-006, TASK-007, TASK-010, TASK-011 (tous `completed`).
+
+### TASK-014 — Organisation en dossiers (folder-path builder), backend + frontend — `backlog`
+
+`specs/tasks/backlog/TASK-014-folder-path-organization.md`. Deuxième ticket extrait de la
+section 2 de `BACKLOG-CLAUDE-V2.md`. Implémente le "folder-path builder"
+(`[segment ▼] / [segment ▼] [+ Ajouter]`) des maquettes UX dans `Validation.jsx` (TASK-010,
+lecture seule) et `ProposalDetail.jsx` (TASK-011, éditable via le mode édition de TASK-013),
+scope `assertion` uniquement (même frontière MVP que TASK-010/011/013). Rédigé le 2026-09-04,
+jamais implémenté.
+
+- Implémente **ADI-012** (rédigée dans la même session que ce ticket, en butant sur une
+  question qu'ADI-004 laissait volontairement ouverte : le chemin choisi relocalise-t-il
+  physiquement le fichier canonique ? — voir la section ADI-012 ci-dessus). Nouveau chemin
+  canonique (assertion uniquement) : `<domain>/assertions/<segments...>/<id>/<id>.md`, segments
+  vides par défaut ≡ chemin ADI-004 existant, aucune régression sur ce qui est déjà sur disque.
+- Amende TASK-002 (`completed`) : `assertion_path`/`write_assertion_file`
+  (`review/storage.py:92-93,185-191`) gagnent un paramètre optionnel `path_segments` ;
+  `accept_proposal` (`review/pipeline.py:204-245`) le lit sur la Proposal acceptée. Amende
+  TASK-006 (`completed`) : `EDITABLE_FIELDS_BY_TYPE["assertion"]` (`review/storage.py:42-49`)
+  gagne `proposed_path_segments` — édité via le mécanisme `edit_proposal`/`EDITED`/`history/`
+  déjà générique, sans le modifier. Nouvel endpoint en lecture seule
+  `GET /domains/<domain>/organization-folders?item_type=assertion` sur `review_bp` (pas de
+  nouveau blueprint), qui scanne le vault plutôt que de persister un registre séparé (cohérent
+  avec ADI-002/ADI-006 : rien de dérivé n'est dupliqué dans le vault).
+- **Dépendance bloquante côté frontend** : TASK-013 (`backlog`, pas encore implémenté) — les
+  segments de dossier s'éditent via le même `editProposal`/mode édition que TASK-013 introduit,
+  pas un nouvel appel. Indépendant de TASK-005/TASK-012 (scope assertion-only).
+- **Déviation assumée signalée dans le ticket** : pas d'endpoint de création de dossier séparé
+  malgré le texte littéral de `BACKLOG-CLAUDE-V2.md` (« API listant/**créant** ») — un nouveau
+  segment est une saisie côté reviewer, matérialisée sur disque seulement au premier
+  `accept_proposal` qui l'utilise réellement, pour ne pas introduire une nouvelle catégorie de
+  dossier vide non-canonique dans le vault.
+- Un nouveau ticket satellite, **TASK-001e**
+  (`specs/tasks/backlog/TASK-001e-extraction-proposed-folder-path.md`, `backlog`, non-bloquant
+  — TASK-014 dégrade proprement vers une liste de segments vide s'il n'est pas encore
+  implémenté), étend TASK-001 (`completed`, ingestion/Assertions uniquement) pour que le LLM
+  propose un chemin initial avant toute revue humaine, comme le montrent les maquettes.
+  **Déviation assumée par rapport au pattern TASK-001a/b/c/d** : ce satellite ne touche pas
+  `extraction/` (entity/event/relationship) — aucun consommateur avant TASK-005/012, ajouter le
+  champ maintenant serait spéculatif (AGENTS.md, « Simplicity First »).
+- Une note a été ajoutée à TASK-005 (`backlog`, toujours non implémenté) signalant qu'ADI-012
+  amende son propre « File layout (exact contract) » pour quand il sera un jour implémenté,
+  sans réécrire ce ticket (hors périmètre de TASK-014).
 
 ## Discipline de continuité (pour humain ou IA, quelle qu'elle soit)
 
@@ -621,9 +722,10 @@ TASK-006, TASK-007, TASK-007a, TASK-008, TASK-009, TASK-010 et TASK-011 sont tou
 `completed`** (TASK-011 le 2026-09-03, TASK-001d le 2026-09-03, TASK-001c le 2026-09-03,
 TASK-010 le 2026-09-03, TASK-009 le 2026-09-03, TASK-008 le 2026-09-02, TASK-007a le
 2026-09-02, TASK-007 le 2026-09-01, TASK-006 le 2026-09-01, TASK-001a et TASK-001b le
-2026-08-31, les quatre autres le 2026-08-30). **Deux tickets restent rédigés (`backlog`),
-aucun implémenté** — voir leurs sections ci-dessus (TASK-005, TASK-012 — compte vérifié
-contre `specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus).
+2026-08-31, les quatre autres le 2026-08-30). **Cinq tickets restent rédigés (`backlog`),
+aucun implémenté** — voir leurs sections ci-dessus (TASK-005, TASK-012, TASK-013, TASK-014,
+plus le satellite TASK-001e — compte vérifié contre `specs/tasks/backlog/`, cohérent avec
+« État actuel » ci-dessus).
 
 - Indépendant de tout le reste : TASK-005 (désormais aussi le scope backend de TASK-012,
   voir ci-dessous — toujours implémentable seul, mais plus totalement indépendant du reste
@@ -632,12 +734,23 @@ contre `specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus).
   Validation, Détail de proposition) est désormais **entièrement `completed`**. Il ne reste
   que TASK-012, qui dépend en plus de TASK-005 côté backend (voir sa propre section
   ci-dessus) et de cette chaîne frontend au complet côté GUI (satisfait).
+- TASK-013 (mode édition) et TASK-014 (organisation en dossiers) sont tous deux rédigés et
+  indépendants de TASK-005/TASK-012. TASK-014 a une **dépendance bloquante côté frontend** sur
+  TASK-013 (les segments de dossier s'éditent via le même `editProposal`/mode édition que
+  TASK-013 introduit) — TASK-013 doit donc être implémenté avant, ou en même temps que, le
+  frontend de TASK-014 ; son backend (chemin/`EDITABLE_FIELDS_BY_TYPE`/endpoint de lecture) est
+  lui implémentable seul. Le satellite TASK-001e est non-bloquant pour TASK-014 (dégrade vers
+  une liste de segments vide en son absence).
 
 Prochaine action : TASK-005 (revue Entity/Event/Relationship) ou TASK-012 (intégration
 GUI de TASK-005) — TASK-012 doit suivre TASK-005, qui reprend son backend par référence.
 Seul TASK-005 est immédiatement disponible ; TASK-012 le devient une fois TASK-005
 `completed`. Avec TASK-011 fini, le socle GUI (TASK-007 → TASK-012) n'a plus que ces deux
-tickets avant d'être entièrement implémenté.
+tickets avant d'être entièrement implémenté. TASK-013 (mode édition de proposition) est
+également immédiatement disponible, indépendamment de TASK-005/TASK-012 — sans effet sur
+la priorité recommandée ci-dessus, qui reste la fermeture du socle GUI. TASK-014 suit la
+même priorité secondaire mais attend TASK-013 côté frontend (voir ci-dessus) ; son backend et
+son satellite TASK-001e sont disponibles dès maintenant, indépendamment du reste.
 
 ---
 

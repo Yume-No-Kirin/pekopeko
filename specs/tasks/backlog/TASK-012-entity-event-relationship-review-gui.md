@@ -129,8 +129,8 @@ superseded — see Scope/Backend below.
   to and accept that endpoint first. The resulting `409` surfaces through the existing generic
   error-state handling already built by TASK-010/TASK-011 (their AC10/AC10-equivalent loading/error
   states) — no new error UI is introduced by this ticket.
-- Same MVP boundary as the rest of the GUI socle: no folder-path builder (TASK-013), no bulk actions
-  (TASK-015), no content editing (TASK-006/TASK-014).
+- Same MVP boundary as the rest of the GUI socle: no folder-path builder (TASK-014), no bulk actions
+  (TASK-015), no content editing (TASK-006/TASK-013).
 
 ## Requirements
 
@@ -171,7 +171,7 @@ superseded — see Scope/Backend below.
   (`backlog` — the error-mapping table extended here, and the AC10 superseded here). Implementable
   only once both exist in the codebase.
 - **Frontend**: TASK-008 → TASK-009 → TASK-010 → TASK-011 (`backlog`, existing chain — edits pages
-  and reuses components those tickets create). Independent of TASK-006/TASK-013/TASK-015 (all
+  and reuses components those tickets create). Independent of TASK-006/TASK-014/TASK-015 (all
   separately deferred).
 
 ## Acceptance criteria
@@ -225,7 +225,7 @@ Frontend:
 
 - Everything TASK-005 already scopes out: `EDITED`/`history/`, non-proposal endpoint disk
   validation, auto-cascade/bulk acceptance, adjacency/traversal structure (TASK-020).
-- Folder-path builder (TASK-013), bulk actions (TASK-015), content editing (TASK-006/TASK-014) —
+- Folder-path builder (TASK-014), bulk actions (TASK-015), content editing (TASK-006/TASK-013) —
   same GUI-socle boundary as TASK-010/TASK-011.
 - Any new backend endpoint for reading a canonical entity/event/relationship by id — endpoint labels
   are best-effort from already-fetched proposal data only (see V1 scope decisions).
