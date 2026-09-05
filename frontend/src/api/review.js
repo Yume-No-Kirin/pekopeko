@@ -18,3 +18,15 @@ export function rejectProposal(domain, id, reviewerId, reason) {
     reason: reason || null,
   });
 }
+
+export function editProposal(domain, id, reviewerId, { body, fieldUpdates } = {}) {
+  return post(`/domains/${domain}/proposals/${id}/edit`, {
+    reviewer_id: reviewerId,
+    body: body ?? null,
+    field_updates: fieldUpdates ?? null,
+  });
+}
+
+export function listOrganizationFolders(domain, itemType) {
+  return get(`/domains/${domain}/organization-folders?item_type=${encodeURIComponent(itemType)}`);
+}

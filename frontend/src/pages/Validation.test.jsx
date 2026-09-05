@@ -24,20 +24,41 @@ function makeSummary({ id, domain = "PERSONAL", epistemicStatus = "direct", crea
   };
 }
 
-function makeDetail({ id, domain = "PERSONAL", sourceId, filename = "notes.md", body = "Contenu de test" }) {
+function makeDetail({
+  id,
+  domain = "PERSONAL",
+  sourceId,
+  filename = "notes.md",
+  body = "Contenu de test",
+  proposedPathSegments = [],
+}) {
   return {
     id,
     domain,
-    frontmatter: { provenance: { source_id: sourceId, extraction_provider: "ollama" } },
+    frontmatter: {
+      provenance: { source_id: sourceId, extraction_provider: "ollama" },
+      proposed_path_segments: proposedPathSegments,
+    },
     body,
     source_frontmatter: { original_filename: filename },
     source_body: "",
   };
 }
 
-// proposalsByDomain: { DOMAIN: [summary, ...] }; detailsById: { id: detail };
-// ingestionsByDomain: { DOMAIN: [taskState, ...] }
-function makeFetchMock({ proposalsByDomain = {}, detailsById = {}, ingestionsByDomain = {} } = {}) {
+// proposalsByDomain: { DOMAIN: [summary, ...] } (same list returned regardless of the
+// status query param); proposalsByDomainAndStatus: { "DOMAIN:STATUS": [summary, ...] }
+// overrides proposalsByDomain when a test needs PROPOSED and EDITED to differ
+// (TASK-013 AC16); detailsById: { id: detail }; ingestionsByDomain: { DOMAIN: [taskState, ...] };
+// organizationFoldersByDomain: { DOMAIN: [[...], ...] } (segments_by_depth); editShouldFail
+// makes the /edit POST return a 400 instead of a success envelope.
+function makeFetchMock({
+  proposalsByDomain = {},
+  proposalsByDomainAndStatus = {},
+  detailsById = {},
+  ingestionsByDomain = {},
+  organizationFoldersByDomain = {},
+  editShouldFail = false,
+} = {}) {
   return vi.fn((url, options = {}) => {
     const parsed = new URL(url);
     const path = parsed.pathname;
@@ -45,8 +66,36 @@ function makeFetchMock({ proposalsByDomain = {}, detailsById = {}, ingestionsByD
 
     const proposalsListMatch = path.match(/^\/domains\/([A-Z]+)\/proposals$/);
     if (proposalsListMatch && method === "GET") {
-      const items = proposalsByDomain[proposalsListMatch[1]] || [];
+      const domain = proposalsListMatch[1];
+      const status = parsed.searchParams.get("status");
+      // proposalsByDomain is a PROPOSED-only fixture from before TASK-013 added the
+      // EDITED fan-out - only fall back to it for status=PROPOSED, or every fixture
+      // using it would silently double its items once for each status queried.
+      const items =
+        proposalsByDomainAndStatus[`${domain}:${status}`] || (status === "PROPOSED" ? proposalsByDomain[domain] : null) || [];
       return Promise.resolve(jsonResponse(200, { items, total: items.length, limit: 500, offset: 0 }));
+    }
+
+    const foldersMatch = path.match(/^\/domains\/([A-Z]+)\/organization-folders$/);
+    if (foldersMatch && method === "GET") {
+      const segments_by_depth = organizationFoldersByDomain[foldersMatch[1]] || [];
+      return Promise.resolve(jsonResponse(200, { segments_by_depth }));
+    }
+
+    const editMatch = path.match(/^\/domains\/([A-Z]+)\/proposals\/([^/]+)\/edit$/);
+    if (editMatch && method === "POST") {
+      if (editShouldFail) {
+        return Promise.resolve(jsonResponse(400, { error: { type: "ValidationError", message: "edit rejected" } }));
+      }
+      return Promise.resolve(
+        jsonResponse(200, {
+          proposal_id: editMatch[2],
+          edited_by: "test-reviewer",
+          edited_at: "2026-09-04T00:00:00",
+          archived_version_path: "/x/history/v1.md",
+          archived_version: 1,
+        })
+      );
     }
 
     const proposalDetailMatch = path.match(/^\/domains\/([A-Z]+)\/proposals\/([^/]+)$/);
@@ -157,7 +206,7 @@ describe("Validation", () => {
     expect(screen.getByText("Contesté")).toBeInTheDocument();
   });
 
-  it("AC3: renders no folder-path column and no bulk-action button", async () => {
+  it("AC3: renders no bulk-action button (TASK-014 AC19: folder-path column now present)", async () => {
     global.fetch = makeFetchMock({
       proposalsByDomain: { PERSONAL: [makeSummary({ id: "p1" })] },
       detailsById: { p1: makeDetail({ id: "p1", sourceId: "src-a" }) },
@@ -166,10 +215,77 @@ describe("Validation", () => {
     renderValidation();
     await screen.findByText(/notes\.md/);
 
-    expect(screen.queryByText(/Dossier proposé/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Tout accepter/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Tout rejeter/)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("columnheader")).toHaveLength(3);
+    expect(screen.getAllByRole("columnheader")).toHaveLength(4);
+    expect(screen.getByRole("columnheader", { name: "Dossier proposé" })).toBeInTheDocument();
+  });
+
+  it("amends TASK-014 AC19: NoteRow renders proposed_path_segments editable, matching the mockup", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomain: { PERSONAL: [makeSummary({ id: "p1" })] },
+      detailsById: {
+        p1: makeDetail({ id: "p1", sourceId: "src-a", proposedPathSegments: ["mythologie", "japonaise"] }),
+      },
+    });
+
+    renderValidation();
+    await screen.findByText(/notes\.md/);
+
+    expect(screen.getByRole("button", { name: /mythologie/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /japonaise/ })).toBeInTheDocument();
+    expect(document.querySelector(".folder-add-btn")).toBeInTheDocument();
+  });
+
+  it("editing a segment calls editProposal with the new path and updates the row without a full refetch", async () => {
+    const user = userEvent.setup();
+    global.fetch = makeFetchMock({
+      proposalsByDomain: { PERSONAL: [makeSummary({ id: "p1" })] },
+      detailsById: {
+        p1: makeDetail({ id: "p1", sourceId: "src-a", proposedPathSegments: ["mythologie", "japonaise"] }),
+      },
+      organizationFoldersByDomain: { PERSONAL: [["mythologie", "geographie"], ["japonaise", "nordique"]] },
+    });
+
+    renderValidation();
+    await screen.findByText(/notes\.md/);
+
+    await user.click(screen.getByRole("button", { name: /japonaise/ }));
+    await user.click(screen.getByText("nordique"));
+
+    await waitFor(() => {
+      expect(
+        global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/edit"))
+      ).toBeDefined();
+    });
+
+    const [, editOptions] = global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/edit"));
+    const editBody = JSON.parse(editOptions.body);
+    expect(editBody.field_updates.proposed_path_segments).toEqual(["mythologie", "nordique"]);
+
+    expect(screen.getByRole("button", { name: /nordique/ })).toBeInTheDocument();
+  });
+
+  it("reverts the optimistic path update and surfaces actionError when editProposal fails", async () => {
+    const user = userEvent.setup();
+    global.fetch = makeFetchMock({
+      proposalsByDomain: { PERSONAL: [makeSummary({ id: "p1" })] },
+      detailsById: {
+        p1: makeDetail({ id: "p1", sourceId: "src-a", proposedPathSegments: ["mythologie", "japonaise"] }),
+      },
+      organizationFoldersByDomain: { PERSONAL: [["mythologie"], ["japonaise", "nordique"]] },
+      editShouldFail: true,
+    });
+
+    renderValidation();
+    await screen.findByText(/notes\.md/);
+
+    await user.click(screen.getByRole("button", { name: /japonaise/ }));
+    await user.click(screen.getByText("nordique"));
+
+    await screen.findByText(/Action impossible/);
+    expect(screen.getByRole("button", { name: /japonaise/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /nordique/ })).not.toBeInTheDocument();
   });
 
   it("AC4: accepting a note calls POST accept with the configured reviewer_id and removes it from its group", async () => {
@@ -352,6 +468,24 @@ describe("Validation", () => {
     await screen.findByText(/notes\.md/);
 
     expect(screen.getByRole("link", { name: "Détails" })).toHaveAttribute("href", "/validation/PERSONAL/p1");
+  });
+
+  it("TASK-013 AC16: merges PROPOSED and EDITED proposals into the displayed queue", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomainAndStatus: {
+        "PERSONAL:PROPOSED": [makeSummary({ id: "p1" })],
+        "PERSONAL:EDITED": [{ ...makeSummary({ id: "p2" }), proposal_status: "EDITED" }],
+      },
+      detailsById: {
+        p1: makeDetail({ id: "p1", sourceId: "src-a", body: "Note proposée" }),
+        p2: makeDetail({ id: "p2", sourceId: "src-a", body: "Note éditée" }),
+      },
+    });
+
+    renderValidation();
+
+    await screen.findByText("Note proposée");
+    expect(screen.getByText("Note éditée")).toBeInTheDocument();
   });
 
   it("AC10: shows a loading state while requests are in flight, then an error state on failure", async () => {

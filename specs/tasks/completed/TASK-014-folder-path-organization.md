@@ -1,6 +1,6 @@
 # TASK-014: Folder-Path Organization — Backend API + Frontend Builder (Assertions, V1)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -172,7 +172,7 @@ is saved there) is actually required.
   though ADI-012's backend pieces are written generically enough to extend later.
 - **No folder-creation endpoint** (Scope item 5's own note above).
 - **No inline edit affordance on `Validation.jsx`** (Scope item 10's own note above) — read-only
-  display only, matching TASK-013's precedent.
+  display only, matching TASK-013's precedent. **Superseded 2026-09-05, see "Amendment" below.**
 - **No retroactive relocation.** This ticket never moves an already-`ACCEPTED` canonical file —
   `path_segments` only affects the physical path chosen at the moment `accept_proposal` runs.
   Existing assertions already on disk under the old fixed layout are untouched and remain
@@ -317,3 +317,293 @@ Frontend:
   frontend nicety this ticket may port but does not require as a backend guarantee.
 - Any change to `review.edit_proposal`'s mechanism, `history/` behavior, or
   `EDITABLE_FIELDS_BY_TYPE` beyond the one new entry.
+
+## Implementation notes (2026-09-04)
+
+Implemented exactly as scoped, with the design decisions the ticket left open resolved as follows:
+
+- **Segment-value validation location** (Scope item 1 left this open): a single new
+  `_validate_path_segments()` helper in `review/storage.py`, called from exactly one site — inside
+  `assertion_path()`. Both `write_assertion_file` and `accept_proposal` route through
+  `assertion_path`, so this is the one choke point that catches a bad segment (`/` or `..`) before
+  any write, without touching `edit_proposal`'s mechanism as the Constraints section required. A
+  reviewer can technically save an invalid segment through `edit_proposal` (only key names are
+  validated there via `_validate_editable_fields`), but it is caught deterministically the moment
+  `accept_proposal` runs — before any file is written and before the Proposal's own status changes.
+  Reused `review.errors.ValidationError` (no new exception type); already mapped to `400` via
+  `api/app.py`'s `ERROR_STATUS_MAP` — no change needed there, confirming Scope item 6's prediction.
+- **`EDITABLE_FIELDS_BY_TYPE` form** (Scope item 4, AC8): the assertion-only form was chosen —
+  `"assertion": _COMMON_EDITABLE_FIELDS | {"proposed_path_segments"}` — rebinding only that one
+  dict entry to a new set via `|`, leaving `_COMMON_EDITABLE_FIELDS` itself unmutated (it was
+  previously the *same object* `"assertion"` pointed at, not a copy — mutating it in place would
+  have silently leaked the field into `entity`/`event`/`relationship` too).
+- **Folders endpoint response shape** (Scope item 5 left this open): finalized as
+  `{"segments_by_depth": [["mythologie", "livres"], ["japonaise"], ...]}` — index `i` is depth `i`
+  (0-based, directly under `assertions/`), each inner list deduped and sorted.
+  `review/storage.py::scan_organization_folders` walks `<vault_root>/<domain>/assertions/`
+  recursively; a directory name matching the `assert-` prefix `_generate_assertion_id` produces is
+  treated as an item's own id folder (a leaf, not descended into further); every other name is
+  collected as a taxonomy segment at its depth.
+- **Frontend `FolderPathBuilder.jsx`**: controlled component (no DOM mutation), ported from the
+  mockup's `toggleFolderDropdown`/`selectFolder`/`createNewFolder`/`addFolderSegment` with an inline
+  input + "Créer"/"Annuler" buttons in place of `window.prompt()`, per the ticket's own instruction.
+  CSS ported verbatim from `pekopeko-proposal-detail.html:531-633` (the reference block —
+  `Validation.jsx`'s read-only rendering needs no dropdown/hover states, so `pekopeko-workflow.html`'s
+  denser table-cell variant was not used); a new `.folder-dropdown-create-form` block (no mockup
+  equivalent, since both mockups use `window.prompt()`) styled after the existing
+  `.modal-textarea`/`.filter-select` conventions.
+- **`ProposalDetail.jsx`**: `listOrganizationFolders` is fetched only inside `handleEditToggle`
+  (once per edit-mode session, per the ticket's own "no over-fetch" rule), not in the mount-time
+  `useEffect` alongside the other three fetches. A 5th metadata row ("Dossier proposé") added after
+  "Validité". Sauvegarder's `field_updates` gained a 4th key, `proposed_path_segments`.
+- **`Validation.jsx`**: `NoteRow` gained a 4th, always-read-only `<td>` (`editable={false}`,
+  matching TASK-013's precedent of no edit affordance on this page) between the type badge and
+  actions cells; `<thead>` and the two hard-coded `columnCount`/`colSpan={3}` references updated to
+  4.
+- Code: `src/app/review/storage.py` (`_validate_path_segments`, `assertion_path`,
+  `write_assertion_file`, `EDITABLE_FIELDS_BY_TYPE`, `scan_organization_folders`),
+  `src/app/review/pipeline.py::accept_proposal`, `src/app/api/routes_review.py` (new
+  `GET .../organization-folders` route), `src/app/api/serialization.py`
+  (`organization_folders_to_dict`) — no change to `src/app/api/app.py` (confirmed no new error
+  mapping was needed). `frontend/src/components/FolderPathBuilder.jsx` (new),
+  `frontend/src/api/review.js` (`listOrganizationFolders`), `frontend/src/pages/ProposalDetail.jsx`,
+  `frontend/src/pages/Validation.jsx`, `frontend/src/index.css`. No file under `src/app/extraction/`
+  touched (AC20).
+- Tests: 3 new backend test files' worth of cases added to existing files
+  (`src/tests/review/test_storage.py`, `test_pipeline_accept.py`, `test_pipeline_edit.py`,
+  `src/tests/api/test_review_routes.py`) plus `frontend/src/components/FolderPathBuilder.test.jsx`
+  (new, colocated per this directory's `ProvenanceSection.jsx`/`.test.jsx` precedent),
+  `frontend/src/api/review.test.js`, `frontend/src/pages/ProposalDetail.test.jsx`,
+  `frontend/src/pages/Validation.test.jsx`. Two pre-existing tests were updated in place as a
+  necessary consequence of this ticket, not a silent behavior change: `ProposalDetail.test.jsx`'s
+  "TASK-013 AC12" exact-payload assertion now includes the 4th `proposed_path_segments` key (always
+  sent, defaulting to `[]`); `Validation.test.jsx`'s "AC3" now expects 4 columns including "Dossier
+  proposé" instead of TASK-013-era's "no folder column" expectation.
+
+## Verification record (2026-09-04)
+
+Verified by Claude (same session as implementation — same limitation as every prior ticket in this
+project: not a second independent reviewer). Per this project's verification discipline, code was
+copied to an isolated location outside the repo
+(`%LOCALAPPDATA%\Temp\claude\...\scratchpad\task014_verify\`): backend `src/` copied fresh (no
+`__pycache__`), frontend `frontend/src/` plus `.env`/`.env.test`/config files copied fresh with
+`node_modules` linked via an NTFS junction rather than reinstalled (same approach as TASK-013's own
+verification) — every check below was re-run there independently, not just trusted from the
+in-repo run.
+
+- Backend, isolated copy (per-package `pytest`, since this repo's `src/tests/` has a pre-existing,
+  documented cross-directory `_helpers.py` collection collision unrelated to this ticket):
+  `src/tests/review` 115/115 pass, 100% coverage on every touched file
+  (`storage.py`/`pipeline.py`/`errors.py`/`frontmatter.py`); `src/tests/api` 108/108 pass, 100%
+  coverage on `routes_review.py`/`serialization.py`; `src/tests/extraction` 65/65 pass (untouched,
+  regression check for AC20); `src/tests/config` 39/39 pass (untouched). `src/tests/ingestion` has
+  2 pre-existing failures (`test_comprehensive.py::test_acceptance_criteria_compliance`,
+  `test_pipeline.py::test_import_isolation`) confirmed via `git stash` to be present identically on
+  the pre-TASK-014 code — not a regression.
+- Frontend, isolated copy: `npx vitest run --coverage` 79/79 pass. Global coverage 97.94% stmts /
+  89.29% branch / 81.53% funcs / 97.94% lines — passes the project's configured 80% threshold on
+  all four metrics (`vite.config.js`'s `coverage.thresholds`). `review.js` 100%.
+  `FolderPathBuilder.jsx` has 7 dedicated tests but isn't counted toward the threshold —
+  `src/components/**` is outside this project's coverage `include` list (`src/api/**`,
+  `src/pages/**` only), a pre-existing config choice unrelated to this ticket.
+- `git status --porcelain -- src/app/extraction/ src/tests/extraction/` returns empty (AC20).
+- Manual end-to-end reproduction, actually executed (not narrated) in the isolated copy, two steps:
+  1. **Pipeline level**: built a real PROPOSED assertion proposal on disk with
+     `proposed_path_segments: ["mythologie", "japonaise"]`, called `pipeline.accept_proposal(...)`
+     for real. Result: `assertion_path` =
+     `manual_vault/FICTION/assertions/mythologie/japonaise/assert-5cba7aed-.../assert-5cba7aed-....md`,
+     `.exists()` = `True`, `scan_organization_folders(vault, "FICTION")` =
+     `[['mythologie'], ['japonaise']]`. Frontmatter inspected by eye — all fields correct, body
+     preserved verbatim.
+  2. **HTTP level**: built a real Flask app (`create_app`) against the same scratch vault, issued
+     real requests via `app.test_client()`: `GET .../organization-folders?item_type=assertion` →
+     `200 {'segments_by_depth': [['mythologie'], ['japonaise']]}`; `GET .../organization-folders`
+     (no `item_type`) → `400 {'error': {'type': 'ValidationError', ...}}`.
+
+Acceptance criteria checked one by one:
+
+- `[PASS]` AC1-2 (`assertion_path` no-segments regression / with-segments construction) —
+  `test_assertion_path_no_segments_matches_current_behavior`,
+  `test_assertion_path_with_segments_inserts_between_assertions_and_id`.
+- `[PASS]` AC3 (`write_assertion_file` writes to the segmented path, readable back) — exercised
+  transitively via `test_accept_proposal_writes_segmented_path_when_proposed_path_segments_present`
+  and confirmed directly in the manual repro (step 1 above).
+- `[PASS]` AC4-5 (`accept_proposal` writes segmented/plain path present/absent) —
+  `test_accept_proposal_writes_segmented_path_when_proposed_path_segments_present`,
+  `test_accept_proposal_writes_plain_path_when_proposed_path_segments_absent`, plus every
+  pre-existing `test_pipeline_accept.py` test (all still pass, confirming no regression for
+  pre-TASK-001e proposals lacking the field).
+- `[PASS]` AC6 (invalid segment rejected before any write) —
+  `test_validate_path_segments_rejects_slash`/`_rejects_dotdot` (unit) and
+  `test_accept_proposal_rejects_invalid_path_segments_before_any_write` (integration: proposal file
+  byte-identical after the raise, `assertions/` empty or absent).
+- `[PASS]` AC7 (`edit_proposal` accepts the field for assertion, `history/` snapshot exists) —
+  `test_edit_proposal_field_update_assertion_proposed_path_segments`.
+- `[PASS]` AC8 (uneditable for non-assertion; assertion-only form documented above) —
+  `test_edit_proposal_proposed_path_segments_uneditable_for_non_assertion`,
+  `test_editable_fields_by_type_assertion_scoped_only`.
+- `[PASS]` AC9-10 (folders endpoint empty domain / multi-depth scan) —
+  `test_get_organization_folders_empty_domain_returns_empty_structure`,
+  `test_get_organization_folders_multi_depth_scan` (API level) plus
+  `test_scan_organization_folders_empty_domain`,
+  `test_scan_organization_folders_multi_depth_excludes_assert_prefix` (unit level), confirmed live
+  in the manual repro's step 2.
+- `[PASS]` AC11 (missing/invalid `item_type` → 400) —
+  `test_get_organization_folders_missing_item_type_returns_400`,
+  `test_get_organization_folders_invalid_item_type_returns_400`, confirmed live in the manual repro.
+- `[PASS]` AC12 (domain mismatch matches `_check_domain` convention) —
+  `test_get_organization_folders_invalid_domain_returns_400`.
+- `[PASS]` AC13 (`listOrganizationFolders` GET shape) — `review.test.js` "TASK-014 AC13".
+- `[PASS]` AC14 (read-only renders plain text, no interactive elements, incl. empty case) —
+  `FolderPathBuilder.test.jsx` "AC14" (2 tests).
+- `[PASS]` AC15 (editable renders segments + dropdown + options + "+ Créer nouveau..." + "+
+  Ajouter") — `FolderPathBuilder.test.jsx` "AC15" (2 tests).
+- `[PASS]` AC16 (selecting/creating/adding each call `onChange` correctly) —
+  `FolderPathBuilder.test.jsx` "AC16" (3 tests).
+- `[PASS]` AC17 (edit mode seeds `draftPathSegments` + fetches folders; save includes the field) —
+  `ProposalDetail.test.jsx` "TASK-014 AC17" (2 tests); pre-existing "TASK-013 AC12" payload
+  assertion updated in place to match (see Implementation notes).
+- `[PASS]` AC18 (read-only rendering outside edit mode, incl. empty case) —
+  `ProposalDetail.test.jsx` "TASK-014 AC18" (2 tests).
+- `[PASS]` AC19 (`Validation.jsx` read-only column, no edit affordance anywhere on the page) —
+  **superseded 2026-09-05, see "Amendment" below** — `Validation.test.jsx` "TASK-014 AC19"
+  originally verified this; that test was rewritten in place to assert the new editable
+  behavior instead.
+- `[PASS]` AC20 (no file under `src/app/extraction/` modified) — confirmed via `git status
+  --porcelain`, and `src/tests/extraction` 65/65 unchanged.
+
+## Amendment (2026-09-05): inline editing in the Validation table, matching the mockup
+
+Cleo asked, referencing the mockup directly, for the folder path to be editable inline in
+`Validation.jsx`'s table rather than only in `ProposalDetail.jsx`'s edit mode — reversing this
+ticket's own AC19/Scope item 10 decision ("no inline edit affordance on Validation.jsx, matching
+TASK-013's precedent"). Checking `specs/ux-design/pekopeko-workflow.html` directly confirmed the
+mockup's own `folder-path-builder` markup is always interactive (`toggleFolderDropdown`/
+`selectFolder`/`createNewFolder` wired on every row, no separate read-only/edit-mode toggle for
+this column) — the original TASK-014 read-only choice was a deliberate MVP narrowing at the time,
+not a misreading of the mockup, but Cleo has now asked for parity with it.
+
+What changed, additively:
+
+- `Validation.jsx`: `NoteRow`'s `FolderPathBuilder` is now `editable={true}` (was `editable={false}`
+  with a no-op `onChange`). A new `onPathChange(domain, id, segments)` handler applies the change
+  optimistically to local `groups` state, then calls `editProposal(domain, id, REVIEWER_ID,
+  { fieldUpdates: { proposed_path_segments: segments } })` (no `body`, matching `edit_proposal`'s
+  existing `body=None` "leave unchanged" contract) - a failed call reverts the optimistic update
+  and surfaces `actionError`, same pattern already used by `handleAccept`/`handleRejectConfirm`.
+  There is no per-row Save/Cancel step, matching the mockup: each dropdown selection or "+ Créer
+  nouveau..." confirmation calls `editProposal` immediately, so each one also creates its own
+  `history/` version (existing `edit_proposal` behavior, unchanged) - a note edited segment-by-
+  segment across several clicks accumulates one history snapshot per click, not one for the whole
+  session. Not fixed here - flagged for whoever revisits this if it becomes a real cost.
+- New `fetchFolderOptionsByDomain(domains)`: one `listOrganizationFolders(domain, "assertion")`
+  call per domain visible in the current filter, fetched alongside `fetchGroups` in the same
+  effect; a failed fetch for one domain degrades to no suggested options for that domain rather
+  than blocking the table (same non-blocking-satellite posture as the rest of this fetch).
+  `NoteRow` gains a `folderOptions` prop sourced from this map.
+- `proposal_status` transitions `PROPOSED` → `EDITED` on the first inline path edit, same as any
+  other `edit_proposal` call - already handled without change, since `fetchGroups` already fetches
+  both `PROPOSED` and `EDITED` (TASK-013's own fan-out), so an edited row stays visible in the
+  table under the same filters.
+
+**Tests**: `Validation.test.jsx`'s "TASK-014 AC19" test (asserted plain-text/no-dropdown) rewritten
+in place to assert segment buttons + a "+ Ajouter" button are present; `makeFetchMock` gains
+`organizationFoldersByDomain` and `editShouldFail` (mirroring `ProposalDetail.test.jsx`'s existing
+pattern) plus handlers for `GET .../organization-folders` and `POST .../edit`. Two new tests: one
+drives a real click → dropdown-option-click interaction and asserts `editProposal` was called with
+the correct `field_updates.proposed_path_segments` and that the row updates without a refetch; one
+asserts a failed edit reverts the row and shows `actionError`. `npx vite build` and `npx vitest run
+--coverage` both pass: 81/81 frontend tests, 97.64% lines on `Validation.jsx` (no regression on any
+other file).
+
+**Verified against the real backend**, not only mocked: called the actual running Flask API's
+`POST /domains/FICTION/proposals/<id>/edit` (the exact call `editProposal` makes) against a real
+Proposal already in the vault, confirmed via a follow-up `GET` that `proposed_path_segments` was
+updated and `proposal_status` became `EDITED`, then reverted the test edit back to its original
+value via the same endpoint. A literal browser screenshot was not obtained - neither `chromium-cli`
+nor a local Playwright install was available in this environment, and installing one wasn't asked
+for; this is the same disclosed limitation already present in every prior frontend ticket's own
+Verification record ("pas de test de fumée contre une vraie instance Flask/vault" - here a real
+Flask+vault smoke test *was* done, at the API level, just not with an actual rendered browser).
+
+## Amendment (2026-09-05): mockup fidelity fix + drag-to-reorder segments
+
+Cleo pointed out, from a screenshot of the running `Validation.jsx` table, that the "Dossier
+proposé" column's visual design didn't match `pekopeko-workflow.html` closely enough, and asked
+for segments to be reorderable by long-press-and-drag on both editable screens
+(`Validation.jsx` and `ProposalDetail.jsx`'s edit mode).
+
+**Root cause of the visual gap**: the original TASK-014 implementation note above already flags it
+- `FolderPathBuilder`'s CSS was ported only from `pekopeko-proposal-detail.html:531-633`'s
+borderless flavor, a choice made when `Validation.jsx`'s builder was still read-only per this
+ticket's own original Scope item 10. The 2026-09-05 "inline editing" amendment above made
+`Validation.jsx`'s builder fully interactive but never revisited the CSS, so the table's "Dossier
+proposé" column kept rendering with the wrong (proposal-detail) skin, and `.folder-cell` (the `<td>`
+class `Validation.jsx` already uses) had no CSS backing it at all.
+
+**Drag-to-reorder** has no mockup equivalent - both mockups only ever replace a segment's value
+(dropdown) or append one (`+ Ajouter`), never reorder. This is a new, additive interaction
+requested directly, not a mockup-fidelity gap.
+
+What changed:
+
+- `frontend/src/index.css`: added a `.folder-cell`-scoped block (ported from
+  `pekopeko-workflow.html:391-505`) - bordered container, monospace font, denser grey pill
+  buttons - that overrides the default proposal-detail skin only inside `Validation.jsx`'s table
+  cell context. `ProposalDetail.jsx`'s `.metadata-value` context is untouched (it already matched
+  its own mockup). Also added `.folder-segment.dragging .folder-segment-btn` (a distinct blue
+  tint + `cursor: grabbing`, the "closed fist" cursor - refined the same day per Cleo's direct
+  follow-up request, see below) and `touch-action: none` on `.folder-segment-btn` for the drag
+  gesture.
+- `frontend/src/components/FolderPathBuilder.jsx`: added Pointer Events-based drag-to-reorder,
+  active only when `editable={true}` (so both `Validation.jsx`'s always-editable row and
+  `ProposalDetail.jsx`'s edit mode get it identically, for free). Gesture: pointer-down starts a
+  400ms timer; if the pointer moves more than ~6px before it fires, it's cancelled and the
+  eventual click behaves exactly as before (opens the segment's dropdown). As soon as the timer
+  fires - i.e. the moment the long press is recognized, before the pointer has necessarily moved
+  at all - the segment gets the tinted/grabbing-cursor visual cue, so the reviewer can see the
+  segment is now liftable; if the pointer then actually moves, it is reordered live in local
+  component state (via each segment's `getBoundingClientRect()`, no `onChange` per intermediate
+  swap) and `onChange` is called exactly once, on release, with the settled order - mirroring
+  this component's existing "one `onChange` per discrete user action" pattern rather than firing
+  one `editProposal` call per pixel of drag. A held-then-released-without-moving press clears the
+  visual cue and is treated as an ordinary click (dropdown still opens), matching the forgiving
+  long-press-then-drag pattern used by other reorderable-list UIs.
+- No backend change: `proposed_path_segments` was already a plain ordered array end-to-end, so a
+  reordered array flows through the existing `editProposal`/`field_updates` path unchanged.
+
+**Implementation note**: the first working version of the drag logic had a real bug caught by its
+own tests, not just a test artifact - the swap computation read `info.position` (a mutable ref
+field) from inside a `setOrder` functional updater, but `info.position` gets reassigned
+synchronously right after `setOrder` is called, before React actually invokes that updater during
+its later render pass; the updater was therefore reading the *destination* index as if it were the
+*source* index, silently reconstructing the original (unchanged) order. Fixed by snapshotting the
+source position into a local `const` before the mutation. Caught immediately by the new
+drag-reorder test asserting the exact resulting array, not just that `onChange` was called.
+
+**Tests**: `frontend/src/components/FolderPathBuilder.test.jsx` gained a `describe` block with
+four cases: a quick press-and-release still opens the dropdown (regression on existing AC15), a
+long press held still (no drag) gets the `dragging` class (tint + grabbing cursor) as soon as the
+timer fires and loses it on release without triggering a reorder, a long-press-then-drag past
+another segment calls `onChange` exactly once with the correctly reordered array and never opens
+a dropdown, and a press that moves before the long-press timer fires cancels the drag and behaves
+like a normal click. jsdom (25.0.1, this project's pinned version) has no `PointerEvent`
+constructor at all (https://github.com/jsdom/jsdom/issues/2527) - `@testing-library/dom`'s
+`fireEvent.pointerDown`/`pointerMove`/`pointerUp` silently fall back to a plain `Event` and drop
+`clientX`/`clientY`/`pointerId`, so the new tests build the event manually (`new Event(type, {...});
+Object.assign(event, {clientX, clientY, pointerId})`) and dispatch it via the lower-level
+`fireEvent(el, event)` instead. The armed-highlight test also needed an explicit `act()` around
+`vi.advanceTimersByTime(...)`, since the timer callback calls `setState` outside of a
+React-managed event and nothing else in that test flushes it before the assertion (unlike the
+other drag tests, which assert only after a further `fireEvent` call, whose own `act()` wrapper
+flushes it incidentally).
+
+**Verification**: `npx vitest run --coverage` in `frontend/` - 85/85 tests pass (11 in
+`FolderPathBuilder.test.jsx`, up from 7), coverage unchanged/above the 80% threshold on every
+touched file. `npx vite build` succeeds. Manual verification: the Flask backend and Vite dev
+server were both started locally against the real vault
+(`PEKOPEKO_VAULT_ROOT`/`PEKOPEKO_API_KEY` from `.pekopeko-local.env`) and confirmed reachable
+(backend responds to an authenticated request, frontend serves `200`); a rendered-browser
+screenshot comparison against the mockup, and a manual long-press-drag trial, were left for Cleo
+to check directly in that already-running instance - same disclosed browser-automation limitation
+as the 2026-09-05 amendment above (no `chromium-cli`/Playwright available in this environment).

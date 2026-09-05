@@ -225,9 +225,13 @@ def accept_proposal(vault_root: Path, domain: str, proposal_id: str, reviewer_id
         },
     }
 
+    path_segments = frontmatter.get("proposed_path_segments") or []
+
     # Must fully succeed (atomic write) before the proposal is touched: a failed
     # assertion write must leave the proposal at PROPOSED, never partially accepted.
-    written_path = storage.write_assertion_file(vault_root, domain, assertion_frontmatter, body)
+    written_path = storage.write_assertion_file(
+        vault_root, domain, assertion_frontmatter, body, path_segments=path_segments
+    )
 
     frontmatter["proposal_status"] = "ACCEPTED"
     frontmatter["reviewed_by"] = reviewer_id

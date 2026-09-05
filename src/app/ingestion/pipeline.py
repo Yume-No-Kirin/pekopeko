@@ -141,7 +141,9 @@ def ingest_source(
         append_task_event(task_state, state_dir, "info", "Provider extraction call started",
                            {"extraction_id": extraction_id})
         try:
-            extraction_result: ExtractionResult = provider.extract(content, {"source_path": str(source_path)})
+            extraction_result: ExtractionResult = provider.extract(
+                content, {"source_path": str(source_path), "vault_root": vault_root, "domain": domain}
+            )
         except Exception as e:
             # Update task state with error and return
             append_task_event(task_state, state_dir, "warning", "Provider extraction call failed",

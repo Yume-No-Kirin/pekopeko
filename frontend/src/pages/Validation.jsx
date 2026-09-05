@@ -1,12 +1,20 @@
 import { Fragment, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listProposals, getProposal, acceptProposal, rejectProposal } from "../api/review.js";
+import {
+  listProposals,
+  getProposal,
+  acceptProposal,
+  rejectProposal,
+  editProposal,
+  listOrganizationFolders,
+} from "../api/review.js";
 import { listIngestions } from "../api/tasks.js";
 import { DOMAINS } from "../api/domains.js";
 import { PERIOD_OPTIONS, filterByPeriod } from "../utils/periodFilter.js";
 import EpistemicStatusBadge from "../components/EpistemicStatusBadge.jsx";
 import SourceGroupHeader from "../components/SourceGroupHeader.jsx";
 import RejectReasonModal from "../components/RejectReasonModal.jsx";
+import FolderPathBuilder from "../components/FolderPathBuilder.jsx";
 
 const REVIEWER_ID = import.meta.env.VITE_REVIEWER_ID || "cleo";
 const NOTES_PER_PAGE = 10;
@@ -22,11 +30,12 @@ const NOTES_PER_PAGE = 10;
 // stage 1's summaries, so it stays sequential after it. Everything is then
 // grouped by provenance.source_id.
 async function fetchGroups(domains) {
-  const [proposalPages, taskPages] = await Promise.all([
+  const [proposedPages, editedPages, taskPages] = await Promise.all([
     Promise.all(domains.map((domain) => listProposals(domain, { status: "PROPOSED", limit: 500, offset: 0 }))),
+    Promise.all(domains.map((domain) => listProposals(domain, { status: "EDITED", limit: 500, offset: 0 }))),
     Promise.all(domains.map((domain) => listIngestions(domain, { limit: 500, offset: 0 }))),
   ]);
-  const summaries = proposalPages
+  const summaries = [...proposedPages, ...editedPages]
     .flatMap((page) => page.items)
     .filter((item) => item.proposed_item_type === "assertion");
 
@@ -72,6 +81,21 @@ async function fetchGroups(domains) {
   return Array.from(groupsByKey.values());
 }
 
+// One organization-folders fetch per visible domain (assertion-only, same scope as
+// the FolderPathBuilder everywhere else) - a domain whose fetch fails degrades to no
+// suggested options rather than blocking the table, same non-blocking-satellite
+// posture as the rest of this fetch.
+async function fetchFolderOptionsByDomain(domains) {
+  const entries = await Promise.all(
+    domains.map((domain) =>
+      listOrganizationFolders(domain, "assertion")
+        .then((result) => [domain, result.segments_by_depth || []])
+        .catch(() => [domain, []])
+    )
+  );
+  return Object.fromEntries(entries);
+}
+
 // Packs whole groups into pages targeting ~NOTES_PER_PAGE notes each,
 // without ever splitting a group across two pages (an over-sized group
 // simply gets its own page).
@@ -92,7 +116,7 @@ function packGroupsIntoPages(groups, notesPerPage) {
   return pages;
 }
 
-function NoteRow({ note, onAccept, onReject }) {
+function NoteRow({ note, folderOptions, onAccept, onReject, onPathChange }) {
   return (
     <tr className="note-row">
       <td className="note-content-cell">
@@ -100,6 +124,14 @@ function NoteRow({ note, onAccept, onReject }) {
       </td>
       <td>
         <EpistemicStatusBadge status={note.epistemic_status} />
+      </td>
+      <td className="folder-cell">
+        <FolderPathBuilder
+          editable={true}
+          segments={note.detail.frontmatter.proposed_path_segments || []}
+          optionsByDepth={folderOptions || []}
+          onChange={(segments) => onPathChange(note.domain, note.id, segments)}
+        />
       </td>
       <td>
         <div className="note-actions">
@@ -128,6 +160,7 @@ export default function Validation() {
   const [error, setError] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
+  const [folderOptionsByDomain, setFolderOptionsByDomain] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +181,9 @@ export default function Validation() {
           setLoading(false);
         }
       });
+    fetchFolderOptionsByDomain(domains).then((result) => {
+      if (!cancelled) setFolderOptionsByDomain(result);
+    });
     return () => {
       cancelled = true;
     };
@@ -170,6 +206,35 @@ export default function Validation() {
       await acceptProposal(domain, id, REVIEWER_ID);
       updateGroupsAfterRemoval(domain, id);
     } catch (err) {
+      setActionError(err);
+    }
+  }
+
+  function setNotePathSegments(domain, proposalId, segments) {
+    setGroups((current) =>
+      current.map((group) => {
+        if (group.domain !== domain) return group;
+        return {
+          ...group,
+          notes: group.notes.map((note) =>
+            note.id === proposalId
+              ? { ...note, detail: { ...note.detail, frontmatter: { ...note.detail.frontmatter, proposed_path_segments: segments } } }
+              : note
+          ),
+        };
+      })
+    );
+  }
+
+  async function handlePathChange(domain, id, newSegments) {
+    const note = groups.flatMap((g) => g.notes).find((n) => n.domain === domain && n.id === id);
+    const previousSegments = note ? note.detail.frontmatter.proposed_path_segments || [] : [];
+    setActionError(null);
+    setNotePathSegments(domain, id, newSegments);
+    try {
+      await editProposal(domain, id, REVIEWER_ID, { fieldUpdates: { proposed_path_segments: newSegments } });
+    } catch (err) {
+      setNotePathSegments(domain, id, previousSegments);
       setActionError(err);
     }
   }
@@ -285,13 +350,14 @@ export default function Validation() {
                 <tr>
                   <th>Contenu de la note</th>
                   <th>Type</th>
+                  <th>Dossier proposé</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {currentPageGroups.length === 0 && (
                   <tr>
-                    <td colSpan={3}>
+                    <td colSpan={4}>
                       <div className="empty-state">
                         <div className="empty-state-title">Aucune proposition</div>
                         <div className="empty-state-text">
@@ -303,13 +369,15 @@ export default function Validation() {
                 )}
                 {currentPageGroups.map((group) => (
                   <Fragment key={`${group.domain}:${group.sourceId}`}>
-                    <SourceGroupHeader group={group} columnCount={3} />
+                    <SourceGroupHeader group={group} columnCount={4} />
                     {group.notes.map((note) => (
                       <NoteRow
                         key={`${note.domain}-${note.id}`}
                         note={note}
+                        folderOptions={folderOptionsByDomain[note.domain]}
                         onAccept={handleAccept}
                         onReject={handleRejectClick}
+                        onPathChange={handlePathChange}
                       />
                     ))}
                   </Fragment>

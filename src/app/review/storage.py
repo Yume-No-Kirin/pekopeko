@@ -42,7 +42,7 @@ REQUIRED_ASSERTION_PROVENANCE_FIELDS = [
 _COMMON_EDITABLE_FIELDS = {"body", "epistemic_status", "valid_from", "valid_until"}
 
 EDITABLE_FIELDS_BY_TYPE = {
-    "assertion": _COMMON_EDITABLE_FIELDS,
+    "assertion": _COMMON_EDITABLE_FIELDS | {"proposed_path_segments"},
     "entity": _COMMON_EDITABLE_FIELDS | {"entity_type"},
     "event": _COMMON_EDITABLE_FIELDS | {"starts_at", "ends_at"},
     "relationship": _COMMON_EDITABLE_FIELDS | {"relationship_type", "endpoints"},
@@ -81,6 +81,17 @@ def _validate_editable_fields(proposed_item_type: str, field_updates: dict[str, 
         )
 
 
+def _validate_path_segments(path_segments: list[str] | None) -> None:
+    if not path_segments:
+        return
+    for segment in path_segments:
+        if not segment or "/" in segment or segment == "..":
+            raise ValidationError(
+                f"Invalid path segment {segment!r}: must be a non-empty component "
+                "with no '/' and not equal to '..'"
+            )
+
+
 def _generate_assertion_id() -> str:
     return f"assert-{uuid.uuid4()}"
 
@@ -89,8 +100,14 @@ def proposal_path(vault_root: Path, domain: str, proposal_id: str) -> Path:
     return vault_root / domain / "proposals" / proposal_id / f"{proposal_id}.md"
 
 
-def assertion_path(vault_root: Path, domain: str, assertion_id: str) -> Path:
-    return vault_root / domain / "assertions" / assertion_id / f"{assertion_id}.md"
+def assertion_path(
+    vault_root: Path, domain: str, assertion_id: str, path_segments: list[str] | None = None
+) -> Path:
+    _validate_path_segments(path_segments)
+    base = vault_root / domain / "assertions"
+    for segment in path_segments or []:
+        base = base / segment
+    return base / assertion_id / f"{assertion_id}.md"
 
 
 def source_path(vault_root: Path, domain: str, source_id: str) -> Path:
@@ -182,11 +199,43 @@ def list_proposal_ids(vault_root: Path, domain: str) -> list[str]:
     )
 
 
-def write_assertion_file(vault_root: Path, domain: str, frontmatter: dict[str, Any], body: str) -> Path:
+def scan_organization_folders(vault_root: Path, domain: str) -> list[list[str]]:
+    """Distinct taxonomy segment names under <domain>/assertions/, grouped by depth
+    (index 0 = segments directly under assertions/, etc).
+
+    A directory named with the "assert-" prefix _generate_assertion_id produces is
+    an item's own id folder - a leaf, not a taxonomy segment, and not descended
+    into further.
+    """
+    assertions_dir = vault_root / domain / "assertions"
+    if not assertions_dir.exists():
+        return []
+    segments_by_depth: list[set[str]] = []
+
+    def _walk(directory: Path, depth: int) -> None:
+        for entry in sorted(directory.iterdir()):
+            if not entry.is_dir() or entry.name.startswith("assert-"):
+                continue
+            if len(segments_by_depth) <= depth:
+                segments_by_depth.append(set())
+            segments_by_depth[depth].add(entry.name)
+            _walk(entry, depth + 1)
+
+    _walk(assertions_dir, 0)
+    return [sorted(depth_segments) for depth_segments in segments_by_depth]
+
+
+def write_assertion_file(
+    vault_root: Path,
+    domain: str,
+    frontmatter: dict[str, Any],
+    body: str,
+    path_segments: list[str] | None = None,
+) -> Path:
     _validate_frontmatter(frontmatter, REQUIRED_ASSERTION_FIELDS)
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
 
-    path = assertion_path(vault_root, domain, frontmatter["id"])
+    path = assertion_path(vault_root, domain, frontmatter["id"], path_segments=path_segments)
     _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
     return path
 

@@ -30,6 +30,7 @@ function makeDetail({
   contentHash = "abc123",
   ingestedAt = "2026-08-25T14:20:12",
   sourceBody = "# Source\n\nTexte source complet.",
+  proposedPathSegments = [],
 } = {}) {
   return {
     id,
@@ -44,6 +45,7 @@ function makeDetail({
       valid_from: validFrom,
       valid_until: validUntil,
       provenance: { source_id: sourceId, extraction_provider: extractionProvider, ...provenanceExtra },
+      proposed_path_segments: proposedPathSegments,
     },
     body,
     source_frontmatter: { original_filename: originalFilename, content_hash: contentHash, ingested_at: ingestedAt },
@@ -51,13 +53,30 @@ function makeDetail({
   };
 }
 
-// detailsById: { id: detail }; ingestionsByDomain: { DOMAIN: [taskState, ...] };
-// proposalsByDomain: { DOMAIN: [summary, ...] } (PROPOSED/assertion queue).
-function makeFetchMock({ detailsById = {}, ingestionsByDomain = {}, proposalsByDomain = {} } = {}) {
+// detailsById: { id: detail | [detail, detailAfterRefetch] }; ingestionsByDomain: { DOMAIN: [taskState, ...] };
+// proposalsByDomain: { DOMAIN: [summary, ...] } (PROPOSED/assertion queue, same list
+// returned regardless of status query param); proposalsByDomainAndStatus:
+// { "DOMAIN:STATUS": [summary, ...] } overrides proposalsByDomain when a test needs
+// PROPOSED and EDITED to differ (TASK-013 AC16); editShouldFail makes the /edit POST
+// return a 400 instead of a success envelope.
+function makeFetchMock({
+  detailsById = {},
+  ingestionsByDomain = {},
+  proposalsByDomain = {},
+  proposalsByDomainAndStatus = {},
+  editShouldFail = false,
+  organizationFoldersByDomain = {},
+} = {}) {
   return vi.fn((url, options = {}) => {
     const parsed = new URL(url);
     const path = parsed.pathname;
     const method = options.method || "GET";
+
+    const foldersMatch = path.match(/^\/domains\/([A-Z]+)\/organization-folders$/);
+    if (foldersMatch && method === "GET") {
+      const segments_by_depth = organizationFoldersByDomain[foldersMatch[1]] || [];
+      return Promise.resolve(jsonResponse(200, { segments_by_depth }));
+    }
 
     const acceptMatch = path.match(/^\/domains\/([A-Z]+)\/proposals\/([^/]+)\/accept$/);
     if (acceptMatch && method === "POST") {
@@ -84,18 +103,41 @@ function makeFetchMock({ detailsById = {}, ingestionsByDomain = {}, proposalsByD
       );
     }
 
+    const editMatch = path.match(/^\/domains\/([A-Z]+)\/proposals\/([^/]+)\/edit$/);
+    if (editMatch && method === "POST") {
+      if (editShouldFail) {
+        return Promise.resolve(jsonResponse(400, { error: { type: "ValidationError", message: "edit rejected" } }));
+      }
+      return Promise.resolve(
+        jsonResponse(200, {
+          proposal_id: editMatch[2],
+          edited_by: "test-reviewer",
+          edited_at: "2026-09-04T00:00:00",
+          archived_version_path: "/x/history/v1.md",
+          archived_version: 1,
+        })
+      );
+    }
+
     const detailMatch = path.match(/^\/domains\/([A-Z]+)\/proposals\/([^/]+)$/);
     if (detailMatch && method === "GET") {
       const detail = detailsById[detailMatch[2]];
       if (!detail) {
         return Promise.resolve(jsonResponse(404, { error: { type: "ProposalNotFoundError", message: "not found" } }));
       }
-      return Promise.resolve(jsonResponse(200, detail));
+      const resolved = Array.isArray(detail) ? (detail.length > 1 ? detail.shift() : detail[0]) : detail;
+      return Promise.resolve(jsonResponse(200, resolved));
     }
 
     const listMatch = path.match(/^\/domains\/([A-Z]+)\/proposals$/);
     if (listMatch && method === "GET") {
-      const items = proposalsByDomain[listMatch[1]] || [];
+      const domain = listMatch[1];
+      const status = parsed.searchParams.get("status");
+      // proposalsByDomain is a PROPOSED-only fixture from before TASK-013 added the
+      // EDITED fan-out - only fall back to it for status=PROPOSED, or every fixture
+      // using it would silently double its items once for each status queried.
+      const items =
+        proposalsByDomainAndStatus[`${domain}:${status}`] || (status === "PROPOSED" ? proposalsByDomain[domain] : null) || [];
       return Promise.resolve(jsonResponse(200, { items, total: items.length, limit: 500, offset: 0 }));
     }
 
@@ -138,14 +180,14 @@ describe("ProposalDetail", () => {
     expect(screen.getByText("Direct")).toBeInTheDocument();
   });
 
-  it("AC2: renders body read-only with no textarea, save button, or edit-toggle control", async () => {
+  it("AC2: renders body read-only with no textarea or save button until Éditer is clicked", async () => {
     global.fetch = makeFetchMock({ detailsById: { p1: makeDetail({ body: "Le contenu complet de la note." }) } });
     renderDetailAtRoute("/validation/PERSONAL/p1");
 
     await screen.findByText("Le contenu complet de la note.");
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByText(/Sauvegarder/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Éditer/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Éditer/ })).toBeInTheDocument();
   });
 
   it("AC3: renders source fields and full source_body with no truncation/expand-link", async () => {
@@ -287,6 +329,212 @@ describe("ProposalDetail", () => {
 
     expect(screen.getByText(/Chargement de la proposition/)).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toHaveTextContent("Proposal not found");
+  });
+
+  it("TASK-013 AC10: clicking Éditer reveals a textarea, an epistemic-status select, and two validity inputs seeded from the current values", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: {
+        p1: makeDetail({ body: "Texte original", epistemicStatus: "uncertain", validFrom: "2026-01-01T00:00:00", validUntil: "2026-06-01T00:00:00" }),
+      },
+    });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Texte original");
+    await user.click(screen.getByRole("button", { name: /Éditer/ }));
+
+    expect(screen.getByRole("textbox", { name: "Contenu de la proposition" })).toHaveValue("Texte original");
+    expect(screen.getByRole("combobox")).toHaveValue("uncertain");
+    expect(screen.getByDisplayValue("2026-01-01T00:00:00")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("2026-06-01T00:00:00")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Sauvegarder/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Annuler/ })).toBeInTheDocument();
+  });
+
+  it("TASK-013 AC11: entering edit mode hides Rejeter/Accepter/Éditer", async () => {
+    global.fetch = makeFetchMock({ detailsById: { p1: makeDetail({ id: "p1" }) } });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    await user.click(screen.getByRole("button", { name: /Éditer/ }));
+
+    expect(screen.queryByRole("button", { name: /Rejeter/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Accepter/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Éditer/ })).not.toBeInTheDocument();
+  });
+
+  it("TASK-013 AC12: Sauvegarder calls editProposal with the draft, refetches, and exits edit mode", async () => {
+    const initial = makeDetail({ id: "p1", proposalStatus: "PROPOSED", body: "Texte original" });
+    const afterEdit = makeDetail({ id: "p1", proposalStatus: "EDITED", body: "Texte édité" });
+    global.fetch = makeFetchMock({ detailsById: { p1: [initial, afterEdit] } });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Texte original");
+    await user.click(screen.getByRole("button", { name: /Éditer/ }));
+    const textarea = screen.getByRole("textbox", { name: "Contenu de la proposition" });
+    await user.clear(textarea);
+    await user.type(textarea, "Texte édité");
+
+    global.fetch.mockClear();
+    await user.click(screen.getByRole("button", { name: /Sauvegarder/ }));
+
+    const editCall = await waitFor(() =>
+      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/edit"))
+    );
+    expect(JSON.parse(editCall[1].body)).toEqual({
+      reviewer_id: "test-reviewer",
+      body: "Texte édité",
+      field_updates: {
+        epistemic_status: "inferred",
+        valid_from: "2026-08-25T00:00:00",
+        valid_until: null,
+        proposed_path_segments: [],
+      },
+    });
+
+    await screen.findByText("Texte édité");
+    expect(screen.getByText("Éditée")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("TASK-013 AC12b: a failed save keeps edit mode open with the draft intact and shows actionError", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", body: "Texte original" }) },
+      editShouldFail: true,
+    });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Texte original");
+    await user.click(screen.getByRole("button", { name: /Éditer/ }));
+    const textarea = screen.getByRole("textbox", { name: "Contenu de la proposition" });
+    await user.clear(textarea);
+    await user.type(textarea, "Brouillon non sauvegardé");
+
+    await user.click(screen.getByRole("button", { name: /Sauvegarder/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("edit rejected");
+    expect(screen.getByRole("textbox", { name: "Contenu de la proposition" })).toHaveValue("Brouillon non sauvegardé");
+    expect(screen.getByRole("button", { name: /Sauvegarder/ })).toBeInTheDocument();
+  });
+
+  it("TASK-013 AC13: Annuler exits edit mode and discards the draft without calling editProposal", async () => {
+    global.fetch = makeFetchMock({ detailsById: { p1: makeDetail({ id: "p1", body: "Texte original" }) } });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Texte original");
+    await user.click(screen.getByRole("button", { name: /Éditer/ }));
+    const textarea = screen.getByRole("textbox", { name: "Contenu de la proposition" });
+    await user.clear(textarea);
+    await user.type(textarea, "Brouillon jeté");
+
+    global.fetch.mockClear();
+    await user.click(screen.getByRole("button", { name: /Annuler/ }));
+
+    expect(global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/edit"))).toBeUndefined();
+    expect(await screen.findByText("Texte original")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("TASK-013 AC15: Accepter/Rejeter still call acceptProposal/rejectProposal unchanged on an EDITED proposal", async () => {
+    global.fetch = makeFetchMock({ detailsById: { p1: makeDetail({ id: "p1", proposalStatus: "EDITED" }) } });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    global.fetch.mockClear();
+    await user.click(screen.getByRole("button", { name: /Accepter/ }));
+
+    const acceptCall = await waitFor(() =>
+      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/accept"))
+    );
+    expect(JSON.parse(acceptCall[1].body)).toEqual({ reviewer_id: "test-reviewer" });
+  });
+
+  it("TASK-013 AC16: merges PROPOSED and EDITED proposals into the Précédent/Suivant queue", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: {
+        p1: makeDetail({ id: "p1" }),
+        p2: makeDetail({ id: "p2", proposalStatus: "EDITED" }),
+      },
+      proposalsByDomainAndStatus: {
+        "PERSONAL:PROPOSED": [
+          { id: "p1", domain: "PERSONAL", proposal_status: "PROPOSED", proposed_item_type: "assertion", epistemic_status: "direct", created_at: "2026-08-25T01:00:00" },
+        ],
+        "PERSONAL:EDITED": [
+          { id: "p2", domain: "PERSONAL", proposal_status: "EDITED", proposed_item_type: "assertion", epistemic_status: "direct", created_at: "2026-08-25T02:00:00" },
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    expect(screen.getByRole("button", { name: /Suivant/ })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: /Suivant/ }));
+    await waitFor(() => expect(document.querySelector(".proposal-id")).toHaveTextContent("p2"));
+  });
+
+  it("TASK-014 AC18: outside edit mode renders proposed_path_segments read-only, including the empty-list case", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", proposedPathSegments: ["mythologie", "japonaise"] }) },
+    });
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    expect(screen.getByText("mythologie / japonaise")).toBeInTheDocument();
+  });
+
+  it("TASK-014 AC18: outside edit mode with no proposed_path_segments renders a placeholder without crashing", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", proposedPathSegments: [], validUntil: "2026-12-31T00:00:00" }) },
+    });
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    expect(screen.getByText("Dossier proposé")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
+  it("TASK-014 AC17: entering edit mode seeds draftPathSegments and fetches organization folders", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", proposedPathSegments: ["mythologie"] }) },
+      organizationFoldersByDomain: { PERSONAL: [["mythologie", "livres"]] },
+    });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    await user.click(screen.getByRole("button", { name: /Éditer/ }));
+
+    const foldersCall = await waitFor(() =>
+      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/organization-folders"))
+    );
+    expect(foldersCall).toBeDefined();
+    expect(screen.getByRole("button", { name: /mythologie/ })).toBeInTheDocument();
+  });
+
+  it("TASK-014 AC17: Sauvegarder includes proposed_path_segments in field_updates alongside the existing three fields", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", proposedPathSegments: ["mythologie"] }) },
+    });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    await user.click(screen.getByRole("button", { name: /Éditer/ }));
+    await screen.findByRole("button", { name: /mythologie/ });
+
+    global.fetch.mockClear();
+    await user.click(screen.getByRole("button", { name: /Sauvegarder/ }));
+
+    const editCall = await waitFor(() =>
+      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/edit"))
+    );
+    expect(JSON.parse(editCall[1].body).field_updates.proposed_path_segments).toEqual(["mythologie"]);
   });
 });
 

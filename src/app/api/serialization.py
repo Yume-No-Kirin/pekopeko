@@ -124,6 +124,16 @@ def reject_result_to_dict(result) -> Dict[str, Any]:
     return asdict(result)
 
 
+def edit_result_to_dict(result) -> Dict[str, Any]:
+    data = asdict(result)
+    data["archived_version_path"] = str(result.archived_version_path)
+    return data
+
+
+def organization_folders_to_dict(segments_by_depth) -> Dict[str, Any]:
+    return {"segments_by_depth": segments_by_depth}
+
+
 def config_to_dict(cfg) -> Dict[str, Any]:
     data = asdict(cfg)
     data["retrieval"]["index_dir"] = str(cfg.retrieval.index_dir)

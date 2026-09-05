@@ -976,6 +976,23 @@ body {
   cursor: not-allowed;
 }
 
+.btn-edit {
+  background: #fff;
+  color: #666;
+  border-color: #ddd;
+}
+
+.btn-edit:hover {
+  background: #f5f5f5;
+  border-color: #999;
+  color: #333;
+}
+
+.btn-small {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
 .two-column {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1015,6 +1032,42 @@ body {
   line-height: 1.7;
   color: #333;
   min-height: 100px;
+}
+
+.content-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.content-textarea:focus {
+  outline: none;
+  border-color: #333;
+}
+
+.edit-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.metadata-edit-select,
+.metadata-edit-input {
+  padding: 6px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.metadata-edit-input {
+  width: 160px;
 }
 
 .metadata-table {
@@ -1069,4 +1122,215 @@ body {
   line-height: 1.6;
   color: #333;
   white-space: pre-wrap;
+}
+
+/* TASK-014: folder-path organization builder. Ported from
+   pekopeko-proposal-detail.html:531-633 (the reference block - ProposalDetail.jsx
+   is the primary editable consumer; Validation.jsx's read-only rendering needs no
+   dropdown/hover states, so pekopeko-workflow.html's denser table-cell variant is
+   not used). `.folder-dropdown-create-form` has no mockup equivalent - both
+   mockups use window.prompt() where this app uses a small inline input instead,
+   styled after the existing `.modal-textarea`/`.filter-select` inputs above. */
+.folder-path-builder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.folder-path-builder.read-only {
+  font-size: 14px;
+  color: #333;
+}
+
+.folder-segment {
+  position: relative;
+  display: inline-block;
+}
+
+.folder-segment-btn {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  cursor: pointer;
+}
+
+.folder-segment-btn:hover {
+  border-color: #999;
+}
+
+.folder-segment-btn.active {
+  background: #333;
+  color: #fff;
+  border-color: #333;
+}
+
+.folder-segment-btn span {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.folder-separator {
+  color: #999;
+  font-size: 14px;
+}
+
+.folder-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.folder-dropdown.active {
+  display: block;
+}
+
+.folder-dropdown-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.folder-dropdown-item:hover {
+  background: #f5f5f5;
+}
+
+.folder-dropdown-item.create-new {
+  color: #2e7d32;
+  font-weight: 600;
+  border-top: 1px solid #e0e0e0;
+}
+
+.folder-add-btn {
+  padding: 6px 12px;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+  background: none;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.folder-add-btn:hover {
+  border-color: #2e7d32;
+  color: #2e7d32;
+}
+
+.folder-dropdown-create-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+}
+
+.folder-dropdown-create-form input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.folder-segment-btn {
+  touch-action: none;
+}
+
+.folder-segment.dragging .folder-segment-btn {
+  cursor: grabbing;
+  background: #cfe0ff;
+  border-color: #5b7fd6;
+  color: #1a3a8f;
+}
+
+/* TASK-014 amendment (2026-09-05): Validation.jsx's "Dossier proposé" column
+   is a table cell, not a metadata row - it needs pekopeko-workflow.html's
+   denser table-cell skin (bordered container, monospace, grey pill buttons)
+   rather than the borderless pekopeko-proposal-detail.html skin above, which
+   stays the default for ProposalDetail.jsx's metadata-row context. Ported
+   from pekopeko-workflow.html:391-505, scoped under `.folder-cell` (the `<td>`
+   class Validation.jsx already wraps FolderPathBuilder in) so it only
+   overrides the table context. */
+.folder-cell {
+  min-width: 320px;
+}
+
+.folder-cell .folder-path-builder {
+  padding: 6px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: #fff;
+  min-height: 36px;
+}
+
+.folder-cell .folder-segment-btn {
+  padding: 4px 8px;
+  background: #f0f0f0;
+  border: 1px solid #d0d0d0;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+}
+
+.folder-cell .folder-segment-btn:hover {
+  background: #e0e0e0;
+  border-color: #999;
+}
+
+.folder-cell .folder-separator {
+  font-size: 12px;
+  margin: 0 2px;
+}
+
+.folder-cell .folder-add-btn {
+  padding: 4px 8px;
+  background: #fff;
+  border: 1px dashed #999;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #666;
+}
+
+.folder-cell .folder-add-btn:hover {
+  background: #f8f8f8;
+  border-color: #333;
+  color: #333;
+}
+
+.folder-cell .folder-dropdown {
+  margin-top: 4px;
+  border-color: #d0d0d0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.folder-cell .folder-dropdown-item {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+}
+
+.folder-cell .folder-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.folder-cell .folder-dropdown-item:hover {
+  background: #f8f8f8;
+}
+
+.folder-cell .folder-dropdown-item.create-new:hover {
+  background: #e8f5e9;
 }

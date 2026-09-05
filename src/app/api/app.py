@@ -18,6 +18,7 @@ from ..review.errors import (
     InvalidProposalStatusError,
     ProposalNotFoundError,
     SourceNotFoundError,
+    UneditableFieldError,
     UnsupportedProposalTypeError,
 )
 from ..review.errors import ValidationError as ReviewValidationError
@@ -40,6 +41,7 @@ ERROR_STATUS_MAP = {
     SourceNotFoundError: 404,
     DomainMismatchError: 400,
     InvalidProposalStatusError: 409,
+    UneditableFieldError: 400,
     UnsupportedProposalTypeError: 422,
     ConfigError: 500,
 }

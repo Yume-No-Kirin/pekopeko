@@ -24,6 +24,7 @@ from src.app.ingestion import (
     write_proposal_file
 )
 from src.app.ingestion.providers.base import ExtractedAssertion, ExtractionResult
+from src.app.ingestion.storage import scan_existing_assertion_folders, scan_proposed_path_segments
 
 
 def test_import_isolation():
@@ -388,6 +389,170 @@ def test_fake_provider_yields_null_model_temperature():
         assert provenance['provider_temperature'] is None
 
         print("✓ Fake provider without model/temperature yields null, no exception")
+
+
+def _read_proposal_frontmatter(vault_root: Path, domain: str, proposal_id: str) -> dict:
+    """Read back a written Proposal file's full frontmatter dict."""
+    proposal_path = vault_root / domain / "proposals" / proposal_id / f"{proposal_id}.md"
+    content = proposal_path.read_text()
+    return yaml.safe_load(content.split('---')[1])
+
+
+def test_extracted_assertion_defaults_to_empty_path_segments():
+    """TASK-001e AC1: proposed_path_segments defaults to [] when not supplied."""
+    assertion = ExtractedAssertion(text="Fact", epistemic_status="direct")
+    assert assertion.proposed_path_segments == []
+
+
+def test_proposal_frontmatter_always_has_proposed_path_segments():
+    """TASK-001e AC8: written Proposal frontmatter always has proposed_path_segments as a
+    list, whether or not the assertion carried one, never omitted/None."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault_root = Path(tmpdir) / "vault"
+        source_file = Path(tmpdir) / "test.md"
+
+        with open(source_file, 'w') as f:
+            f.write("# Test Document\n\nThis is a test.")
+
+        provider = Mock()
+        provider.extract.return_value = ExtractionResult(
+            assertions=[
+                ExtractedAssertion(
+                    text="Fact A", epistemic_status="direct",
+                    proposed_path_segments=["mythologie", "japonaise"]
+                ),
+                ExtractedAssertion(text="Fact B", epistemic_status="direct"),
+            ]
+        )
+
+        result = ingest_source(
+            vault_root=vault_root,
+            domain="PERSONAL",
+            source_path=source_file,
+            provider=provider
+        )
+
+        assert result.status == "completed"
+        assert len(result.proposal_ids) == 2
+
+        frontmatter_with_path = _read_proposal_frontmatter(vault_root, "PERSONAL", result.proposal_ids[0])
+        frontmatter_without_path = _read_proposal_frontmatter(vault_root, "PERSONAL", result.proposal_ids[1])
+
+        assert frontmatter_with_path['proposed_path_segments'] == ["mythologie", "japonaise"]
+        assert frontmatter_without_path['proposed_path_segments'] == []
+
+        print("✓ proposed_path_segments always present as a list in written frontmatter")
+
+
+def test_scan_existing_assertion_folders_empty_when_missing(tmp_path):
+    assert scan_existing_assertion_folders(tmp_path, "FICTION") == []
+
+
+def test_scan_existing_assertion_folders_returns_full_paths(tmp_path):
+    base = tmp_path / "FICTION" / "assertions"
+    (base / "mythologie" / "japonaise" / "assert-abc123").mkdir(parents=True)
+    (base / "geographie").mkdir(parents=True)
+
+    result = scan_existing_assertion_folders(tmp_path, "FICTION")
+
+    assert sorted(result) == ["geographie", "mythologie", "mythologie/japonaise"]
+
+
+def _write_raw_proposal(proposals_dir: Path, proposal_id: str, frontmatter: dict, body: str = "Body."):
+    proposal_dir = proposals_dir / proposal_id
+    proposal_dir.mkdir(parents=True)
+    yaml_content = yaml.dump(frontmatter, default_flow_style=False, allow_unicode=True)
+    (proposal_dir / f"{proposal_id}.md").write_text(
+        f"---\n{yaml_content}---\n\n{body}", encoding="utf-8"
+    )
+
+
+def test_scan_proposed_path_segments_empty_when_missing(tmp_path):
+    assert scan_proposed_path_segments(tmp_path, "FICTION") == []
+
+
+def test_scan_proposed_path_segments_filters_by_status(tmp_path):
+    proposals_dir = tmp_path / "FICTION" / "proposals"
+    _write_raw_proposal(proposals_dir, "prop-proposed", {
+        "proposal_status": "PROPOSED", "proposed_path_segments": ["mythologie", "kitsune"]
+    })
+    _write_raw_proposal(proposals_dir, "prop-edited", {
+        "proposal_status": "EDITED", "proposed_path_segments": ["geographie"]
+    })
+    _write_raw_proposal(proposals_dir, "prop-accepted", {
+        "proposal_status": "ACCEPTED", "proposed_path_segments": ["should", "not", "appear"]
+    })
+    _write_raw_proposal(proposals_dir, "prop-rejected", {
+        "proposal_status": "REJECTED", "proposed_path_segments": ["also", "excluded"]
+    })
+
+    result = scan_proposed_path_segments(tmp_path, "FICTION")
+
+    assert sorted(result) == ["geographie", "mythologie/kitsune"]
+
+
+def test_scan_proposed_path_segments_ignores_missing_or_empty_segments(tmp_path):
+    proposals_dir = tmp_path / "FICTION" / "proposals"
+    _write_raw_proposal(proposals_dir, "prop-none", {"proposal_status": "PROPOSED"})
+    _write_raw_proposal(proposals_dir, "prop-empty", {
+        "proposal_status": "PROPOSED", "proposed_path_segments": []
+    })
+
+    assert scan_proposed_path_segments(tmp_path, "FICTION") == []
+
+
+def test_scan_proposed_path_segments_ignores_malformed_proposal_file(tmp_path):
+    # A file with no frontmatter block, and one with invalid YAML, must not break
+    # the scan for the other, well-formed proposals.
+    proposals_dir = tmp_path / "FICTION" / "proposals"
+    (proposals_dir / "prop-no-frontmatter").mkdir(parents=True)
+    (proposals_dir / "prop-no-frontmatter" / "prop-no-frontmatter.md").write_text(
+        "Just a body, no frontmatter at all.", encoding="utf-8"
+    )
+    (proposals_dir / "prop-bad-yaml").mkdir(parents=True)
+    (proposals_dir / "prop-bad-yaml" / "prop-bad-yaml.md").write_text(
+        "---\nkey: [unclosed\n---\n\nBody.", encoding="utf-8"
+    )
+    _write_raw_proposal(proposals_dir, "prop-good", {
+        "proposal_status": "PROPOSED", "proposed_path_segments": ["mythologie"]
+    })
+
+    assert scan_proposed_path_segments(tmp_path, "FICTION") == ["mythologie"]
+
+
+def test_scan_proposed_path_segments_dedupes(tmp_path):
+    proposals_dir = tmp_path / "FICTION" / "proposals"
+    _write_raw_proposal(proposals_dir, "prop-a", {
+        "proposal_status": "PROPOSED", "proposed_path_segments": ["mythologie", "kitsune"]
+    })
+    _write_raw_proposal(proposals_dir, "prop-b", {
+        "proposal_status": "EDITED", "proposed_path_segments": ["mythologie", "kitsune"]
+    })
+
+    assert scan_proposed_path_segments(tmp_path, "FICTION") == ["mythologie/kitsune"]
+
+
+def test_ingest_source_passes_vault_root_and_domain_to_provider_context():
+    # 2026-09-04 amendment: OllamaProvider needs vault_root/domain in context to scan
+    # existing folders for its mandatory path-proposal call.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault_root = Path(tmpdir) / "vault"
+        source_file = Path(tmpdir) / "test.md"
+        with open(source_file, 'w') as f:
+            f.write("# Test Document\n\nThis is a test.")
+
+        provider = Mock()
+        provider.extract.return_value = ExtractionResult(
+            assertions=[ExtractedAssertion(text="Fact", epistemic_status="direct")]
+        )
+
+        ingest_source(vault_root=vault_root, domain="PERSONAL", source_path=source_file, provider=provider)
+
+        context = provider.extract.call_args.args[1]
+        assert context["vault_root"] == vault_root
+        assert context["domain"] == "PERSONAL"
+
+        print("✓ ingest_source passes vault_root/domain to provider.extract's context")
 
 
 def test_ingest_source_signature_unchanged():
@@ -777,6 +942,11 @@ if __name__ == "__main__":
     test_extraction_id_shared_within_call_differs_across_calls()
     test_extraction_duration_recorded()
     test_fake_provider_yields_null_model_temperature()
+    test_extracted_assertion_defaults_to_empty_path_segments()
+    test_proposal_frontmatter_always_has_proposed_path_segments()
+    # test_scan_existing_assertion_folders_* use the pytest tmp_path fixture -
+    # pytest-only, not callable from this manual __main__ runner.
+    test_ingest_source_passes_vault_root_and_domain_to_provider_context()
     test_ingest_source_signature_unchanged()
 
     for _test_fn in (

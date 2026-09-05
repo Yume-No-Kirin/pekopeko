@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { listProposals, getProposal, acceptProposal, rejectProposal } from "./review.js";
+import {
+  listProposals,
+  getProposal,
+  acceptProposal,
+  rejectProposal,
+  editProposal,
+  listOrganizationFolders,
+} from "./review.js";
 
 function jsonResponse(body) {
   return { ok: true, status: 200, json: async () => body };
@@ -57,5 +64,40 @@ describe("review api wrapper", () => {
 
     const [, options] = global.fetch.mock.calls[0];
     expect(JSON.parse(options.body)).toEqual({ reviewer_id: "cleo", reason: null });
+  });
+
+  it("editProposal posts reviewer_id, body, and field_updates to the edit endpoint", async () => {
+    await editProposal("PERSONAL", "p1", "cleo", {
+      body: "New text",
+      fieldUpdates: { epistemic_status: "inferred", valid_from: "2026-09-01T00:00:00", valid_until: null },
+    });
+
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(new URL(url).pathname).toBe("/domains/PERSONAL/proposals/p1/edit");
+    expect(JSON.parse(options.body)).toEqual({
+      reviewer_id: "cleo",
+      body: "New text",
+      field_updates: { epistemic_status: "inferred", valid_from: "2026-09-01T00:00:00", valid_until: null },
+    });
+  });
+
+  it("editProposal sends body: null and field_updates: null when neither is given", async () => {
+    await editProposal("PERSONAL", "p1", "cleo");
+
+    const [, options] = global.fetch.mock.calls[0];
+    expect(JSON.parse(options.body)).toEqual({ reviewer_id: "cleo", body: null, field_updates: null });
+  });
+
+  it("TASK-014 AC13: listOrganizationFolders GETs the organization-folders endpoint with item_type", async () => {
+    const envelope = { segments_by_depth: [["mythologie", "livres"], ["japonaise"]] };
+    global.fetch.mockResolvedValue(jsonResponse(envelope));
+
+    const result = await listOrganizationFolders("PERSONAL", "assertion");
+
+    const [url] = global.fetch.mock.calls[0];
+    const parsed = new URL(url);
+    expect(parsed.pathname).toBe("/domains/PERSONAL/organization-folders");
+    expect(parsed.searchParams.get("item_type")).toBe("assertion");
+    expect(result).toEqual(envelope);
   });
 });

@@ -1,6 +1,6 @@
 # TASK-013: Proposal Edit Mode — API Endpoint and Frontend (V1)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -304,3 +304,133 @@ Frontend:
   TASK-010/TASK-011/TASK-012.
 - Any change to `review/edit_proposal`'s signature, the `history/` mechanism, or
   `EDITABLE_FIELDS_BY_TYPE` — TASK-006 is not reopened.
+
+## Implementation notes (2026-09-04)
+
+Implemented exactly as scoped, with no deviation from the ticket's own literal code snippets:
+
+- **Backend**: `src/app/api/routes_review.py` gains the `edit` route (imports `edit_proposal`
+  alongside the existing pipeline imports); `src/app/api/serialization.py` gains
+  `edit_result_to_dict`; `src/app/api/app.py` imports `UneditableFieldError` and maps it to `400`
+  in `ERROR_STATUS_MAP`. No file under `src/app/review/` touched.
+- **Frontend**: `editProposal` added to `api/review.js`. `ProposalDetail.jsx` gains `editing`
+  state plus four draft fields, a "✎ Éditer" button in `.action-buttons` (same unconditional
+  visibility Accepter/Rejeter already had — no new status gating invented), and swaps the content
+  card / `epistemic_status` row / `valid_from`+`valid_until` row for a textarea / select / two text
+  inputs while editing. `Validation.jsx` and `ProposalDetail.jsx`'s queue effect now fan out a
+  second `listProposals(..., {status: "EDITED"})` call in parallel with the existing `PROPOSED`
+  one and concatenate before the `proposed_item_type === "assertion"` filter.
+- **Deviation (minor, additive only)**: the ticket ported `.editable-content`/`.content-edit`/
+  `.content-textarea`/`.edit-actions`/`.btn-small` from the mockup for visual precedent, but the
+  mockup's `.editable-content`/`.content-edit` pair only exists to implement the mockup's
+  vanilla-JS `classList` show/hide toggle. Since React's conditional rendering already replaces
+  that toggle mechanism, those two wrapper classes were not ported (nothing would ever read them);
+  `.content-textarea`/`.edit-actions`/`.btn-small` were ported as specified. The status-bar "✎
+  Éditer" toggle button (moved out of the mockup's section-header context into
+  `.action-buttons`, per the ticket's own explicit instruction) uses a new `.btn-edit` class
+  styled consistently with the existing `.btn-nav` neutral button, rather than reusing the
+  mockup's section-header-scoped `.edit-toggle` class (which carries an unused `.active` state
+  this implementation has no use for). New `.metadata-edit-select`/`.metadata-edit-input` classes
+  were added for the metadata form controls, matching the ticket's "no mockup precedent" framing
+  for that part. For accessibility and test-query precision (the two `valid_from`/`valid_until`
+  text inputs and the content textarea all share the generic `textbox` ARIA role), the textarea
+  and both validity inputs carry `aria-label`s tied to their existing visible row labels — no
+  visible UI change.
+- Tests: `src/tests/api/test_review_routes.py` gained 6 new cases (success, missing
+  `reviewer_id`, disallowed field, non-PROPOSED/EDITED status, domain mismatch, empty
+  body+field_updates) mirroring the existing accept/reject test shapes exactly, using the same
+  `client`/`auth_headers`/`make_proposal_file` fixtures. `frontend/src/api/review.test.js` gained
+  2 cases for `editProposal`. `frontend/src/pages/ProposalDetail.test.jsx`'s `makeFetchMock`
+  gained an `/edit` POST branch, an EDITED-vs-PROPOSED status-aware list branch, and a
+  detail-fixture-as-array mode (sequential responses, for asserting the post-save refetch); its
+  old AC2 ("no textarea/save/edit-toggle ever rendered") was rewritten since it directly
+  contradicted the new feature — it now asserts the Éditer button is present and the edit
+  controls are absent until clicked. 7 new tests added (AC10-13, AC15, AC16) plus an update to
+  AC2. `frontend/src/pages/Validation.test.jsx`'s `makeFetchMock` gained the same status-aware
+  list branch; one new test (AC16) confirms a PROPOSED and an EDITED proposal both render in the
+  merged queue.
+
+## Verification record (2026-09-04)
+
+Implemented and verified by Claude (this session). Per this project's verification discipline,
+code was copied to an isolated location outside the repo
+(`%TEMP%/claude/.../scratchpad/task013_verify/`, both `src/` and `frontend/` — the latter's
+`node_modules` linked via a filesystem junction rather than reinstalled) and every check below was
+re-run there independently, not just trusted from the in-repo run.
+
+- In-repo: `pytest src/tests/api/` 103/103 pass; `pytest src/tests/review/` 101/101 pass
+  (untouched module, regression check). Isolated copy: identical, 103/103 and 101/101.
+- Coverage (isolated copy, `--cov` on the three touched files):
+  `routes_review.py` 100%, `serialization.py` 100%, `app.py` 93% (4 missed lines are pre-existing
+  `main()`/OPTIONS-check lines, untouched by this ticket) — all comfortably above the 80% bar.
+- `pytest src/tests/ingestion/` (regression, unrelated module): 60/62 pass in-repo, same 2
+  pre-existing failures already documented in `docs/ROADMAP.md`'s "État actuel" (unrelated to this
+  ticket, not introduced by it — this ticket touches no file under `ingestion/`).
+- Frontend: `npx vitest run` 66/66 pass in-repo and, identically, in the isolated copy.
+  `--coverage`: `review.js` 100%, `ProposalDetail.jsx` 98.11%, `Validation.jsx` 96.51% — all above
+  the 80% bar. `npm run build` (via `vite build`) succeeds identically in both locations.
+- `grep -rn "fetch(" frontend/src` (excluding `*.test.*` and `api/client.js`) returns nothing —
+  no new direct `fetch()` call outside the wrapper module.
+- Manual end-to-end reproduction (isolated copy, outside pytest): a hand-built `PROPOSED`
+  assertion proposal + source file written directly to a temp vault, then driven through Flask's
+  `test_client()`. Inspected by eye: the live proposal file after the edit call (new body,
+  `proposal_status: EDITED`, `epistemic_status`/`valid_from`/`valid_until` updated,
+  `edited_by`/`edited_at` set, `created_at`/`id`/`domain`/`provenance` unchanged); the `history/`
+  snapshot file (`lifecycle_status: SUPERSEDED`, `superseded_by: v2`, original pre-edit body byte
+  for byte); the HTTP response JSON shape (`proposal_id`, `edited_by`, `edited_at`,
+  `archived_version_path` as a string, `archived_version: 1`); a follow-up `GET` reflecting all of
+  the above; and a `field_updates: {"id": "..."}` call correctly rejected with `400
+  UneditableFieldError`. All matched the ticket's contract exactly.
+
+Acceptance criteria checked one by one:
+
+- `[PASS]` AC1 (route exists, requires `reviewer_id`, missing/empty → 400) —
+  `test_edit_missing_reviewer_id_returns_400`; manual repro's successful call supplied
+  `reviewer_id` and succeeded.
+- `[PASS]` AC2 (valid call returns 200 with the exact result shape) —
+  `test_edit_proposed_assertion_returns_200_and_updates_file`; manual repro's JSON response
+  inspected by eye matches `{proposal_id, edited_by, edited_at, archived_version_path,
+  archived_version}` exactly.
+- `[PASS]` AC3 (disallowed `field_updates` key → 400 `UneditableFieldError`) —
+  `test_edit_disallowed_field_returns_400`; manual repro's `{"id": "hacked-id"}` case.
+- `[PASS]` AC4 (non-`PROPOSED`/`EDITED` status → 409) —
+  `test_edit_non_proposed_or_edited_returns_409` (fixture status `ACCEPTED`).
+- `[PASS]` AC5 (domain mismatch → 400 `DomainMismatchError`) —
+  `test_edit_domain_mismatch_returns_400`, same `internal_domain` fixture pattern as the existing
+  `test_error_mapping.py` case for accept/reject.
+- `[PASS]` AC6 (empty `body`+`field_updates` → 400 `ValidationError`) —
+  `test_edit_empty_body_and_field_updates_returns_400`.
+- `[PASS]` AC7 (successful edit verified end-to-end: GET reflects new fields, `history/` snapshot
+  exists on disk) — `test_edit_proposed_assertion_returns_200_and_updates_file` asserts both the
+  POST response and a follow-up GET; manual repro additionally inspected the `history/` file's
+  full content by eye.
+- `[PASS]` AC8 (route follows `/accept`/`/reject` conventions exactly: `_check_domain`,
+  `request.get_json(silent=True) or {}`, `jsonify(...), 200`) — confirmed by direct code
+  comparison against the existing `accept`/`reject` handlers in the same file.
+- `[PASS]` AC9 (`editProposal` POSTs the `{reviewer_id, body, field_updates}` shape) —
+  `review.test.js`'s two new `editProposal` tests (with and without `body`/`fieldUpdates`).
+- `[PASS]` AC10 (Éditer toggle reveals a seeded textarea/select/two text inputs, no other field
+  becomes editable) — `ProposalDetail.test.jsx`'s "TASK-013 AC10" test.
+- `[PASS]` AC11 (editing hides Rejeter/Accepter/Éditer, shows Sauvegarder/Annuler) — "TASK-013
+  AC11" test.
+- `[PASS]` AC12 (Sauvegarder calls `editProposal` with the draft, refetches, exits edit mode;
+  failure surfaces via `actionError` and keeps edit mode+draft) — "TASK-013 AC12"/"AC12b" tests.
+- `[PASS]` AC13 (Annuler exits edit mode, discards the draft, no API call) — "TASK-013 AC13" test.
+- `[PASS]` AC14 (after a successful edit, "Éditée"/`.proposal-status-badge.EDITED` renders) —
+  covered by "TASK-013 AC12"'s assertion on `screen.getByText("Éditée")`; no new code needed, per
+  the ticket's own prediction.
+- `[PASS]` AC15 (Accepter/Rejeter unchanged on an `EDITED` proposal) — "TASK-013 AC15" test.
+- `[PASS]` AC16 (PROPOSED+EDITED merge into the queue, both `Validation.jsx` and
+  `ProposalDetail.jsx`) — "TASK-013 AC16" tests in both suites, using a status-aware
+  `listProposals` mock.
+- `[PASS]` AC17 (no entity/event/relationship gains an edit affordance) — by construction:
+  `Validation.jsx` only ever links to assertion-type proposals (its `summaries` are filtered to
+  `proposed_item_type === "assertion"` before any `Détails` link is built), so a non-assertion
+  proposal is unreachable through the normal UI flow — same precedent already established by
+  TASK-011 for Accepter/Rejeter, which this ticket does not change.
+- `[PASS]` AC18 (no file under `src/` modified by the frontend half) — confirmed via `git status
+  --porcelain`; the only `src/` changes are the backend half (`src/app/api/`, `src/tests/api/`),
+  not the frontend half.
+
+Limitation, consistent with every prior ticket in this project: verification was performed by the
+same session that implemented the ticket, not by a second independent reviewer.

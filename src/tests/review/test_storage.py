@@ -256,3 +256,70 @@ def test_proposal_edit_lock_release_swallows_remove_error(tmp_path, monkeypatch)
 
     with storage.proposal_edit_lock(tmp_path, "PERSONAL", "prop-1"):
         pass
+
+
+# TASK-014: folder-path organization (assertion-only)
+
+def test_assertion_path_no_segments_matches_current_behavior(tmp_path):
+    assert storage.assertion_path(tmp_path, "PERSONAL", "assert-1") == (
+        tmp_path / "PERSONAL" / "assertions" / "assert-1" / "assert-1.md"
+    )
+    assert storage.assertion_path(tmp_path, "PERSONAL", "assert-1", path_segments=[]) == (
+        tmp_path / "PERSONAL" / "assertions" / "assert-1" / "assert-1.md"
+    )
+    assert storage.assertion_path(tmp_path, "PERSONAL", "assert-1", path_segments=None) == (
+        tmp_path / "PERSONAL" / "assertions" / "assert-1" / "assert-1.md"
+    )
+
+
+def test_assertion_path_with_segments_inserts_between_assertions_and_id(tmp_path):
+    assert storage.assertion_path(tmp_path, "PERSONAL", "assert-1", path_segments=["a", "b"]) == (
+        tmp_path / "PERSONAL" / "assertions" / "a" / "b" / "assert-1" / "assert-1.md"
+    )
+
+
+def test_validate_path_segments_accepts_empty_or_none():
+    storage._validate_path_segments(None)
+    storage._validate_path_segments([])
+
+
+def test_validate_path_segments_rejects_slash():
+    with pytest.raises(ValidationError):
+        storage._validate_path_segments(["a/b"])
+
+
+def test_validate_path_segments_rejects_dotdot():
+    with pytest.raises(ValidationError):
+        storage._validate_path_segments([".."])
+
+
+def test_validate_path_segments_rejects_empty_segment():
+    with pytest.raises(ValidationError):
+        storage._validate_path_segments([""])
+
+
+def test_editable_fields_by_type_assertion_scoped_only():
+    assert "proposed_path_segments" in storage.EDITABLE_FIELDS_BY_TYPE["assertion"]
+    assert "proposed_path_segments" not in storage._COMMON_EDITABLE_FIELDS
+    assert "proposed_path_segments" not in storage.EDITABLE_FIELDS_BY_TYPE["entity"]
+    assert "proposed_path_segments" not in storage.EDITABLE_FIELDS_BY_TYPE["event"]
+    assert "proposed_path_segments" not in storage.EDITABLE_FIELDS_BY_TYPE["relationship"]
+
+
+def test_scan_organization_folders_empty_domain(tmp_path):
+    assert storage.scan_organization_folders(tmp_path, "PERSONAL") == []
+
+
+def test_scan_organization_folders_multi_depth_excludes_assert_prefix(tmp_path):
+    assertions_dir = tmp_path / "PERSONAL" / "assertions"
+    (assertions_dir / "mythologie" / "japonaise" / "assert-1").mkdir(parents=True)
+    (assertions_dir / "mythologie" / "histoire" / "assert-2").mkdir(parents=True)
+    (assertions_dir / "livres" / "assert-3").mkdir(parents=True)
+    (assertions_dir / "assert-4").mkdir(parents=True)
+
+    result = storage.scan_organization_folders(tmp_path, "PERSONAL")
+
+    assert result == [
+        ["livres", "mythologie"],
+        ["histoire", "japonaise"],
+    ]

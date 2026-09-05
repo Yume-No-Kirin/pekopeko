@@ -74,6 +74,66 @@ def _validate_frontmatter(frontmatter: Dict[str, Any], required_fields: list[str
         raise ValueError(f"Missing required frontmatter fields: {missing_fields}")
 
 
+def scan_existing_assertion_folders(vault_root: Path, domain: str) -> list[str]:
+    """Full existing folder paths already used under <domain>/assertions/ (canonical,
+    accepted items only) - context for a provider proposing a new, consistent path.
+    Independent reimplementation of review/storage.py's scan_organization_folders
+    (module-independence discipline, TASK-002) - returns full "/"-joined paths rather
+    than depth-grouped segment names, since that's what a path-proposal prompt needs.
+    """
+    assertions_dir = vault_root / domain / "assertions"
+    if not assertions_dir.exists():
+        return []
+    paths: list[str] = []
+
+    def _walk(directory: Path, prefix: list[str]) -> None:
+        for entry in sorted(directory.iterdir()):
+            if not entry.is_dir() or entry.name.startswith("assert-"):
+                continue
+            new_prefix = prefix + [entry.name]
+            paths.append("/".join(new_prefix))
+            _walk(entry, new_prefix)
+
+    _walk(assertions_dir, [])
+    return paths
+
+
+def _read_frontmatter(path: Path) -> Dict[str, Any]:
+    """Best-effort YAML frontmatter read for a Proposal file - returns {} for a file
+    with no frontmatter block, never raises on a malformed one (a single bad Proposal
+    file must not break a folder-path scan, same posture already established for
+    review/'s list_proposals)."""
+    content = path.read_text(encoding='utf-8')
+    parts = content.split('---', 2)
+    if len(parts) < 3:
+        return {}
+    return yaml.safe_load(parts[1]) or {}
+
+
+def scan_proposed_path_segments(vault_root: Path, domain: str) -> list[str]:
+    """Full path strings already proposed by not-yet-accepted Proposals
+    (proposal_status PROPOSED or EDITED) under <domain>/proposals/ - context so a
+    provider's new path proposal reuses the same folder a previously-ingested, still
+    unreviewed note already suggested, rather than inventing a new spelling for the
+    same concept (ADI-015, amends ADI-014).
+    """
+    proposals_dir = vault_root / domain / "proposals"
+    if not proposals_dir.exists():
+        return []
+    paths: set[str] = set()
+    for proposal_file in proposals_dir.glob("*/*.md"):
+        try:
+            frontmatter = _read_frontmatter(proposal_file)
+        except (OSError, yaml.YAMLError):
+            continue
+        if frontmatter.get('proposal_status') not in ('PROPOSED', 'EDITED'):
+            continue
+        segments = frontmatter.get('proposed_path_segments')
+        if segments:
+            paths.add('/'.join(segments))
+    return sorted(paths)
+
+
 def write_source_file(
     vault_root: Path,
     domain: str,
@@ -168,6 +228,7 @@ def write_proposal_file(
         'proposal_status': 'PROPOSED',
         'proposed_item_type': 'assertion',
         'epistemic_status': assertion.epistemic_status,
+        'proposed_path_segments': assertion.proposed_path_segments,
         'created_at': current_time.isoformat(),
         'valid_from': current_time.isoformat(),
         'valid_until': None,

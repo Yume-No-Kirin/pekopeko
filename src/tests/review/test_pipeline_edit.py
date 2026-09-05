@@ -311,3 +311,33 @@ def test_edit_proposal_live_overwrite_failure_leaves_archived_snapshot_and_pre_e
     assert len(list(history_dir.glob("*--v1.md"))) == 1
     assert list(proposal_file.parent.glob("*.tmp")) == []
     assert proposal_file.read_text(encoding="utf-8") == original_content
+
+
+# TASK-014: folder-path organization (assertion-only)
+
+def test_edit_proposal_field_update_assertion_proposed_path_segments(tmp_path, make_proposal_file):
+    proposal_id, proposal_file = make_proposal_file(domain="PERSONAL")
+
+    pipeline.edit_proposal(
+        tmp_path, "PERSONAL", proposal_id, "editor-1",
+        field_updates={"proposed_path_segments": ["a", "b"]},
+    )
+
+    live_frontmatter, _ = parse_frontmatter(proposal_file.read_text(encoding="utf-8"))
+    assert live_frontmatter["proposed_path_segments"] == ["a", "b"]
+    history_dir = storage.proposal_history_dir(tmp_path, "PERSONAL", proposal_id)
+    assert len(list(history_dir.glob("*--v1.md"))) == 1
+
+
+def test_edit_proposal_proposed_path_segments_uneditable_for_non_assertion(tmp_path, make_entity_proposal_file):
+    proposal_id, proposal_file = make_entity_proposal_file(domain="PERSONAL")
+    original_content = proposal_file.read_text(encoding="utf-8")
+
+    with pytest.raises(UneditableFieldError):
+        pipeline.edit_proposal(
+            tmp_path, "PERSONAL", proposal_id, "editor-1",
+            field_updates={"proposed_path_segments": ["a"]},
+        )
+
+    assert proposal_file.read_text(encoding="utf-8") == original_content
+    assert not storage.proposal_history_dir(tmp_path, "PERSONAL", proposal_id).exists()

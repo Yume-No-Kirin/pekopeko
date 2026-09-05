@@ -219,3 +219,36 @@ def test_accept_already_edited_then_accepted_proposal_raises_on_second_accept(tm
 
     with pytest.raises(InvalidProposalStatusError):
         pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-2")
+
+
+# TASK-014: folder-path organization (assertion-only)
+
+def test_accept_proposal_writes_segmented_path_when_proposed_path_segments_present(tmp_path, make_proposal_file):
+    proposal_id, _ = make_proposal_file(domain="PERSONAL", proposed_path_segments=["x", "y"])
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    expected = tmp_path / "PERSONAL" / "assertions" / "x" / "y" / result.assertion_id / f"{result.assertion_id}.md"
+    assert result.assertion_path == expected
+    assert result.assertion_path.exists()
+
+
+def test_accept_proposal_writes_plain_path_when_proposed_path_segments_absent(tmp_path, make_proposal_file):
+    proposal_id, _ = make_proposal_file(domain="PERSONAL")
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    expected = tmp_path / "PERSONAL" / "assertions" / result.assertion_id / f"{result.assertion_id}.md"
+    assert result.assertion_path == expected
+
+
+def test_accept_proposal_rejects_invalid_path_segments_before_any_write(tmp_path, make_proposal_file):
+    proposal_id, proposal_file = make_proposal_file(domain="PERSONAL", proposed_path_segments=["a/b"])
+    original_content = proposal_file.read_text(encoding="utf-8")
+
+    with pytest.raises(ValidationError):
+        pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    assert proposal_file.read_text(encoding="utf-8") == original_content
+    assertions_dir = tmp_path / "PERSONAL" / "assertions"
+    assert not assertions_dir.exists() or list(assertions_dir.iterdir()) == []

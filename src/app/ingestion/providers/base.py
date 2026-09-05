@@ -1,7 +1,7 @@
 """
 Base interfaces for LLM providers used in ingestion.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Protocol
 
 
@@ -10,6 +10,7 @@ class ExtractedAssertion:
     """Represents a single extracted assertion from source content."""
     text: str
     epistemic_status: str  # "direct" | "inferred" | "uncertain" | "contested"
+    proposed_path_segments: list[str] = field(default_factory=list)
 
 
 @dataclass
