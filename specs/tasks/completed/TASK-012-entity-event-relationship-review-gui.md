@@ -1,6 +1,6 @@
 # TASK-012: Entity, Event and Relationship Review — API Integration and GUI (V1)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -233,3 +233,44 @@ Frontend:
   (ADI-003) exists.
 - Any change to `ProposalSummary`/`ProposalDetail`'s JSON shape — both already carry every field this
   ticket needs.
+
+## Verification record
+
+Implemented 2026-09-06 (commit `7b0e794`, "TASKS 005 et 012, event, entity, relations"), together
+with TASK-005. **Documentation gap found and corrected 2026-09-06, in a later session**: this
+ticket's own file was left `backlog` and `docs/ROADMAP.md` kept citing it as the sole remaining
+GUI-socle ticket/next action, despite the code already being on `main` — a real desync between
+"État actuel" and repo reality (the exact failure mode AGENTS.md's continuity discipline warns
+about), not a new implementation gap. No dedicated Verification record was written at
+implementation time; the check below was run retroactively, in the same session that fixed the
+status desync, not independently of the implementation.
+
+- `[PASS]` Backend — `pytest src/tests/review src/tests/api` (from repo root): 253/253 pass.
+  `--cov=src.app.review --cov=src.app.api`: 99% combined (`routes_review.py`/`pipeline.py`/
+  `storage.py`/`errors.py` all 100%; the only misses are pre-existing, unrelated to this ticket —
+  `app.py` lines 68/99-100/104, generic-exception fallback branches, and `tasks.py` 18-19).
+- `[PASS]` AC11 (`UnresolvedRelationshipEndpointError` → `409`) and AC12 (accept succeeds for
+  entity/event/relationship, superseding TASK-007's old AC10) — covered by
+  `src/tests/api/test_error_mapping.py` and `test_review_routes.py` (both updated in the same
+  commit), included in the 253 passing above.
+- `[PASS]` Frontend — `npx vitest run` (from `frontend/`): 13 test files, 100/100 pass, including
+  `EntityTypeBadge.test.jsx`, `EventTemporalRange.test.jsx`, `RelationshipEndpoints.test.jsx`
+  (AC13-15), and mixed-type fixtures inside `Validation.test.jsx`/`ProposalDetail.test.jsx`
+  (AC16-18). `npx vitest run --coverage`: 98.45% lines overall; `Validation.jsx` 97.8%,
+  `ProposalDetail.jsx` 98.97% lines, though `ProposalDetail.jsx`'s function coverage (68.75%)
+  sits below the project's 80% floor in isolation — same aggregate-masks-a-per-file-gap pattern
+  already flagged for `Validation.jsx` in TASK-010's own Verification record, not a new issue.
+  `src/components/*.test.jsx` files pass but sit outside `vite.config.js`'s coverage `include`
+  glob (pre-existing scope, already noted in TASK-011).
+- `[PASS]` Regression — `src/tests/extraction` (72/72), `src/tests/config` (39/39),
+  `src/tests/acceptance` (21/21, excluding `e2e`) all pass run independently per-folder.
+  `src/tests/ingestion` 96/98 pass, with the same 2 pre-existing, unrelated failures
+  (`test_acceptance_criteria_compliance`, `test_import_isolation`) documented repeatedly in
+  `docs/ROADMAP.md` for prior tickets. Running all of `src/tests/` in one invocation still hits
+  the pre-existing, already-documented collection collision on duplicate `test_storage.py`/
+  `_helpers.py` module names without `__init__.py` — unrelated to this ticket, worked around by
+  testing each subfolder separately, same as prior sessions.
+- `[NOT RUN]` No dedicated manual end-to-end reproduction against a live Flask instance/real
+  vault was performed as part of this retroactive check (none was available in this session,
+  same limitation already recorded for TASK-010/TASK-011). Not independently reviewed by a
+  second reviewer — same limitation as every other ticket in this project.

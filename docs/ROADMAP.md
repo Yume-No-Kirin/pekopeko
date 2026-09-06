@@ -19,7 +19,7 @@
 
 Phase : implémentation des tickets `TASK-XXX` (en cours).
 
-- **Décisions** : ADI-001 à ADI-015 toutes `Accepted` (voir ci-dessous). ADI-011 (contrat
+- **Décisions** : ADI-001 à ADI-016 toutes `Accepted` (voir ci-dessous). ADI-011 (contrat
   zero-output des providers) confirmée par Cleo le 2026-09-03 ; ADI-012 (organisation en
   dossiers, amende ADI-004) confirmée par Cleo le 2026-09-04, en rédigeant TASK-014 ; ADI-013
   (déclenchement automatique d'ingestion par surveillance de dossier) confirmée par Cleo le
@@ -27,15 +27,41 @@ Phase : implémentation des tickets `TASK-XXX` (en cours).
   amende ADI-012) confirmée par Cleo le 2026-09-04, en vérifiant TASK-001e en conditions réelles
   contre le vault et un vrai Ollama (`qwen2.5:7b`) ; ADI-015 (nomenclature obligatoire des
   segments + contexte inter-proposals, amende ADI-014) confirmée par Cleo le 2026-09-04, à partir
-  d'une capture d'écran réelle de la vérification d'ADI-014 — voir leurs propres entrées
-  ci-dessous et la section TASK-001e. Aucune décision d'architecture en attente.
+  d'une capture d'écran réelle de la vérification d'ADI-014 ; ADI-016 (context/univers comme champ
+  de première classe sur les 4 types d'item canoniques, amende ADI-012) confirmée par Cleo le
+  2026-09-06, en rédigeant TASK-014a/TASK-014b — résout l'entrée `docs/OPEN-ISSUES.md` du même
+  jour sur l'isolation Context/Universe, retirée du registre (voir sa propre section ci-dessous) —
+  voir leurs propres entrées ci-dessous et la section TASK-001e. Aucune décision d'architecture en
+  attente.
 - **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, par TASK-001b, journal d'événements de tâche, par TASK-001c, échec explicite sur extraction à zéro résultat (ADI-011), par TASK-001d, détection de doublon basée sur le succès d'une tâche antérieure plutôt que sur la seule existence du fichier source, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals, et par TASK-005, accept/reject entity/event/relationship + résolution des endpoints de relation), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b, TASK-001c, TASK-001d, par TASK-003a, champs `id`/`type` sur les Proposals, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), `src/app/api/` (TASK-007, couche API HTTP REST — Flask, ADI-010 ; étendu par TASK-007a, pagination `?limit=`/`?offset=` sur les 3 endpoints de liste), tests sous `src/tests/`. `frontend/` (TASK-008, scaffold React + Dashboard/Settings — premier code frontend du dépôt ; étendu par TASK-009, écran Logs d'ingestion, par TASK-010, écran Validation, dont le bug de statut de groupe par `source_id` est corrigé par TASK-001d, par TASK-011, écran Détail de proposition — contenu/métadonnées/source/provenance/logs pour une seule proposition, navigation Précédent/Suivant, accepter/rejeter, et par TASK-013, mode édition de proposition — endpoint `POST .../edit` sur `review_bp` exposant le `review.pipeline.edit_proposal` de TASK-006, plus bouton "✎ Éditer"/Sauvegarder/Annuler dans `ProposalDetail.jsx` et fan-out `PROPOSED`+`EDITED` dans les files de `Validation.jsx`/`ProposalDetail.jsx`, et par TASK-014, organisation en dossiers — `assertion_path`/`write_assertion_file` (`review/storage.py`) gagnent un paramètre optionnel `path_segments`, `accept_proposal` le lit sur `proposed_path_segments`, nouvel endpoint `GET .../organization-folders`, composant `FolderPathBuilder.jsx` intégré en lecture seule dans `Validation.jsx` et éditable dans `ProposalDetail.jsx`, et par TASK-001e, chemin de dossier proposé par le LLM d'extraction pour chaque assertion — `ExtractedAssertion.proposed_path_segments`, suffixe optionnel `| <segments>` dans le prompt/parseur d'`ollama_provider.py`, écrit tel quel dans le frontmatter de la Proposal ; rendu obligatoire le même jour par ADI-014 (voir ci-dessous), qui ajoute un second appel Ollama dédié par assertion, avec retry puis repli `["uncategorized"]`, quand le suffixe optionnel est absent — ce qui s'est avéré être le cas 100 % du temps en conditions réelles). Ces dix-huit tickets, plus TASK-005 et TASK-003a (voir ci-dessous), sont dans `specs/tasks/completed/`.
 - **Cahier de tests** (2026-09-02) : `specs/tests/test-plan.md`, tracé aux 18 UC de `specs/product/use-cases.md` et aux 8 tickets `completed`. Deux couches sous `src/tests/` : `acceptance/` (déterministe, appels directs aux pipelines, provider factice fixe — exécutée par défaut) et `e2e/` (serveur Flask réel + vrai Ollama local, marker `pytest -m e2e`, exclue par défaut via `pytest.ini`). **Deux écarts réels découverts et vérifiés contre un serveur réel** (documentés dans le cahier, section « Findings ») : (1) les propositions entity/event/relationship de `extraction/` (contrat `item_type`, pas de champ `id`) étaient invisibles pour tout `review/` — `list_proposals` les omettait silencieusement et `get_proposal`/`accept` renvoyaient `400 ValidationError` — pas seulement bloquées côté métier ; (2) l'AC10 de TASK-007 (« accept sur entity/event/relationship → 422 ») ne se déclenchait jamais avec une vraie proposition d'extraction (elle renvoyait `400` avant d'atteindre ce chemin) — le test existant qui la vérifiait construisait sa proposition avec le contrat d'`ingestion`/`review`, pas celui réel d'`extraction`. **Les deux sont désormais résolus** : (1) par TASK-003a (2026-09-05, réconcilie les deux contrats de champs) et (2) par TASK-005 (2026-09-05, l'AC10 originale de TASK-007 est supersédée — accept réussit désormais pour entity/event/relationship). Voir leurs propres sections ci-dessous. Problème préexistant signalé au passage (non corrigé, hors périmètre) : `pytest src/tests/` en un seul run échoue à la collecte sur plusieurs `_helpers.py`/`test_storage.py` de même nom sans `__init__.py` — voir la section dédiée du cahier.
-- **Suite** : deux tickets `backlog` restent maintenant (TASK-012, plus le satellite
-  TASK-001f, rédigé le 2026-09-04 implémentant ADI-013), voir leurs propres sections ci-dessous.
-  TASK-005, le seul autre ticket `backlog` restant à la fin de la session précédente, est
-  désormais `completed` (2026-09-05, précédé du satellite TASK-003a qu'il a rendu nécessaire) —
-  voir sa propre section ci-dessous.
+- **Suite** : huit tickets `backlog` restent maintenant (TASK-015, rédigé le 2026-09-06,
+  première entrée de la section 2 de `BACKLOG-CLAUDE-V2.md` — opérations de masse et
+  priorisation de la file de revue, toujours la **prochaine action d'implémentation** ; TASK-016
+  et TASK-017, rédigés le 2026-09-06 dans une session ultérieure à la demande explicite de Cleo,
+  hors de l'ordre strict du backlog (TASK-015 n'est pas encore implémenté) — respectivement
+  ingestion audio/vidéo avec transcription (YouTube/TikTok/Instagram) et lecteurs de sources
+  additionnels (PDF, texte brut, page web), 2ᵉ et 3ᵉ entrées de la même section 2 ; TASK-018 et
+  TASK-019, rédigés le 2026-09-06 dans une session ultérieure encore, également à la demande
+  explicite de Cleo et hors de l'ordre strict du backlog — retrieval local SQLite/FTS5 (backend,
+  ADI-002, étape « V1 en mémoire » sautée — voir la section ADI-002 ci-dessus) et l'écran de
+  recherche qui le consomme (frontend, 6ᵉ écran du frontend React existant, bascule la carte
+  Dashboard « Recherche » de `coming-soon` à `available`), respectivement l'ancien `TASK-007` de
+  `BACKLOG-CLAUDE.md` et une entrée entièrement nouvelle créée par la re-priorisation GUI-first de
+  `BACKLOG-CLAUDE-V2.md` ; plus le
+  satellite TASK-001f, rédigé le 2026-09-04 implémentant ADI-013 ; plus les deux nouveaux
+  satellites TASK-014a et TASK-014b, rédigés le 2026-09-06 implémentant ADI-016 — TASK-014a
+  (champ `context` de première classe sur les 4 types d'item : storage/path/EDITABLE_FIELDS/scan
+  scopé, sans dépendance à TASK-001f) et TASK-014b (peuplement de la valeur de `context` : dossier
+  source du fichier ingéré en priorité, repli LLM sinon — **dépend de TASK-014a et de TASK-001f**,
+  ce dernier devant d'abord scanner `_inbox/` récursivement), voir leurs propres sections
+  ci-dessous.
+  TASK-005 et TASK-012, les deux tickets `backlog` restants à la fin de la session précédente,
+  sont désormais tous les deux `completed` (TASK-005 le 2026-09-05, précédé du satellite
+  TASK-003a qu'il a rendu nécessaire ; TASK-012 implémenté le 2026-09-06 dans la même session
+  que TASK-005 — commit `7b0e794` — mais dont le statut ici et dans son propre fichier était
+  resté `backlog` jusqu'à une correction de désync le 2026-09-06, en rédigeant TASK-015 — voir
+  sa propre section ci-dessous pour le détail de cette correction).
   TASK-001e, l'autre satellite, a été rédigé le 2026-09-04, implémenté et vérifié le 2026-09-04
   dans cette même session, voir sa propre section ci-dessous, désormais `completed` — amendé le
   même jour par **ADI-014** (chemin de dossier proposé par le LLM rendu obligatoire, amende
@@ -57,9 +83,10 @@ Phase : implémentation des tickets `TASK-XXX` (en cours).
   TASK-008/009/010/011 (scaffold + Dashboard/Settings,
   Ingestion Logs, Validation, Détail de proposition) forment une chaîne de dépendance
   (008→009→010→011, chacun réutilisant les composants/wrappers API du précédent).
-  Les quatre maillons de cette chaîne, plus TASK-005, sont désormais tous `completed` — il ne
-  reste que TASK-012, qui referme le socle GUI en s'appuyant sur TASK-010/TASK-011 côté frontend
-  et sur TASK-005 (désormais `completed`) côté backend, repris par référence.
+  Les quatre maillons de cette chaîne, plus TASK-005, sont désormais tous `completed` ; TASK-012,
+  qui referme le socle GUI en s'appuyant sur TASK-010/TASK-011 côté frontend et sur TASK-005 côté
+  backend, l'est aussi (implémenté le 2026-09-06, voir sa propre section) — **le socle GUI
+  (TASK-007 → TASK-012) est désormais entièrement `completed`**.
   **Trois tickets backend satellites** (2026-08-31, voir leurs sections ci-dessous) ont été
   ajoutés en écrivant TASK-009/010/011, suite à la décision de Cleo que les maquettes
   `specs/ux-design/` sont la cible : là où le backend manquait une donnée qu'une maquette
@@ -72,25 +99,37 @@ Phase : implémentation des tickets `TASK-XXX` (en cours).
   leurs citations croisées. Le reste du travail du Knowledge Core (retrieval, etc.) n'est
   pas encore ticketé — voir `specs/tasks/BACKLOG-CLAUDE.md` pour l'inventaire complet avant
   d'écrire le prochain ticket.
-- **TASK-012** (revue Entity/Event/Relationship — intégration API + GUI) est rédigé
-  (2026-08-31, `backlog`, seul ticket du socle GUI encore non implémenté) : ferme le socle GUI en
-  branchant TASK-005 (backend, désormais `completed`, repris par référence sans modification —
+- **TASK-012** (revue Entity/Event/Relationship — intégration API + GUI) est `completed`
+  (rédigé le 2026-08-31, implémenté le 2026-09-06 dans la même session que TASK-005, commit
+  `7b0e794` "TASKS 005 et 012, event, entity, relations") : ferme le socle GUI en branchant
+  TASK-005 (backend, `completed`, repris par référence sans modification —
   `UnresolvedRelationshipEndpointError` y a déjà été nommé et le champ `id`/`type` réconcilié par
   TASK-003a) sur les écrans Validation
   (TASK-010) et Détail (TASK-011), jusqu'ici volontairement limités au type `assertion`.
-  Il ne reste que le point d'intégration API que TASK-005 laissait ouvert (il précède la couche
-  API) : ajouter `UnresolvedRelationshipEndpointError` à la
-  table de mapping d'erreurs de TASK-007 (`src/app/api/app.py`, → `409`) — ce qui
-  supersède l'AC10 de TASK-007 (422 pour accept sur entity/event/relationship, déjà supersédée en
-  pratique par TASK-005 lui-même : accept réussit désormais pour entity/event/relationship, seul
-  le mapping HTTP dédié du cas `409` reste à ajouter). Le socle
-  GUI (TASK-007 → TASK-012) est donc désormais **entièrement rédigé**.
+  Le point d'intégration API que TASK-005 laissait ouvert (il précède la couche API) est fait :
+  `UnresolvedRelationshipEndpointError` est mappée à `409` dans la
+  table d'erreurs de TASK-007 (`src/app/api/app.py`) — ce qui
+  supersède l'AC10 de TASK-007 (422 pour accept sur entity/event/relationship) : accept réussit
+  désormais pour entity/event/relationship. Côté frontend, `Validation.jsx`/`ProposalDetail.jsx`
+  ne filtrent plus sur `proposed_item_type === "assertion"` et rendent les 3 nouveaux composants
+  `EntityTypeBadge`/`EventTemporalRange`/`RelationshipEndpoints`. Le socle
+  GUI (TASK-007 → TASK-012) est donc désormais **entièrement `completed`**.
   `specs/tasks/BACKLOG-CLAUDE-V2.md` (proposition de re-priorisation GUI-first de Cleo,
   2026-08-31) reprend les mêmes ~33 entrées de `BACKLOG-CLAUDE.md` mais réordonnées pour
   amener le GUI avant de continuer le Knowledge Core — TASK-007 à TASK-012 (plus les 3
-  satellites) en ont été extraits et rédigés (ce fichier) ; le reste de cette
+  satellites) en ont été extraits, rédigés et désormais tous `completed` ; le reste de cette
   re-priorisation (section 2, TASK-013 à TASK-037) demeure une proposition, pas une
-  décision actée par Cleo.
+  décision actée par Cleo dans son ensemble — TASK-013/TASK-014 (`completed`) et TASK-015
+  (`backlog`, voir sa propre section) en ont depuis été extraits et rédigés individuellement,
+  comme TASK-012 lui-même.
+  **Désync de documentation trouvée et corrigée le 2026-09-06** (en rédigeant TASK-015) : ce
+  fichier et `specs/tasks/backlog/TASK-012-*.md` décrivaient encore TASK-012 comme `backlog`/
+  prochaine action alors que son code était déjà sur `main` depuis le commit `7b0e794` de la
+  même session que TASK-005 — exactement le type de désync entre « État actuel » et la réalité
+  du dépôt qu'AGENTS.md demande de ne jamais laisser s'installer. Aucun rapport de vérification
+  dédié n'avait été écrit à l'implémentation ; un rapport rétroactif (tests rejoués, pas
+  indépendant de l'implémentation d'origine) a été ajouté dans la section « Verification
+  record » du ticket, désormais déplacé vers `specs/tasks/completed/`.
 - **TASK-013** (mode édition de proposition — endpoint API + frontend) est `completed`
   (rédigé le 2026-09-04, implémenté et vérifié le 2026-09-04 dans cette même session),
   premier ticket extrait de la section 2 (proposition) de `BACKLOG-CLAUDE-V2.md`. Fermait
@@ -169,14 +208,14 @@ Phase : implémentation des tickets `TASK-XXX` (en cours).
   Même limite que tous les tickets précédents : vérification faite par la même session Claude
   que l'implémentation, pas par un second réviseur indépendant.
 
-## Décisions d'architecture (ADI-001 à ADI-015, toutes `Accepted`)
+## Décisions d'architecture (ADI-001 à ADI-016, toutes `Accepted`)
 
 **Lecture requise avant de rédiger une nouvelle ADR :** `specs/product/vision.md`, `user-needs.md`, `scope.md`, `non-goals.md`, `product-model.md`, `use-cases.md` (cité comme justification derrière presque chaque exigence, et seul document porteur des signaux de volume), `specs/domain/knowledge-model.md`, `specs/domain/knowledge-invariants.md`, `specs/architecture/principles.md`, `specs/architecture/capabilities.md`, la section 23 (« Architectural Decision Inputs ») de `specs/architecture/technical-requirements.md`, et les ADR déjà écrites. Le format attendu est défini dans `specs/decisions/README.md`.
 
 Les 6 premières répondent aux questions ouvertes de la section 23 ; ADI-007/008/009 ont été tranchées ensuite, en butant sur des gaps bloquants pour écrire un ticket implémentable.
 
 - **ADI-001 — Modèle de persistance canonique.** Fichiers structurés (un par item), pas de base de données. **Pas d'historisation via git** : Cleo utilise un vault Obsidian synchronisé en continu sur plusieurs appareils, et faire tourner git en parallèle d'un outil de synchro tiers actif est un vrai risque de conflit. L'historisation se fait au niveau des fichiers : sous-dossier `history/` par item, contenant les **versions complètes** précédentes (`lifecycle_status: SUPERSEDED`), jamais des diffs. Sauvegarde/redondance = la synchro Obsidian de Cleo, hors scope de Pekopeko.
-- **ADI-002 — Retrieval.** Index dérivé et reconstructible, jamais canonique, **jamais stocké dans le vault Obsidian** (même logique anti-conflit qu'ADI-001). Montée en charge : V1 en mémoire au démarrage → SQLite/FTS5 local hors vault, incrémental → index vectoriel local si la recherche sémantique devient nécessaire. Un serveur de recherche partagé multi-appareils est explicitement hors scope.
+- **ADI-002 — Retrieval.** Index dérivé et reconstructible, jamais canonique, **jamais stocké dans le vault Obsidian** (même logique anti-conflit qu'ADI-001). Montée en charge : V1 en mémoire au démarrage → SQLite/FTS5 local hors vault, incrémental → index vectoriel local si la recherche sémantique devient nécessaire. Un serveur de recherche partagé multi-appareils est explicitement hors scope. **TASK-018** (rédigé le 2026-09-06, `backlog`) saute l'étape « V1 en mémoire » et livre directement SQLite/FTS5, à la demande explicite de Cleo (éviter de construire puis jeter une implémentation jetable) — flagué comme V1 scope decision dans le ticket lui-même, pas un amendement d'ADI-002 : la destination (index local, dérivé, jamais dans le vault) ne change pas, seule l'étape intermédiaire du rollout est sautée.
 - **ADI-003 — Modèle de relations.** Enregistrements structurés dans les fichiers (références par ID stable, jamais de contenu dupliqué), traversal via une structure d'adjacence dérivée. Même règle de placement qu'ADI-002 : jamais dans le vault, reconstruite par appareil.
 - **ADI-004 — Rôle d'Obsidian.** Le vault de Cleo **est** la racine du stockage canonique (pas un miroir). Organisation par domaine puis par type d'item, choisie pour des raisons techniques (isolation de domaine, localité de l'historique) et non pour le confort de consultation. Pekopeko n'utilise jamais les fonctionnalités natives d'Obsidian (graphe, backlinks, recherche) comme mécanisme de fonctionnement, et ne duplique pas les relations en wikilinks. **Écritures canoniques atomiques** (fichier temporaire + renommage) : le vault est surveillé simultanément par Obsidian, l'outil de synchro et Pekopeko.
 - **ADI-005 — Synchrone vs asynchrone.** (1) Tout traitement AI/LLM ou calcul non trivial sur le graphe est asynchrone et produit une Proposal dans la file de revue, sans jamais bloquer l'utilisatrice ; (2) toute lecture locale contre des fichiers canoniques ou index déjà persistés est synchrone ; (3) accepter/rejeter une proposition est synchrone pour l'écriture, mais toute analyse d'impact en aval repart en tâche asynchrone. L'état des tâches asynchrones est persisté localement, hors vault et par appareil — non canonique, donc une perte d'état signifie resoumettre la tâche, jamais une corruption du canonique.
@@ -191,6 +230,33 @@ Les 6 premières répondent aux questions ouvertes de la section 23 ; ADI-007/00
 - **ADI-013 — Déclenchement automatique d'ingestion par surveillance de dossier.** Confirmée par Cleo le 2026-09-04, en rédigeant TASK-001f (`specs/decisions/ADI-013-automatic-folder-ingestion.md`). Déclenchée par le constat que tout déclenchement d'ingestion documenté jusqu'ici est manuel/explicite (`ingest_source` appelé avec un `source_path` fourni par l'appelant, aucun endpoint ne découvre un fichier seul). Décide qu'un thread d'arrière-plan à l'intérieur du process Flask existant scrute périodiquement (polling, pas de watcher OS type `watchdog` — pas de nouvelle dépendance ni de divergence cross-plateforme) un dossier `_inbox/` par domaine (`<vault_root>/<domain>/_inbox/`, cohérent avec Domain Isolation AP-005) et déclenche `ingest_source` automatiquement pour tout fichier stable trouvé (mtime plus vieux qu'un `poll_interval_seconds`), puis déplace le fichier source vers `_inbox/processed/` une fois l'ingestion *dispatchée* (retire immédiatement le fichier du set surveillé, aucune dépendance à la détection de doublon de TASK-001d). Nouvelle section de config `folder_watch` (`enabled` par défaut `false` — opt-in, aucun changement de comportement sans action délibérée). Aucun changement à `ingest_source`/`create_task_state` ni à leurs appelants existants — le watcher est un nouvel appelant, pas un nouveau chemin de code dans l'ingestion elle-même. Implémentée par TASK-001f (`backlog`, jamais implémentée).
 - **ADI-014 — Chemin de dossier proposé par le LLM rendu obligatoire (amende ADI-012).** Confirmée par Cleo le 2026-09-04, en vérifiant TASK-001e en conditions réelles (`specs/decisions/ADI-014-mandatory-extraction-proposed-path.md`). Déclenchée par un écart réel : le suffixe optionnel `| <path>` que TASK-001e avait ajouté au prompt d'extraction (dégradation propre vers `[]` par défaut, comme le prévoyait ADI-012) ne s'est jamais déclenché en pratique — vérifié en ré-ingérant la vraie note du vault `Plot Tatouages.md` contre `qwen2.5:7b`, réponse Ollama brute inspectée directement (pas seulement la sortie parsée) sur deux runs réels séparés : 0 ligne sur 39, puis 0 ligne sur 79, n'a jamais porté le suffixe. Décide que `OllamaProvider.extract()` garantit désormais un `proposed_path_segments` non vide pour chaque assertion (garantie propre à ce provider, pas un changement du contrat `Provider` général — `ExtractedAssertion.proposed_path_segments` garde son défaut `[]` au niveau du dataclass) : le suffixe optionnel reste une première tentative peu coûteuse, mais toute assertion qu'il laisse vide déclenche un second appel Ollama dédié par assertion (texte de l'assertion + contenu complet de la note source + dossiers déjà existants sous `<domain>/assertions/` via `scan_existing_assertion_folders`, nouvelle réimplémentation indépendante du `scan_organization_folders` de `review/storage.py`, même discipline d'indépendance des modules que TASK-002), retenté jusqu'à `PATH_PROPOSAL_MAX_ATTEMPTS` (3) fois puis replié sur `["uncategorized"]` plutôt que d'échouer la tâche d'ingestion. Granularité par assertion (pas par note) choisie explicitement par Cleo malgré le coût en appels Ollama supplémentaires, pour permettre à des assertions d'une même note d'atterrir dans des dossiers différents. Limite connue et non corrigée : `scan_existing_assertion_folders` ne voit que les assertions déjà *acceptées* — un domaine sans rien d'accepté encore (cas vérifié en conditions réelles) laisse le modèle sans ancrage, d'où une dérive de convention de nommage observée entre appels indépendants pour un même thème réel. Implémentée par TASK-001e (`completed`, amendement du même jour que le ticket initial).
 - **ADI-015 — Nomenclature obligatoire des segments + contexte inter-proposals (amende ADI-014).** Confirmée par Cleo le 2026-09-04, à partir d'une capture d'écran réelle de la vérification d'ADI-014 (`specs/decisions/ADI-015-path-nomenclature-and-cross-proposal-context.md`). Déclenchée par un écart réel : les segments bruts renvoyés par le modèle contenaient des entités HTML non échappées (`&amp;`), des accents non retirés, deux notions collées dans un seul segment (`enjeux&themes`, `coopération_vs_pouvoir_solitaire`, `symbiose-vs-domination`) et des segments multi-mots joints par `_`/`-` au lieu d'être éclatés en niveaux de dossier séparés. Décide que la nomenclature est désormais appliquée de façon déterministe et obligatoire, pas seulement suggérée dans le prompt : `OllamaProvider._normalize_path_string` (nouveau) dé-échappe le HTML, éclate chaque segment brut en mots uniques sur `/`, `&`, espaces, `_` et `-` (l'éclatement se fait **avant** le filtrage des mots de liaison, sinon `\b` ne matche pas un "vs" collé par underscore), retire les accents (y compris `œ`/`æ`), met en minuscule, retire tout caractère restant hors `[a-z0-9]`, et élimine un petit ensemble de mots de liaison/outils (`vs`, `et`, `and`, `de`, `du`, `des`, `la`, `le`, `les`, `l`). Le prompt d'extraction et celui du second appel gagnent aussi des règles de nomenclature explicites et un exemple avant/après travaillé, en complément (pas en remplacement) du normaliseur déterministe. Décide en plus que le contexte `existing_folders` fourni au modèle devient l'union de trois sources : l'arbre canonique accepté (ADI-014, inchangé), les chemins déjà proposés par des Proposals `PROPOSED`/`EDITED` pas encore acceptées ailleurs dans le domaine (nouveau `scan_proposed_path_segments`, `storage.py`), et une accumulation en mémoire au fil du batch d'extraction en cours (le chemin choisi pour l'assertion #12 d'une note devient visible pour l'assertion #40 de la même note, avant toute écriture sur disque). Vérifié en conditions réelles : 0 segment sur 81 contenant un caractère hors `[a-z0-9]` (vérifié programmatiquement sur l'intégralité des segments, pas un échantillon), 38 chemins distincts sur 81 assertions contre 67 sur 80 avant cet amendement — preuve directe que le contexte inter-proposals améliore la réutilisation, pas seulement le formatage. Limite résiduelle connue et non corrigée : la dérive singulier/pluriel (`conflit` vs `conflits`) peut encore produire deux dossiers pour un même concept réel — le normaliseur ne fait ni radicalisation ni lemmatisation. Implémentée par TASK-001e (`completed`, second amendement du même jour).
+- **ADI-016 — Context/Univers comme champ de première classe (amende ADI-012).** Confirmée par
+  Cleo le 2026-09-06, en rédigeant TASK-014a/TASK-014b (`specs/decisions/ADI-016-context-universe-first-class-field.md`).
+  Déclenchée par une entrée de `docs/OPEN-ISSUES.md` (ajoutée le jour même) signalant qu'aucun
+  champ `context`/`universe` de première classe n'existe, alors que `specs/domain/knowledge-model.md`
+  et UC-018 (« Fictional Universe Isolation ») l'anticipent explicitement (deux romans, personnages
+  homonymes) — trouvée en rédigeant un ticket demandé par Cleo pour dériver un segment de dossier
+  depuis l'emplacement source du fichier ingéré, et remontée avant de trancher en silence (règle
+  AGENTS.md sur `docs/OPEN-ISSUES.md`). Décide que `context: Optional[str] = None` devient un champ
+  de frontmatter de première classe sur les **4 types d'item canoniques** (assertion, entity,
+  event, relationship — pas seulement assertion, contrairement à `proposed_path_segments`
+  d'ADI-012, car l'exemple même de l'entrée ouverte est un personnage, donc une entity), physiquement
+  reflété dans le chemin juste sous le dossier de type (`<domain>/<type-plural>/<context>/...`),
+  calculé une seule fois par note source (pas par item, à l'inverse d'ADI-014) et réellement
+  optionnel (aucun repli forcé type `["uncategorized"]` — `context: None` est un résultat normal,
+  pas une dégradation). Le scan des dossiers existants (`scan_existing_assertion_folders`/
+  `scan_proposed_path_segments`, assertion uniquement, seul type ayant un tel scan) devient
+  scopable par `context` plutôt que par domaine entier — corrige le symptôme concret de l'entrée
+  ouverte (les dossiers d'un roman A influençant les suggestions faites pour un roman B). Explicitement
+  hors scope, énoncé dans l'ADR plutôt que passé sous silence : la dédup/résolution d'entités par
+  contexte (aucun mécanisme de dédup n'existe pour aucun type aujourd'hui — vérifié directement
+  dans le code, `_generate_entity_id` mint toujours un UUID neuf) reste un vrai trou, renvoyé à
+  TASK-029 (Module Fiction V1, jamais ticketé) ; l'extension des segments de taxonomie libres à
+  entity/event/relationship reste hors scope, propriété d'ADI-012 inchangée. L'entrée
+  `docs/OPEN-ISSUES.md` correspondante a été retirée (convention du fichier : une entrée tranchée
+  migre vers sa vraie destination plutôt que de rester marquée `[fermé]`). Implémentée par
+  TASK-014a (structure, backlog) et TASK-014b (peuplement de la valeur, backlog, dépend de
+  TASK-014a et TASK-001f) — voir leurs propres sections ci-dessous.
 
 ## Conventions d'identifiants (issues du nettoyage de cohérence, terminé)
 
@@ -816,9 +882,9 @@ le 2026-09-03.
   second réviseur indépendant, pas de test de fumée contre une vraie instance Flask/vault
   (aucun vault local disponible dans cette session).
 
-### TASK-012 — Revue Entity/Event/Relationship, intégration API + GUI — `backlog`
+### TASK-012 — Revue Entity/Event/Relationship, intégration API + GUI — `completed`
 
-`specs/tasks/backlog/TASK-012-entity-event-relationship-review-gui.md`. Ferme le socle
+`specs/tasks/completed/TASK-012-entity-event-relationship-review-gui.md`. Ferme le socle
 GUI : reprend le backend de TASK-005 (**`completed`** le 2026-09-05) par référence (aucune
 modification de son scope ni de ses 10 AC — `UnresolvedRelationshipEndpointError` a déjà été
 nommé par TASK-005 lui-même dans `review/errors.py`, exactement le nom que ce ticket prévoyait),
@@ -835,16 +901,32 @@ pas de portage de maquette, seulement réutilisation des conventions de badge ex
 Résolution des labels d'`endpoints` de relation sans nouvel endpoint backend : réutilise
 les données déjà récupérées par chaque écran (N+1 déjà existant sur Validation, un
 nouveau N+1 ciblé par endpoint sur Détail), id non résolu affiché tel quel plutôt que de
-bloquer l'écran. Rédigé le 2026-08-31, jamais implémenté.
+bloquer l'écran. Rédigé le 2026-08-31, implémenté le 2026-09-06 (commit `7b0e794`, même
+session que TASK-005).
 
-- Dépend de TASK-005 (**`completed`**) et TASK-007 (`completed`) côté backend ; de la chaîne
+- Dépendait de TASK-005 (`completed`) et TASK-007 (`completed`) côté backend ; de la chaîne
   TASK-008 → TASK-009 → TASK-010 → TASK-011 (tous `completed`)
-  côté frontend. Indépendant de TASK-006/TASK-014/TASK-015. Seul ticket du socle GUI encore
-  `backlog` — toutes ses dépendances sont désormais satisfaites, immédiatement implémentable.
-- Avec ce ticket, **le socle GUI (TASK-007 → TASK-012) est entièrement rédigé** —
+  côté frontend. Indépendant de TASK-006/TASK-014/TASK-015.
+- Avec ce ticket, **le socle GUI (TASK-007 → TASK-012) est entièrement `completed`** —
   framework tranché (ReactJS, ADI-009), contrat d'intégration backend tranché (Flask,
   ADI-010). Le reste de `specs/tasks/BACKLOG-CLAUDE-V2.md` (section 2, TASK-013 à
   TASK-037) demeure une proposition de re-priorisation, pas une décision actée par Cleo.
+- Code : `src/app/review/errors.py` (`UnresolvedRelationshipEndpointError`), `src/app/api/app.py`
+  (import + une ligne `ERROR_STATUS_MAP` → `409`) ; `frontend/src/components/EntityTypeBadge.jsx`/
+  `EventTemporalRange.jsx`/`RelationshipEndpoints.jsx` (nouveaux), `frontend/src/pages/
+  Validation.jsx`/`ProposalDetail.jsx` (filtres `assertion` levés, rendu type-spécifique,
+  résolution N+1 des labels d'`endpoints`).
+- **Désync de documentation trouvée et corrigée le 2026-09-06**, en rédigeant TASK-015 : ce
+  ticket avait été implémenté avec TASK-005 dans la même session (2026-09-06, commit `7b0e794`)
+  mais son propre fichier était resté sous `specs/tasks/backlog/` avec `Status: backlog`, et ce
+  fichier ROADMAP continuait de le citer comme seul ticket restant du socle GUI / prochaine
+  action — alors que le code (backend et frontend) était déjà sur `main`. Corrigé : fichier
+  déplacé vers `specs/tasks/completed/`, `Status` mis à `completed`, ce fichier mis à jour aux
+  endroits cités par `grep -n "TASK-012" docs/ROADMAP.md`. Aucun rapport de vérification n'avait
+  été écrit à l'implémentation d'origine ; un rapport rétroactif (`pytest src/tests/review
+  src/tests/api` 253/253, `npx vitest run` 100/100, couvertures ≥96%, régression des autres
+  sous-dossiers de tests backend) a été ajouté dans la section « Verification record » du
+  ticket — non indépendant de l'implémentation d'origine, signalé comme tel.
 
 ### TASK-013 — Mode édition de proposition, endpoint API + frontend — `completed`
 
@@ -1016,31 +1098,60 @@ implémenté et vérifié le 2026-09-04 dans cette même session.
 
 **TASK-001, TASK-002, TASK-003, TASK-003a, TASK-004, TASK-001a, TASK-001b, TASK-001c, TASK-001d,
 TASK-001e, TASK-005, TASK-006, TASK-007, TASK-007a, TASK-008, TASK-009, TASK-010, TASK-011,
-TASK-013 et TASK-014 sont tous `completed`** (TASK-005 et TASK-003a le 2026-09-05 (même
+TASK-012, TASK-013 et TASK-014 sont tous `completed`** (TASK-012 le 2026-09-06, même session que
+TASK-005 — commit `7b0e794` — mais dont le statut ici et dans son propre fichier n'avait pas été
+mis à jour avant une correction de désync faite le 2026-09-06 en rédigeant TASK-015 (voir la
+section TASK-012 ci-dessus pour le détail) ; TASK-005 et TASK-003a le 2026-09-05 (même
 session, TASK-003a en premier pour débloquer TASK-005), TASK-001e le 2026-09-04, amendé le jour
 même par ADI-014, TASK-014 le 2026-09-04, TASK-013 le 2026-09-04, TASK-011
 le 2026-09-03, TASK-001d le 2026-09-03, TASK-001c le 2026-09-03, TASK-010 le 2026-09-03,
 TASK-009 le 2026-09-03, TASK-008 le 2026-09-02, TASK-007a le 2026-09-02, TASK-007 le
 2026-09-01, TASK-006 le 2026-09-01, TASK-001a et TASK-001b le 2026-08-31, les quatre
 autres le 2026-08-30).
-**Un seul ticket reste rédigé (`backlog`), plus le satellite TASK-001f** — voir leurs sections
-ci-dessus (TASK-012, plus TASK-001f — compte vérifié contre `specs/tasks/backlog/`, cohérent
-avec « État actuel » ci-dessus).
+**Cinq tickets restent rédigés (`backlog`), plus les satellites TASK-001f, TASK-014a et
+TASK-014b** — voir leurs sections ci-dessus (TASK-015, TASK-016, TASK-017, TASK-018 et TASK-019,
+plus TASK-001f, TASK-014a et TASK-014b — ces deux derniers rédigés le 2026-09-06 en implémentant
+ADI-016 ; compte vérifié contre `specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus).
+Aucun changement à la prochaine action d'implémentation : TASK-018/TASK-019 sont de nouveaux
+tickets rédigés hors ordre à la demande de Cleo, pas une re-priorisation — TASK-015 reste devant
+dans l'ordre d'implémentation.
 
-- Chaîne GUI TASK-008 → TASK-009 → TASK-010 → TASK-011 (scaffold, Logs d'ingestion,
-  Validation, Détail de proposition) est désormais **entièrement `completed`**, et TASK-005
-  (backend Entity/Event/Relationship, précédé du satellite TASK-003a) l'est aussi. Il ne reste
-  que **TASK-012**, qui referme le socle GUI en s'appuyant sur TASK-005 (backend, repris par
-  référence — reste seulement à nommer/mapper `UnresolvedRelationshipEndpointError` en HTTP 409
-  dans `src/app/api/app.py`) et sur la chaîne frontend au complet côté GUI (satisfaite).
+- **Le socle GUI (TASK-007 → TASK-012) est désormais entièrement `completed`** : la chaîne
+  TASK-008 → TASK-009 → TASK-010 → TASK-011 (scaffold, Logs d'ingestion, Validation, Détail de
+  proposition), TASK-005 (backend Entity/Event/Relationship, précédé du satellite TASK-003a) et
+  TASK-012 (intégration API + GUI de TASK-005, fermant le socle) le sont tous.
 - TASK-013 (mode édition), TASK-014 (organisation en dossiers) et TASK-001e (chemin proposé
-  par le LLM, rendu obligatoire par ADI-014) sont désormais tous `completed`,
-  indépendamment de TASK-005/TASK-012 (scope assertion-only).
+  par le LLM, rendu obligatoire par ADI-014) sont aussi tous `completed`.
 
-Prochaine action : **TASK-012** (intégration API + GUI de TASK-005) — désormais le seul ticket
-du socle GUI restant, immédiatement implémentable (TASK-005 et la chaîne frontend TASK-008→011
-sont tous `completed`). Le socle GUI (TASK-007 → TASK-012) n'a donc plus que ce seul ticket
-avant d'être entièrement implémenté.
+Prochaine action : **TASK-015** (opérations de masse et priorisation de la file de revue —
+`specs/tasks/backlog/TASK-015-review-queue-bulk-operations.md`, rédigé le 2026-09-06), première
+entrée de la section 2 (proposition de re-priorisation) de `BACKLOG-CLAUDE-V2.md` à être
+extraite et rédigée en ticket complet après TASK-013/TASK-014 : bulk accept/reject par groupe
+source (maquette `pekopeko-workflow.html`) plus filtres type de proposition/statut épistémique
+et un contrôle de tri, sur `Validation.jsx`, désormais scopé sur les 4 `proposed_item_type`
+puisque TASK-012 est `completed`.
+**TASK-016** (`specs/tasks/backlog/TASK-016-audio-video-ingestion-transcription.md`) et
+**TASK-017** (`specs/tasks/backlog/TASK-017-additional-source-readers.md`) ont été rédigés le
+2026-09-06, dans une session ultérieure à celle de TASK-015, **à la demande explicite de Cleo,
+hors de l'ordre strict du backlog** (TASK-015 n'est pas encore implémenté) — 2ᵉ et 3ᵉ entrées de
+la même section 2 de `BACKLOG-CLAUDE-V2.md`. Ceci ne change pas la prochaine action
+d'implémentation ci-dessus, qui reste TASK-015. Écrire ces deux tickets a fait surgir un vrai
+écart architectural que ni `BACKLOG-CLAUDE-V2.md` ni la note de contexte reçue en début de
+session n'avaient identifié : le protocole `SourceReader.read(path: Path) -> str` existant ne
+prend qu'un fichier local, alors que Cleo a confirmé — pour TASK-016 (vidéo/audio) et pour la
+partie « page web » de TASK-017 — que le contenu doit être **fetché par Pekopeko lui-même depuis
+une URL**, jamais fourni comme fichier local. Les deux tickets introduisent donc un second point
+d'extension, `RemoteSourceReader`/`RemoteSourceReaderRegistry` (keyed par host d'URL), distinct du
+`SourceReaderRegistry` existant (keyed par extension de fichier) — TASK-016 l'introduit, TASK-017
+le réutilise pour son seul lecteur « page web » (ses lecteurs PDF/texte brut restent des
+`SourceReader(path)` classiques, indépendants de TASK-016). Conséquence documentée explicitement
+dans les deux tickets plutôt que passée sous silence : **TASK-017 dépend désormais de TASK-016**
+pour sa partie web, alors que `BACKLOG-CLAUDE-V2.md` les présentait comme indépendants. Autres
+décisions actées avec Cleo la même session et gravées dans TASK-016 : transcription via Whisper
+local fixe (pas d'abstraction pluggable en V1), les 3 plateformes (YouTube/TikTok/Instagram) dès
+la V1. Aucun changement à `docs/ROADMAP.md`'s « Décisions d'architecture » n'a été fait pour ces
+choix — ce sont des décisions de scope de ticket (même esprit que TASK-014/ADI-012), pas des ADR
+séparées, à moins que l'implémentation ne révèle un besoin de les formaliser.
 Le satellite **TASK-001f**
 (`specs/tasks/backlog/TASK-001f-automatic-folder-ingestion.md`, `backlog`, rédigé le
 2026-09-04 implémentant **ADI-013**) ajoute un déclenchement automatique de l'ingestion par
