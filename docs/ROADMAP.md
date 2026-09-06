@@ -210,7 +210,7 @@ Un nettoyage complet des identifiants du corpus a été fait en amont des ADR (c
 
 ## Tickets et implémentation (en cours)
 
-**Lecture requise pour rédiger un ticket :** les ADR `Accepted` concernées, `specs/modules/module-architecture.md`, `specs/tasks/README.md` (format et cycle de vie `backlog/` → `active/` → `completed/`).
+**Lecture requise pour rédiger un ticket :** les ADR `Accepted` concernées, `specs/modules/module-architecture.md`, `specs/tasks/README.md` (format et cycle de vie `backlog/` → `active/` → `completed/`), et `docs/OPEN-ISSUES.md` en entier. Si une entrée de ce dernier a un impact sur le scope ou le développement de la tâche en cours de rédaction, ne pas trancher soi-même ni contourner en silence : prévenir Cleo qu'il faut d'abord trancher ce point avant d'écrire la spec du ticket.
 **Lecture requise pour implémenter un ticket :** uniquement le ticket lui-même et les invariants qu'il cite explicitement — pas l'ensemble de `specs/`. Si un ticket ne peut pas être traité sans relire tout le corpus, il est mal découpé.
 
 Un ticket doit être assez petit et autonome pour être traité par qwen3-coder:30b sans relire le corpus : fichiers concernés, schéma/interface attendu, critères d'acceptation testables, et les 2-3 invariants pertinents cités explicitement (pas par renvoi global). Toujours préférer un scope V1 minimal plutôt que d'adresser les 18 cas d'usage d'un coup.
