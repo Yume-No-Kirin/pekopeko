@@ -15,37 +15,55 @@ import EpistemicStatusBadge from "../components/EpistemicStatusBadge.jsx";
 import SourceGroupHeader from "../components/SourceGroupHeader.jsx";
 import RejectReasonModal from "../components/RejectReasonModal.jsx";
 import FolderPathBuilder from "../components/FolderPathBuilder.jsx";
+import EntityTypeBadge from "../components/EntityTypeBadge.jsx";
+import EventTemporalRange from "../components/EventTemporalRange.jsx";
+import RelationshipEndpoints from "../components/RelationshipEndpoints.jsx";
 
 const REVIEWER_ID = import.meta.env.VITE_REVIEWER_ID || "cleo";
 const NOTES_PER_PAGE = 10;
 
-// Fetches the full PROPOSED/assertion queue for the given domains (stage 1)
-// and the originating ingestion tasks' status (stage 3) in parallel - stage
-// 3 only depends on `domains`, not on stage 1's result, so there is no
-// reason to wait for stage 1 (let alone the stage-2 detail fan-out below)
-// before issuing it. Stage 2 (joining each proposal with its full
-// ProposalDetail - a failed per-item fetch is dropped, not propagated,
-// mirroring review/pipeline.py's list_proposals own "a single malformed
-// proposal must not break the whole review queue") genuinely depends on
-// stage 1's summaries, so it stays sequential after it. Everything is then
-// grouped by provenance.source_id.
+// Resolves a relationship endpoint id to a display label using only detail
+// data already fetched for other reasons (no new backend read endpoint,
+// TASK-012's explicit V1 scope decision): an id not present in `detailsById`
+// (not in the current PROPOSED/EDITED queue - already canonical, or outside
+// this view) resolves to `null`, rendered as a plain id by
+// RelationshipEndpoints.
+function resolveEndpointLabel(id, detailsById) {
+  const detail = detailsById.get(id);
+  if (!detail) return null;
+  const excerpt = (detail.body || "").slice(0, 60);
+  return `${detail.frontmatter.proposed_item_type}: ${excerpt}`;
+}
+
+// Fetches the full PROPOSED/EDITED queue for the given domains (stage 1,
+// all 4 proposed_item_types since TASK-012) and the originating ingestion
+// tasks' status (stage 3) in parallel - stage 3 only depends on `domains`,
+// not on stage 1's result, so there is no reason to wait for stage 1 (let
+// alone the stage-2 detail fan-out below) before issuing it. Stage 2
+// (joining each proposal with its full ProposalDetail - a failed per-item
+// fetch is dropped, not propagated, mirroring review/pipeline.py's
+// list_proposals own "a single malformed proposal must not break the whole
+// review queue") genuinely depends on stage 1's summaries, so it stays
+// sequential after it. Everything is then grouped by provenance.source_id.
+// The same stage-2 details also become `detailsById`, reused (TASK-012) to
+// resolve relationship endpoint labels without any extra fetch.
 async function fetchGroups(domains) {
   const [proposedPages, editedPages, taskPages] = await Promise.all([
     Promise.all(domains.map((domain) => listProposals(domain, { status: "PROPOSED", limit: 500, offset: 0 }))),
     Promise.all(domains.map((domain) => listProposals(domain, { status: "EDITED", limit: 500, offset: 0 }))),
     Promise.all(domains.map((domain) => listIngestions(domain, { limit: 500, offset: 0 }))),
   ]);
-  const summaries = [...proposedPages, ...editedPages]
-    .flatMap((page) => page.items)
-    .filter((item) => item.proposed_item_type === "assertion");
+  const summaries = [...proposedPages, ...editedPages].flatMap((page) => page.items);
 
   const detailSettlements = await Promise.allSettled(
     summaries.map((summary) => getProposal(summary.domain, summary.id))
   );
   const notes = [];
+  const detailsById = new Map();
   detailSettlements.forEach((settlement, i) => {
     if (settlement.status === "fulfilled") {
       notes.push({ ...summaries[i], detail: settlement.value });
+      detailsById.set(summaries[i].id, settlement.value);
     }
   });
 
@@ -78,7 +96,7 @@ async function fetchGroups(domains) {
     groupsByKey.get(key).notes.push(note);
   }
 
-  return Array.from(groupsByKey.values());
+  return { groups: Array.from(groupsByKey.values()), detailsById };
 }
 
 // One organization-folders fetch per visible domain (assertion-only, same scope as
@@ -116,7 +134,16 @@ function packGroupsIntoPages(groups, notesPerPage) {
   return pages;
 }
 
-function NoteRow({ note, folderOptions, onAccept, onReject, onPathChange }) {
+function NoteRow({ note, folderOptions, detailsById, onAccept, onReject, onPathChange }) {
+  const itemType = note.detail.frontmatter.proposed_item_type;
+  const resolvedEndpoints =
+    itemType === "relationship"
+      ? (note.detail.frontmatter.endpoints || []).map((id) => ({
+          id,
+          label: resolveEndpointLabel(id, detailsById),
+        }))
+      : [];
+
   return (
     <tr className="note-row">
       <td className="note-content-cell">
@@ -124,14 +151,24 @@ function NoteRow({ note, folderOptions, onAccept, onReject, onPathChange }) {
       </td>
       <td>
         <EpistemicStatusBadge status={note.epistemic_status} />
+        {itemType === "entity" && <EntityTypeBadge entityType={note.detail.frontmatter.entity_type} />}
+        {itemType === "event" && (
+          <EventTemporalRange
+            startsAt={note.detail.frontmatter.starts_at}
+            endsAt={note.detail.frontmatter.ends_at}
+          />
+        )}
+        {itemType === "relationship" && <RelationshipEndpoints endpoints={resolvedEndpoints} />}
       </td>
       <td className="folder-cell">
-        <FolderPathBuilder
-          editable={true}
-          segments={note.detail.frontmatter.proposed_path_segments || []}
-          optionsByDepth={folderOptions || []}
-          onChange={(segments) => onPathChange(note.domain, note.id, segments)}
-        />
+        {itemType === "assertion" && (
+          <FolderPathBuilder
+            editable={true}
+            segments={note.detail.frontmatter.proposed_path_segments || []}
+            optionsByDepth={folderOptions || []}
+            onChange={(segments) => onPathChange(note.domain, note.id, segments)}
+          />
+        )}
       </td>
       <td>
         <div className="note-actions">
@@ -156,6 +193,7 @@ export default function Validation() {
   const [page, setPage] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [groups, setGroups] = useState(null);
+  const [detailsById, setDetailsById] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actionError, setActionError] = useState(null);
@@ -170,7 +208,8 @@ export default function Validation() {
     fetchGroups(domains)
       .then((result) => {
         if (!cancelled) {
-          setGroups(result);
+          setGroups(result.groups);
+          setDetailsById(result.detailsById);
           setPage(0);
           setLoading(false);
         }
@@ -375,6 +414,7 @@ export default function Validation() {
                         key={`${note.domain}-${note.id}`}
                         note={note}
                         folderOptions={folderOptionsByDomain[note.domain]}
+                        detailsById={detailsById}
                         onAccept={handleAccept}
                         onReject={handleRejectClick}
                         onPathChange={handlePathChange}

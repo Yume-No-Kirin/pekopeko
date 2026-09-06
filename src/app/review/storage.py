@@ -35,6 +35,22 @@ REQUIRED_ASSERTION_FIELDS = [
     "id", "type", "domain", "epistemic_status", "lifecycle_status",
     "valid_from", "valid_until", "created_at", "provenance",
 ]
+REQUIRED_ENTITY_FIELDS = [
+    "id", "type", "domain", "entity_type", "epistemic_status", "lifecycle_status",
+    "valid_from", "valid_until", "created_at", "provenance",
+]
+REQUIRED_EVENT_FIELDS = [
+    "id", "type", "domain", "starts_at", "ends_at", "epistemic_status", "lifecycle_status",
+    "valid_from", "valid_until", "created_at", "provenance",
+]
+REQUIRED_RELATIONSHIP_FIELDS = [
+    "id", "type", "domain", "relationship_type", "endpoints", "epistemic_status",
+    "lifecycle_status", "valid_from", "valid_until", "created_at", "provenance",
+]
+# Provenance requirement is identical across all four canonical item types
+# (assertion/entity/event/relationship) - the "ASSERTION" name predates
+# entity/event/relationship support (TASK-005) but is reused as-is rather
+# than renamed, to avoid unrelated churn.
 REQUIRED_ASSERTION_PROVENANCE_FIELDS = [
     "source_id", "extraction_provider", "proposal_id", "reviewed_by", "reviewed_at",
 ]
@@ -96,6 +112,18 @@ def _generate_assertion_id() -> str:
     return f"assert-{uuid.uuid4()}"
 
 
+def _generate_entity_id() -> str:
+    return f"entity-{uuid.uuid4()}"
+
+
+def _generate_event_id() -> str:
+    return f"event-{uuid.uuid4()}"
+
+
+def _generate_relationship_id() -> str:
+    return f"relationship-{uuid.uuid4()}"
+
+
 def proposal_path(vault_root: Path, domain: str, proposal_id: str) -> Path:
     return vault_root / domain / "proposals" / proposal_id / f"{proposal_id}.md"
 
@@ -108,6 +136,18 @@ def assertion_path(
     for segment in path_segments or []:
         base = base / segment
     return base / assertion_id / f"{assertion_id}.md"
+
+
+def entity_path(vault_root: Path, domain: str, entity_id: str) -> Path:
+    return vault_root / domain / "entities" / entity_id / f"{entity_id}.md"
+
+
+def event_path(vault_root: Path, domain: str, event_id: str) -> Path:
+    return vault_root / domain / "events" / event_id / f"{event_id}.md"
+
+
+def relationship_path(vault_root: Path, domain: str, relationship_id: str) -> Path:
+    return vault_root / domain / "relationships" / relationship_id / f"{relationship_id}.md"
 
 
 def source_path(vault_root: Path, domain: str, source_id: str) -> Path:
@@ -236,6 +276,33 @@ def write_assertion_file(
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
 
     path = assertion_path(vault_root, domain, frontmatter["id"], path_segments=path_segments)
+    _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
+    return path
+
+
+def write_entity_file(vault_root: Path, domain: str, frontmatter: dict[str, Any], body: str) -> Path:
+    _validate_frontmatter(frontmatter, REQUIRED_ENTITY_FIELDS)
+    _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
+
+    path = entity_path(vault_root, domain, frontmatter["id"])
+    _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
+    return path
+
+
+def write_event_file(vault_root: Path, domain: str, frontmatter: dict[str, Any], body: str) -> Path:
+    _validate_frontmatter(frontmatter, REQUIRED_EVENT_FIELDS)
+    _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
+
+    path = event_path(vault_root, domain, frontmatter["id"])
+    _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
+    return path
+
+
+def write_relationship_file(vault_root: Path, domain: str, frontmatter: dict[str, Any], body: str) -> Path:
+    _validate_frontmatter(frontmatter, REQUIRED_RELATIONSHIP_FIELDS)
+    _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
+
+    path = relationship_path(vault_root, domain, frontmatter["id"])
     _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
     return path
 

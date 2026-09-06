@@ -1,37 +1,19 @@
 """
 UC-001 (Novel Ingestion), entity/event/relationship half - TC-UC001-E2E.
 Real HTTP against a real Flask server and a real local Ollama. See
-specs/tests/test-plan.md's "Test layers" section and the UC-001 finding
-notes below - both verified empirically against a real server+Ollama in
-this session (not just read from source), then written up as regression
-guards here so they don't silently regress or silently get "fixed" without
-Cleo noticing the review-queue behavior changed.
+specs/tests/test-plan.md's "Test layers" section.
 
-Finding 1 (review-queue visibility): GET /domains/<domain>/proposals never
-lists an extraction-produced (entity/event/relationship) proposal, even
-though the extraction task itself completes successfully and its
-TaskState.proposal_ids correctly lists them. review.list_proposals()
-silently `continue`s past any proposal whose frontmatter fails its
-REQUIRED_PROPOSAL_FIELDS check (id/type) instead of raising - and
-extraction/storage.py (TASK-003's own contract) never writes an `id` or
-`type` field (it writes `item_type`, no top-level id). So today's review
-queue (UC-011) is silently blind to every entity/event/relationship
-proposal that exists on disk - not a 4xx anywhere, just an empty list.
+Until TASK-003a + TASK-005, two real gaps existed here (see
+specs/tasks/backlog/TASK-005-entity-event-relationship-review.md's
+Implementation notes for the full history): extraction-produced proposals
+were invisible to GET /domains/<domain>/proposals, and GET/accept on one
+individually returned 400 ValidationError rather than ever reaching the
+proposed_item_type business rule. Both are fixed now - these tests assert
+the corrected behavior as regression guards.
 
-Finding 2 (accept/get status code): GET or POST .../accept on one of those
-proposal_ids individually returns HTTP 400 (error.type == "ValidationError"),
-NOT 422 ("UnsupportedProposalTypeError") as TASK-007's own AC10/
-test_review_routes.py::test_accept_entity_proposal_returns_422 asserts. That
-existing test constructs its entity proposal via api/conftest.py's
-make_proposal_file fixture, which writes the ingestion/review contract's
-field names (id/type present) - not extraction/storage.py's real,
-deliberately different contract. A proposal shaped the way extraction/
-actually writes it fails review/'s own required-field validation before the
-proposed_item_type business rule is ever reached.
-
-Both are flagged here for Cleo; not fixed (out of this task's scope) -
-TASK-005 will need to reconcile the two contracts, not just add business
-logic.
+Not re-run in this session (no live Ollama available here) - flagged
+`[NOT RUN]` in TASK-005's own verification record, same as every other
+e2e-marked test in prior tickets' verification records.
 """
 import pytest
 import requests
@@ -57,10 +39,10 @@ def test_extraction_completes_and_creates_proposals_on_disk(live_server, auth_he
     assert len(final["proposal_ids"]) >= 1
 
 
-def test_extraction_proposals_are_invisible_to_the_review_queue_endpoint(live_server, auth_headers, source_file):
-    """Finding 1, deterministic despite real LLM content: whatever the
-    provider extracted (>=1 proposal, proven via the task's own
-    proposal_ids), the list endpoint reports none of it."""
+def test_extraction_proposals_are_visible_to_the_review_queue_endpoint(live_server, auth_headers, source_file):
+    """Deterministic despite real LLM content: whatever the provider
+    extracted (>=1 proposal, proven via the task's own proposal_ids), the
+    list endpoint now reports all of it (TASK-003a's id/type fields)."""
     start_resp = requests.post(
         f"{live_server}/domains/FICTION/extractions",
         json={"source_path": str(source_file)},
@@ -74,11 +56,16 @@ def test_extraction_proposals_are_invisible_to_the_review_queue_endpoint(live_se
     list_resp = requests.get(f"{live_server}/domains/FICTION/proposals", headers=auth_headers, timeout=10)
     assert list_resp.status_code == 200
     listed_ids = {p["id"] for p in list_resp.json()["items"]}
-    assert listed_ids.isdisjoint(final["proposal_ids"])  # none of the real ones are listed
+    assert set(final["proposal_ids"]).issubset(listed_ids)
 
 
-def test_extraction_proposal_get_and_accept_fail_with_validation_error(live_server, auth_headers, source_file):
-    """Finding 2."""
+def test_extraction_entity_proposal_get_and_accept_succeed(live_server, auth_headers, source_file):
+    """GET and accept now succeed for a real extraction-produced proposal
+    (TASK-005). Picks an `entity` proposal specifically (rather than
+    proposal_ids[0]) so the test is deterministic regardless of real LLM
+    output order/mix: an entity never has unresolved-endpoint preconditions,
+    unlike a relationship (covered at the unit/acceptance layer instead,
+    where fixture content is controlled)."""
     start_resp = requests.post(
         f"{live_server}/domains/FICTION/extractions",
         json={"source_path": str(source_file)},
@@ -87,17 +74,23 @@ def test_extraction_proposal_get_and_accept_fail_with_validation_error(live_serv
     )
     task_id = start_resp.json()["task_id"]
     final = poll_task_until_terminal(live_server, auth_headers, "FICTION", "extractions", task_id)
-    proposal_id = final["proposal_ids"][0]
 
-    get_resp = requests.get(f"{live_server}/domains/FICTION/proposals/{proposal_id}", headers=auth_headers, timeout=10)
-    assert get_resp.status_code == 400
-    assert get_resp.json()["error"]["type"] == "ValidationError"
+    entity_proposal_id = None
+    for proposal_id in final["proposal_ids"]:
+        detail_resp = requests.get(
+            f"{live_server}/domains/FICTION/proposals/{proposal_id}", headers=auth_headers, timeout=10
+        )
+        assert detail_resp.status_code == 200
+        if detail_resp.json()["frontmatter"]["proposed_item_type"] == "entity":
+            entity_proposal_id = proposal_id
+            break
+    assert entity_proposal_id is not None, "expected at least one entity proposal"
 
     accept_resp = requests.post(
-        f"{live_server}/domains/FICTION/proposals/{proposal_id}/accept",
+        f"{live_server}/domains/FICTION/proposals/{entity_proposal_id}/accept",
         json={"reviewer_id": "cleo-e2e"},
         headers=auth_headers,
         timeout=10,
     )
-    assert accept_resp.status_code == 400
-    assert accept_resp.json()["error"]["type"] == "ValidationError"
+    assert accept_resp.status_code == 200
+    assert accept_resp.json()["assertion_id"].startswith("entity-")

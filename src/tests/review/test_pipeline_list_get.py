@@ -106,3 +106,46 @@ def test_get_proposal_wrong_domain_raises_domain_mismatch(tmp_path, make_proposa
 
     with pytest.raises(DomainMismatchError):
         pipeline.get_proposal(tmp_path, "PERSONAL", proposal_id)
+
+
+# TASK-005: list_proposals/get_proposal regression for a mix of all 4 proposed_item_types
+
+def test_list_proposals_returns_all_four_types_mixed(
+    tmp_path, make_proposal_file, make_entity_proposal_file, make_event_proposal_file,
+    make_relationship_proposal_file,
+):
+    assertion_id, _ = make_proposal_file(domain="PERSONAL")
+    entity_id, _ = make_entity_proposal_file(domain="PERSONAL")
+    event_id, _ = make_event_proposal_file(domain="PERSONAL")
+    relationship_id, _ = make_relationship_proposal_file(domain="PERSONAL")
+
+    proposals = pipeline.list_proposals(tmp_path, "PERSONAL")
+
+    assert {p.id for p in proposals} == {assertion_id, entity_id, event_id, relationship_id}
+    types_by_id = {p.id: p.proposed_item_type for p in proposals}
+    assert types_by_id[assertion_id] == "assertion"
+    assert types_by_id[entity_id] == "entity"
+    assert types_by_id[event_id] == "event"
+    assert types_by_id[relationship_id] == "relationship"
+
+
+def test_get_proposal_returns_type_specific_fields_for_each_type(
+    tmp_path, make_entity_proposal_file, make_event_proposal_file, make_relationship_proposal_file,
+):
+    entity_id, _ = make_entity_proposal_file(domain="PERSONAL", entity_type="place")
+    event_id, _ = make_event_proposal_file(
+        domain="PERSONAL", starts_at="2026-01-01T00:00:00", ends_at="2026-01-02T00:00:00"
+    )
+    relationship_id, _ = make_relationship_proposal_file(
+        domain="PERSONAL", relationship_type="located_in", endpoints=["a", "b"]
+    )
+
+    entity_detail = pipeline.get_proposal(tmp_path, "PERSONAL", entity_id)
+    event_detail = pipeline.get_proposal(tmp_path, "PERSONAL", event_id)
+    relationship_detail = pipeline.get_proposal(tmp_path, "PERSONAL", relationship_id)
+
+    assert entity_detail.frontmatter["entity_type"] == "place"
+    assert event_detail.frontmatter["starts_at"] == "2026-01-01T00:00:00"
+    assert event_detail.frontmatter["ends_at"] == "2026-01-02T00:00:00"
+    assert relationship_detail.frontmatter["relationship_type"] == "located_in"
+    assert relationship_detail.frontmatter["endpoints"] == ["a", "b"]

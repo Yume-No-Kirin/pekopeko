@@ -151,7 +151,7 @@ def test_accept_proposal_missing_reviewer_id_raises_validation_error(tmp_path, m
 
 
 def test_accept_proposal_unsupported_proposed_item_type_raises(tmp_path, make_proposal_file):
-    proposal_id, _ = make_proposal_file(domain="PERSONAL", proposed_item_type="entity")
+    proposal_id, _ = make_proposal_file(domain="PERSONAL", proposed_item_type="bogus")
 
     with pytest.raises(UnsupportedProposalTypeError):
         pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")

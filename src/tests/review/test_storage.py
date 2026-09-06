@@ -310,6 +310,101 @@ def test_scan_organization_folders_empty_domain(tmp_path):
     assert storage.scan_organization_folders(tmp_path, "PERSONAL") == []
 
 
+# TASK-005: entity/event/relationship id generators, path helpers, writers
+
+def test_generate_entity_event_relationship_id_format_and_uniqueness():
+    entity_id1, entity_id2 = storage._generate_entity_id(), storage._generate_entity_id()
+    event_id1, event_id2 = storage._generate_event_id(), storage._generate_event_id()
+    relationship_id1, relationship_id2 = storage._generate_relationship_id(), storage._generate_relationship_id()
+
+    assert entity_id1.startswith("entity-") and entity_id1 != entity_id2
+    assert event_id1.startswith("event-") and event_id1 != event_id2
+    assert relationship_id1.startswith("relationship-") and relationship_id1 != relationship_id2
+
+
+def test_entity_event_relationship_path_helpers(tmp_path):
+    assert storage.entity_path(tmp_path, "PERSONAL", "entity-1") == (
+        tmp_path / "PERSONAL" / "entities" / "entity-1" / "entity-1.md"
+    )
+    assert storage.event_path(tmp_path, "PERSONAL", "event-1") == (
+        tmp_path / "PERSONAL" / "events" / "event-1" / "event-1.md"
+    )
+    assert storage.relationship_path(tmp_path, "PERSONAL", "relationship-1") == (
+        tmp_path / "PERSONAL" / "relationships" / "relationship-1" / "relationship-1.md"
+    )
+
+
+def _base_provenance():
+    return {
+        "source_id": "src-1", "extraction_provider": "TestProvider",
+        "proposal_id": "prop-1", "reviewed_by": "reviewer-1", "reviewed_at": "2026-01-01T00:00:00",
+    }
+
+
+def test_write_entity_file_success_and_atomic(tmp_path):
+    frontmatter = {
+        "id": "entity-1", "type": "entity", "domain": "PERSONAL", "entity_type": "person",
+        "epistemic_status": "direct", "lifecycle_status": "ACTIVE", "valid_from": "2026-01-01T00:00:00",
+        "valid_until": None, "created_at": "2026-01-01T00:00:00", "provenance": _base_provenance(),
+    }
+    path = storage.write_entity_file(tmp_path, "PERSONAL", frontmatter, "body text")
+    assert path == storage.entity_path(tmp_path, "PERSONAL", "entity-1")
+    assert path.exists()
+    assert list(path.parent.glob("*.tmp")) == []
+
+
+def test_write_entity_file_raises_validation_error_before_write_on_missing_fields(tmp_path):
+    incomplete_frontmatter = {"id": "entity-1", "type": "entity"}
+
+    with pytest.raises(ValidationError):
+        storage.write_entity_file(tmp_path, "PERSONAL", incomplete_frontmatter, "body")
+
+    assert not (tmp_path / "PERSONAL" / "entities").exists()
+
+
+def test_write_event_file_success(tmp_path):
+    frontmatter = {
+        "id": "event-1", "type": "event", "domain": "PERSONAL", "starts_at": "2026-01-01T00:00:00",
+        "ends_at": None, "epistemic_status": "direct", "lifecycle_status": "ACTIVE",
+        "valid_from": "2026-01-01T00:00:00", "valid_until": None, "created_at": "2026-01-01T00:00:00",
+        "provenance": _base_provenance(),
+    }
+    path = storage.write_event_file(tmp_path, "PERSONAL", frontmatter, "body text")
+    assert path == storage.event_path(tmp_path, "PERSONAL", "event-1")
+    assert path.exists()
+
+
+def test_write_event_file_raises_validation_error_before_write_on_missing_fields(tmp_path):
+    incomplete_frontmatter = {"id": "event-1", "type": "event"}
+
+    with pytest.raises(ValidationError):
+        storage.write_event_file(tmp_path, "PERSONAL", incomplete_frontmatter, "body")
+
+    assert not (tmp_path / "PERSONAL" / "events").exists()
+
+
+def test_write_relationship_file_success(tmp_path):
+    frontmatter = {
+        "id": "relationship-1", "type": "relationship", "domain": "PERSONAL",
+        "relationship_type": "knows", "endpoints": ["entity-a", "entity-b"],
+        "epistemic_status": "direct", "lifecycle_status": "ACTIVE",
+        "valid_from": "2026-01-01T00:00:00", "valid_until": None, "created_at": "2026-01-01T00:00:00",
+        "provenance": _base_provenance(),
+    }
+    path = storage.write_relationship_file(tmp_path, "PERSONAL", frontmatter, "body text")
+    assert path == storage.relationship_path(tmp_path, "PERSONAL", "relationship-1")
+    assert path.exists()
+
+
+def test_write_relationship_file_raises_validation_error_before_write_on_missing_fields(tmp_path):
+    incomplete_frontmatter = {"id": "relationship-1", "type": "relationship"}
+
+    with pytest.raises(ValidationError):
+        storage.write_relationship_file(tmp_path, "PERSONAL", incomplete_frontmatter, "body")
+
+    assert not (tmp_path / "PERSONAL" / "relationships").exists()
+
+
 def test_scan_organization_folders_multi_depth_excludes_assert_prefix(tmp_path):
     assertions_dir = tmp_path / "PERSONAL" / "assertions"
     (assertions_dir / "mythologie" / "japonaise" / "assert-1").mkdir(parents=True)

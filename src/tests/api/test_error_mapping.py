@@ -30,6 +30,7 @@ def test_error_status_map_covers_every_ticket_row():
     assert statuses_by_name["SourceNotFoundError"] == 404
     assert statuses_by_name["DomainMismatchError"] == 400
     assert statuses_by_name["InvalidProposalStatusError"] == 409
+    assert statuses_by_name["UnresolvedRelationshipEndpointError"] == 409
     assert statuses_by_name["UnsupportedProposalTypeError"] == 422
     assert statuses_by_name["ConfigError"] == 500
 
@@ -76,10 +77,30 @@ def test_invalid_proposal_status_maps_to_409(client, auth_headers, make_proposal
     _assert_envelope(resp, 409, "InvalidProposalStatusError")
 
 
-def test_unsupported_proposal_type_maps_to_422(client, auth_headers, make_proposal_file):
+def test_unresolved_relationship_endpoint_maps_to_409(client, auth_headers, make_proposal_file):
+    # TASK-012: accepting a relationship whose endpoint is a still-PROPOSED
+    # proposal (not yet ACCEPTED) must not write anything and must surface a
+    # dedicated 409, distinct from InvalidProposalStatusError.
+    endpoint_id, _ = make_proposal_file(status="PROPOSED", proposed_item_type="entity", entity_type="person")
     proposal_id, _ = make_proposal_file(
-        status="PROPOSED", proposed_item_type="entity", entity_type="person"
+        status="PROPOSED",
+        proposed_item_type="relationship",
+        relationship_type="attended",
+        endpoints=[endpoint_id, "some-existing-canonical-id"],
     )
+    resp = client.post(
+        f"/domains/PERSONAL/proposals/{proposal_id}/accept",
+        json={"reviewer_id": "r1"},
+        headers=auth_headers,
+    )
+    _assert_envelope(resp, 409, "UnresolvedRelationshipEndpointError")
+
+
+def test_unsupported_proposal_type_maps_to_422(client, auth_headers, make_proposal_file):
+    # TASK-005: entity/event/relationship are now supported by accept_proposal
+    # (superseding TASK-007's original AC10) - only a genuinely unrecognized
+    # proposed_item_type still triggers UnsupportedProposalTypeError/422.
+    proposal_id, _ = make_proposal_file(status="PROPOSED", proposed_item_type="bogus")
     resp = client.post(
         f"/domains/PERSONAL/proposals/{proposal_id}/accept",
         json={"reviewer_id": "r1"},

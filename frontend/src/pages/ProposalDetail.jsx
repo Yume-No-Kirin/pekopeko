@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   listProposals,
@@ -14,6 +14,9 @@ import RejectReasonModal from "../components/RejectReasonModal.jsx";
 import TaskEventLog from "../components/TaskEventLog.jsx";
 import ProvenanceSection from "../components/ProvenanceSection.jsx";
 import FolderPathBuilder from "../components/FolderPathBuilder.jsx";
+import EntityTypeBadge from "../components/EntityTypeBadge.jsx";
+import EventTemporalRange from "../components/EventTemporalRange.jsx";
+import RelationshipEndpoints from "../components/RelationshipEndpoints.jsx";
 
 const REVIEWER_ID = import.meta.env.VITE_REVIEWER_ID || "cleo";
 
@@ -49,24 +52,32 @@ export default function ProposalDetail() {
   const [draftValidUntil, setDraftValidUntil] = useState("");
   const [draftPathSegments, setDraftPathSegments] = useState([]);
   const [folderOptions, setFolderOptions] = useState([]);
+  const [endpointLabels, setEndpointLabels] = useState({});
+  const endpointCacheRef = useRef(new Map());
 
   // Three independent fetches: the detail fetch is mandatory (its failure is
   // the page's error state); the ingestion-task list (Logs section) and the
-  // PROPOSED/assertion queue (Précédent/Suivant) each degrade to an empty
-  // list on failure rather than blocking the rest of the page - same
-  // non-blocking-satellite posture the ticket asks for (TASK-001a/TASK-001b
-  // aren't hard dependencies either).
+  // PROPOSED/EDITED queue (Précédent/Suivant, all 4 proposed_item_types
+  // since TASK-012) each degrade to an empty list on failure rather than
+  // blocking the rest of the page - same non-blocking-satellite posture the
+  // ticket asks for (TASK-001a/TASK-001b aren't hard dependencies either).
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
     setDetail(null);
 
+    endpointCacheRef.current = new Map();
+    setEndpointLabels({});
+
     getProposal(domain, proposalId)
       .then((result) => {
         if (!cancelled) {
           setDetail(result);
           setLoading(false);
+          if (result.frontmatter.proposed_item_type === "relationship") {
+            resolveEndpoints(result.frontmatter.endpoints || []);
+          }
         }
       })
       .catch((err) => {
@@ -90,16 +101,38 @@ export default function ProposalDetail() {
     ])
       .then(([proposedPage, editedPage]) => {
         if (!cancelled) {
-          setQueue(
-            [...proposedPage.items, ...editedPage.items].filter(
-              (item) => item.proposed_item_type === "assertion"
-            )
-          );
+          setQueue([...proposedPage.items, ...editedPage.items]);
         }
       })
       .catch(() => {
         if (!cancelled) setQueue([]);
       });
+
+    // Resolves each relationship endpoint id to a display label via a
+    // targeted getProposal call (no batch already in memory on this
+    // single-proposal page, an explicit N+1 trade-off per TASK-012). The
+    // promise is cached in endpointCacheRef *before* awaiting it, so two
+    // endpoints that mutually reference each other's proposal_id never
+    // trigger a second fetch for the same id. A 404 means "already
+    // canonical" (plain id, no label); any other error degrades the same
+    // way, matching this page's existing non-blocking-satellite fetches.
+    function resolveEndpoints(ids) {
+      for (const id of ids) {
+        if (endpointCacheRef.current.has(id)) continue;
+        const promise = getProposal(domain, id)
+          .then((resolved) => `${resolved.frontmatter.proposed_item_type}: ${(resolved.body || "").slice(0, 60)}`)
+          .catch(() => null);
+        endpointCacheRef.current.set(id, promise);
+      }
+      Promise.all(ids.map((id) => endpointCacheRef.current.get(id))).then((labels) => {
+        if (cancelled) return;
+        const next = {};
+        ids.forEach((id, i) => {
+          next[id] = labels[i];
+        });
+        setEndpointLabels((current) => ({ ...current, ...next }));
+      });
+    }
 
     return () => {
       cancelled = true;
@@ -255,9 +288,11 @@ export default function ProposalDetail() {
                   <button type="button" className="btn btn-accept" onClick={handleAccept}>
                     ✓ Accepter
                   </button>
-                  <button type="button" className="btn btn-edit" onClick={handleEditToggle}>
-                    ✎ Éditer
-                  </button>
+                  {frontmatter.proposed_item_type === "assertion" && (
+                    <button type="button" className="btn btn-edit" onClick={handleEditToggle}>
+                      ✎ Éditer
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -299,64 +334,103 @@ export default function ProposalDetail() {
                   <div className="metadata-value"><code>{frontmatter.id}</code></div>
                 </div>
                 <div className="metadata-row">
-                  <div className="metadata-label">Statut épistémique</div>
-                  <div className="metadata-value">
-                    {editing ? (
-                      <select
-                        className="metadata-edit-select"
-                        value={draftEpistemicStatus}
-                        onChange={(e) => setDraftEpistemicStatus(e.target.value)}
-                      >
-                        {EPISTEMIC_STATUSES.map((status) => (
-                          <option key={status} value={status}>{status}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      frontmatter.epistemic_status
-                    )}
-                  </div>
-                </div>
-                <div className="metadata-row">
                   <div className="metadata-label">Créé le</div>
                   <div className="metadata-value">{frontmatter.created_at}</div>
                 </div>
-                <div className="metadata-row">
-                  <div className="metadata-label">Validité</div>
-                  <div className="metadata-value">
-                    {editing ? (
-                      <>
-                        <input
-                          type="text"
-                          className="metadata-edit-input"
-                          aria-label="Valide à partir de"
-                          value={draftValidFrom}
-                          onChange={(e) => setDraftValidFrom(e.target.value)}
+                {frontmatter.proposed_item_type === "assertion" && (
+                  <>
+                    <div className="metadata-row">
+                      <div className="metadata-label">Statut épistémique</div>
+                      <div className="metadata-value">
+                        {editing ? (
+                          <select
+                            className="metadata-edit-select"
+                            value={draftEpistemicStatus}
+                            onChange={(e) => setDraftEpistemicStatus(e.target.value)}
+                          >
+                            {EPISTEMIC_STATUSES.map((status) => (
+                              <option key={status} value={status}>{status}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          frontmatter.epistemic_status
+                        )}
+                      </div>
+                    </div>
+                    <div className="metadata-row">
+                      <div className="metadata-label">Validité</div>
+                      <div className="metadata-value">
+                        {editing ? (
+                          <>
+                            <input
+                              type="text"
+                              className="metadata-edit-input"
+                              aria-label="Valide à partir de"
+                              value={draftValidFrom}
+                              onChange={(e) => setDraftValidFrom(e.target.value)}
+                            />
+                            {" · "}
+                            <input
+                              type="text"
+                              className="metadata-edit-input"
+                              aria-label="Valide jusqu'à"
+                              value={draftValidUntil}
+                              onChange={(e) => setDraftValidUntil(e.target.value)}
+                            />
+                          </>
+                        ) : (
+                          <>De: {frontmatter.valid_from || "—"} · À: {frontmatter.valid_until || "—"}</>
+                        )}
+                      </div>
+                    </div>
+                    <div className="metadata-row">
+                      <div className="metadata-label">Dossier proposé</div>
+                      <div className="metadata-value">
+                        <FolderPathBuilder
+                          segments={editing ? draftPathSegments : (frontmatter.proposed_path_segments || [])}
+                          optionsByDepth={folderOptions}
+                          editable={editing}
+                          onChange={setDraftPathSegments}
                         />
-                        {" · "}
-                        <input
-                          type="text"
-                          className="metadata-edit-input"
-                          aria-label="Valide jusqu'à"
-                          value={draftValidUntil}
-                          onChange={(e) => setDraftValidUntil(e.target.value)}
+                      </div>
+                    </div>
+                  </>
+                )}
+                {frontmatter.proposed_item_type === "entity" && (
+                  <div className="metadata-row">
+                    <div className="metadata-label">Type d'entité</div>
+                    <div className="metadata-value">
+                      <EntityTypeBadge entityType={frontmatter.entity_type} />
+                    </div>
+                  </div>
+                )}
+                {frontmatter.proposed_item_type === "event" && (
+                  <div className="metadata-row">
+                    <div className="metadata-label">Bornes temporelles</div>
+                    <div className="metadata-value">
+                      <EventTemporalRange startsAt={frontmatter.starts_at} endsAt={frontmatter.ends_at} />
+                    </div>
+                  </div>
+                )}
+                {frontmatter.proposed_item_type === "relationship" && (
+                  <>
+                    <div className="metadata-row">
+                      <div className="metadata-label">Type de relation</div>
+                      <div className="metadata-value">{frontmatter.relationship_type}</div>
+                    </div>
+                    <div className="metadata-row">
+                      <div className="metadata-label">Endpoints</div>
+                      <div className="metadata-value">
+                        <RelationshipEndpoints
+                          endpoints={(frontmatter.endpoints || []).map((id) => ({
+                            id,
+                            label: endpointLabels[id] ?? null,
+                          }))}
                         />
-                      </>
-                    ) : (
-                      <>De: {frontmatter.valid_from || "—"} · À: {frontmatter.valid_until || "—"}</>
-                    )}
-                  </div>
-                </div>
-                <div className="metadata-row">
-                  <div className="metadata-label">Dossier proposé</div>
-                  <div className="metadata-value">
-                    <FolderPathBuilder
-                      segments={editing ? draftPathSegments : (frontmatter.proposed_path_segments || [])}
-                      optionsByDepth={folderOptions}
-                      editable={editing}
-                      onChange={setDraftPathSegments}
-                    />
-                  </div>
-                </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

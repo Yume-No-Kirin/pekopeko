@@ -13,12 +13,18 @@ function jsonResponse(status, body) {
   };
 }
 
-function makeSummary({ id, domain = "PERSONAL", epistemicStatus = "direct", createdAt = "2026-08-25T10:00:00" }) {
+function makeSummary({
+  id,
+  domain = "PERSONAL",
+  epistemicStatus = "direct",
+  createdAt = "2026-08-25T10:00:00",
+  itemType = "assertion",
+}) {
   return {
     id,
     domain,
     proposal_status: "PROPOSED",
-    proposed_item_type: "assertion",
+    proposed_item_type: itemType,
     epistemic_status: epistemicStatus,
     created_at: createdAt,
   };
@@ -31,13 +37,25 @@ function makeDetail({
   filename = "notes.md",
   body = "Contenu de test",
   proposedPathSegments = [],
+  itemType = "assertion",
+  entityType,
+  startsAt,
+  endsAt,
+  relationshipType,
+  endpoints,
 }) {
   return {
     id,
     domain,
     frontmatter: {
+      proposed_item_type: itemType,
       provenance: { source_id: sourceId, extraction_provider: "ollama" },
       proposed_path_segments: proposedPathSegments,
+      entity_type: entityType,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      relationship_type: relationshipType,
+      endpoints,
     },
     body,
     source_frontmatter: { original_filename: filename },
@@ -571,6 +589,57 @@ describe("Validation", () => {
     expect(await screen.findByText(/source-a\.md/)).toBeInTheDocument();
     expect(screen.queryByText("Aucune proposition")).not.toBeInTheDocument();
     expect(screen.getByText("Affichage 1-10 notes sur 10 notes · 1 sources")).toBeInTheDocument();
+  });
+
+  it("TASK-012 AC13/AC14/AC15/AC19: renders all 4 proposal types with type-specific fields, folder column assertion-only", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomain: {
+        PERSONAL: [
+          makeSummary({ id: "p-assert", itemType: "assertion" }),
+          makeSummary({ id: "p-entity", itemType: "entity" }),
+        ],
+        FICTION: [
+          makeSummary({ id: "p-event", domain: "FICTION", itemType: "event" }),
+          makeSummary({ id: "p-rel", domain: "FICTION", itemType: "relationship" }),
+        ],
+      },
+      detailsById: {
+        "p-assert": makeDetail({ id: "p-assert", sourceId: "src-a", body: "Assertion body", itemType: "assertion" }),
+        "p-entity": makeDetail({
+          id: "p-entity", sourceId: "src-a", body: "Entity body", itemType: "entity", entityType: "person",
+        }),
+        "p-event": makeDetail({
+          id: "p-event", domain: "FICTION", sourceId: "src-b", body: "Event body", itemType: "event",
+          startsAt: "2026-08-01T10:00:00", endsAt: null,
+        }),
+        "p-rel": makeDetail({
+          id: "p-rel", domain: "FICTION", sourceId: "src-b", body: "Relationship body", itemType: "relationship",
+          relationshipType: "attended", endpoints: ["p-entity", "some-canonical-id"],
+        }),
+      },
+    });
+
+    renderValidation();
+
+    await screen.findByText("Assertion body");
+    expect(screen.getByText("Entity body")).toBeInTheDocument();
+    expect(screen.getByText("Event body")).toBeInTheDocument();
+    expect(screen.getByText("Relationship body")).toBeInTheDocument();
+
+    // AC14: entity badge and event temporal range render; a null endsAt doesn't crash.
+    expect(screen.getByText("person")).toBeInTheDocument();
+    expect(screen.getByText("2026-08-01T10:00:00 → non précisé")).toBeInTheDocument();
+
+    // AC15: an endpoint matching an already-fetched proposal resolves to a
+    // label; one matching nothing fetched renders as a plain identifier.
+    expect(screen.getByText(/entity: Entity body/)).toBeInTheDocument();
+    expect(screen.getByText("some-canonical-id")).toBeInTheDocument();
+
+    // AC19: no folder-path builder for non-assertion rows.
+    const entityRow = screen.getByText("Entity body").closest("tr");
+    expect(entityRow.querySelector(".folder-cell")).toBeEmptyDOMElement();
+    const assertRow = screen.getByText("Assertion body").closest("tr");
+    expect(assertRow.querySelector(".folder-cell")).not.toBeEmptyDOMElement();
   });
 });
 

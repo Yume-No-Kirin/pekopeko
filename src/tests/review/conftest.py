@@ -101,6 +101,6 @@ def make_event_proposal_file(make_proposal_file):
 def make_relationship_proposal_file(make_proposal_file):
     def _make(**overrides):
         overrides.setdefault("relationship_type", "knows")
-        overrides.setdefault("endpoints", {"from": "entity-a", "to": "entity-b"})
+        overrides.setdefault("endpoints", ["entity-a", "entity-b"])
         return make_proposal_file(proposed_item_type="relationship", **overrides)
     return _make

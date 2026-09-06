@@ -34,7 +34,7 @@ REQUIRED_SOURCE_FIELDS = [
     "source_path", "source_format", "content",
 ]
 REQUIRED_PROPOSAL_FIELDS = [
-    "item_type", "domain", "created_at", "proposal_status", "provenance",
+    "id", "type", "item_type", "domain", "created_at", "proposal_status", "provenance",
     "proposed_item_type", "epistemic_status", "valid_from", "valid_until",
 ]
 REQUIRED_PROPOSAL_PROVENANCE_FIELDS = ["source_id", "extraction_provider"]
@@ -134,12 +134,14 @@ def write_source_file(vault_root: Path, domain: str, content: str) -> str:
 
 
 def _base_proposal_frontmatter(
-    domain: str, source_id: str, extraction_provider: str,
+    proposal_id: str, domain: str, source_id: str, extraction_provider: str,
     proposed_item_type: str, epistemic_status: str,
 ) -> dict[str, Any]:
     _validate_epistemic_status(epistemic_status)
     now = datetime.now().isoformat()
     return {
+        "id": proposal_id,
+        "type": "proposal",
         "item_type": "proposal",
         "domain": domain,
         "created_at": now,
@@ -158,8 +160,9 @@ def _base_proposal_frontmatter(
 def write_entity_proposal_file(
     vault_root: Path, domain: str, entity: ExtractedEntity, source_id: str, extraction_provider: str
 ) -> str:
+    proposal_id = _generate_proposal_id()
     frontmatter = _base_proposal_frontmatter(
-        domain, source_id, extraction_provider, "entity", entity.epistemic_status
+        proposal_id, domain, source_id, extraction_provider, "entity", entity.epistemic_status
     )
     frontmatter["entity_type"] = entity.entity_type
 
@@ -167,7 +170,6 @@ def write_entity_proposal_file(
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_PROPOSAL_PROVENANCE_FIELDS)
     _validate_frontmatter(frontmatter, REQUIRED_ENTITY_FIELDS)
 
-    proposal_id = _generate_proposal_id()
     path = proposal_file_path(vault_root, domain, proposal_id)
     _write_atomic_file(path, serialize_frontmatter(frontmatter, entity.text))
     return proposal_id
@@ -176,8 +178,9 @@ def write_entity_proposal_file(
 def write_event_proposal_file(
     vault_root: Path, domain: str, event: ExtractedEvent, source_id: str, extraction_provider: str
 ) -> str:
+    proposal_id = _generate_proposal_id()
     frontmatter = _base_proposal_frontmatter(
-        domain, source_id, extraction_provider, "event", event.epistemic_status
+        proposal_id, domain, source_id, extraction_provider, "event", event.epistemic_status
     )
     frontmatter["starts_at"] = event.starts_at
     frontmatter["ends_at"] = event.ends_at
@@ -186,7 +189,6 @@ def write_event_proposal_file(
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_PROPOSAL_PROVENANCE_FIELDS)
     _validate_frontmatter(frontmatter, REQUIRED_EVENT_FIELDS)
 
-    proposal_id = _generate_proposal_id()
     path = proposal_file_path(vault_root, domain, proposal_id)
     _write_atomic_file(path, serialize_frontmatter(frontmatter, event.text))
     return proposal_id
@@ -198,8 +200,9 @@ def write_relationship_proposal_file(
 ) -> str:
     _validate_endpoints(resolved_endpoints)
 
+    proposal_id = _generate_proposal_id()
     frontmatter = _base_proposal_frontmatter(
-        domain, source_id, extraction_provider, "relationship", relationship.epistemic_status
+        proposal_id, domain, source_id, extraction_provider, "relationship", relationship.epistemic_status
     )
     frontmatter["relationship_type"] = relationship.relationship_type
     frontmatter["endpoints"] = resolved_endpoints
@@ -208,7 +211,6 @@ def write_relationship_proposal_file(
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_PROPOSAL_PROVENANCE_FIELDS)
     _validate_frontmatter(frontmatter, REQUIRED_RELATIONSHIP_FIELDS)
 
-    proposal_id = _generate_proposal_id()
     path = proposal_file_path(vault_root, domain, proposal_id)
     _write_atomic_file(path, serialize_frontmatter(frontmatter, relationship.text))
     return proposal_id

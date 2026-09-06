@@ -133,3 +133,65 @@ def test_reject_already_edited_then_rejected_proposal_raises_on_second_reject(tm
 
     with pytest.raises(InvalidProposalStatusError):
         pipeline.reject_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-2")
+
+
+# TASK-005: reject for entity/event/relationship (identical, type-agnostic behavior)
+
+def test_reject_entity_proposal_sets_status_and_writes_no_canonical_file(
+    tmp_path, make_entity_proposal_file
+):
+    proposal_id, proposal_file = make_entity_proposal_file(domain="PERSONAL")
+
+    result = pipeline.reject_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1", reason="not relevant")
+
+    proposal_frontmatter, _ = parse_frontmatter(proposal_file.read_text(encoding="utf-8"))
+    assert proposal_frontmatter["proposal_status"] == "REJECTED"
+    assert proposal_frontmatter["reviewed_by"] == "reviewer-1"
+    assert proposal_frontmatter["reviewed_at"] == result.reviewed_at
+    assert proposal_frontmatter["resulting_item_id"] is None
+    assert not (tmp_path / "PERSONAL" / "entities").exists()
+
+
+def test_reject_event_proposal_sets_status_and_writes_no_canonical_file(
+    tmp_path, make_event_proposal_file
+):
+    proposal_id, proposal_file = make_event_proposal_file(domain="PERSONAL")
+
+    pipeline.reject_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    proposal_frontmatter, _ = parse_frontmatter(proposal_file.read_text(encoding="utf-8"))
+    assert proposal_frontmatter["proposal_status"] == "REJECTED"
+    assert not (tmp_path / "PERSONAL" / "events").exists()
+
+
+def test_reject_relationship_proposal_sets_status_and_writes_no_canonical_file(
+    tmp_path, make_relationship_proposal_file
+):
+    proposal_id, proposal_file = make_relationship_proposal_file(domain="PERSONAL")
+
+    pipeline.reject_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    proposal_frontmatter, _ = parse_frontmatter(proposal_file.read_text(encoding="utf-8"))
+    assert proposal_frontmatter["proposal_status"] == "REJECTED"
+    assert not (tmp_path / "PERSONAL" / "relationships").exists()
+
+
+@pytest.mark.parametrize("proposed_item_type", ["entity", "event", "relationship"])
+def test_double_transition_after_reject_raises_for_new_types(
+    tmp_path, make_proposal_file, proposed_item_type
+):
+    extra = {}
+    if proposed_item_type == "entity":
+        extra["entity_type"] = "person"
+    elif proposed_item_type == "event":
+        extra["starts_at"] = "2026-01-01T00:00:00"
+        extra["ends_at"] = None
+    elif proposed_item_type == "relationship":
+        extra["relationship_type"] = "knows"
+        extra["endpoints"] = ["a", "b"]
+
+    proposal_id, _ = make_proposal_file(domain="PERSONAL", proposed_item_type=proposed_item_type, **extra)
+    pipeline.reject_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    with pytest.raises(InvalidProposalStatusError):
+        pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-2")

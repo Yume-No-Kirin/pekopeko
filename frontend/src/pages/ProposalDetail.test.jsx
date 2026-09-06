@@ -31,6 +31,11 @@ function makeDetail({
   ingestedAt = "2026-08-25T14:20:12",
   sourceBody = "# Source\n\nTexte source complet.",
   proposedPathSegments = [],
+  entityType,
+  startsAt,
+  endsAt,
+  relationshipType,
+  endpoints,
 } = {}) {
   return {
     id,
@@ -46,6 +51,11 @@ function makeDetail({
       valid_until: validUntil,
       provenance: { source_id: sourceId, extraction_provider: extractionProvider, ...provenanceExtra },
       proposed_path_segments: proposedPathSegments,
+      entity_type: entityType,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      relationship_type: relationshipType,
+      endpoints,
     },
     body,
     source_frontmatter: { original_filename: originalFilename, content_hash: contentHash, ingested_at: ingestedAt },
@@ -66,6 +76,7 @@ function makeFetchMock({
   proposalsByDomainAndStatus = {},
   editShouldFail = false,
   organizationFoldersByDomain = {},
+  acceptError = null,
 } = {}) {
   return vi.fn((url, options = {}) => {
     const parsed = new URL(url);
@@ -80,6 +91,11 @@ function makeFetchMock({
 
     const acceptMatch = path.match(/^\/domains\/([A-Z]+)\/proposals\/([^/]+)\/accept$/);
     if (acceptMatch && method === "POST") {
+      if (acceptError) {
+        return Promise.resolve(
+          jsonResponse(acceptError.status, { error: { type: acceptError.type, message: acceptError.message } })
+        );
+      }
       return Promise.resolve(
         jsonResponse(200, {
           proposal_id: acceptMatch[2],
@@ -535,6 +551,110 @@ describe("ProposalDetail", () => {
       global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/edit"))
     );
     expect(JSON.parse(editCall[1].body).field_updates.proposed_path_segments).toEqual(["mythologie"]);
+  });
+
+  it("TASK-012: hides the Éditer button for entity/event/relationship proposals", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", itemType: "entity", entityType: "person" }) },
+    });
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    expect(screen.queryByRole("button", { name: /Éditer/ })).not.toBeInTheDocument();
+  });
+
+  it("TASK-012 AC14: renders EntityTypeBadge/EventTemporalRange metadata rows for entity/event proposals", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", itemType: "event", startsAt: "2026-08-01T10:00:00", endsAt: null }) },
+    });
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    expect(screen.getByText("2026-08-01T10:00:00 → non précisé")).toBeInTheDocument();
+  });
+
+  it("TASK-012 AC15: an unresolvable relationship endpoint (404) renders as a plain id", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: {
+        p1: makeDetail({
+          id: "p1", itemType: "relationship", relationshipType: "attended", endpoints: ["already-canonical-id"],
+        }),
+      },
+    });
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    expect(await screen.findByText("already-canonical-id")).toBeInTheDocument();
+  });
+
+  it("TASK-012 AC16: Précédent/Suivant queue navigates across all 4 proposal types", async () => {
+    const queue = [
+      { id: "p1", domain: "PERSONAL", proposal_status: "PROPOSED", proposed_item_type: "assertion", epistemic_status: "direct", created_at: "2026-08-25T01:00:00" },
+      { id: "p2", domain: "PERSONAL", proposal_status: "PROPOSED", proposed_item_type: "entity", epistemic_status: "direct", created_at: "2026-08-25T02:00:00" },
+      { id: "p3", domain: "PERSONAL", proposal_status: "PROPOSED", proposed_item_type: "event", epistemic_status: "direct", created_at: "2026-08-25T03:00:00" },
+      { id: "p4", domain: "PERSONAL", proposal_status: "PROPOSED", proposed_item_type: "relationship", epistemic_status: "direct", created_at: "2026-08-25T04:00:00" },
+    ];
+    global.fetch = makeFetchMock({
+      detailsById: {
+        p1: makeDetail({ id: "p1", itemType: "assertion" }),
+        p2: makeDetail({ id: "p2", itemType: "entity", entityType: "person" }),
+        p3: makeDetail({ id: "p3", itemType: "event", startsAt: "2026-08-01T10:00:00" }),
+        p4: makeDetail({ id: "p4", itemType: "relationship", relationshipType: "attended", endpoints: [] }),
+      },
+      proposalsByDomain: { PERSONAL: queue },
+    });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    await user.click(screen.getByRole("button", { name: /Suivant/ }));
+    await waitFor(() => expect(document.querySelector(".proposal-id")).toHaveTextContent("p2"));
+    await user.click(screen.getByRole("button", { name: /Suivant/ }));
+    await waitFor(() => expect(document.querySelector(".proposal-id")).toHaveTextContent("p3"));
+    await user.click(screen.getByRole("button", { name: /Suivant/ }));
+    await waitFor(() => expect(document.querySelector(".proposal-id")).toHaveTextContent("p4"));
+    expect(screen.getByRole("button", { name: /Suivant/ })).toBeDisabled();
+  });
+
+  it("TASK-012 AC17: a 409 UnresolvedRelationshipEndpointError on accept surfaces via the existing actionError banner", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: {
+        p1: makeDetail({ id: "p1", itemType: "relationship", relationshipType: "attended", endpoints: [] }),
+      },
+      acceptError: {
+        status: 409,
+        type: "UnresolvedRelationshipEndpointError",
+        message: "Endpoint(s) ['prop-x'] are not yet ACCEPTED proposals",
+      },
+    });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    await user.click(screen.getByRole("button", { name: /Accepter/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Endpoint(s) ['prop-x'] are not yet ACCEPTED proposals");
+  });
+
+  it("TASK-012 AC18: resolving a relationship's endpoints fetches each unique id only once even if repeated", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: {
+        p1: makeDetail({
+          id: "p1", itemType: "relationship", relationshipType: "attended", endpoints: ["e1", "e1", "e2"],
+        }),
+        e1: makeDetail({ id: "e1", itemType: "entity", entityType: "person", body: "Entity One" }),
+        e2: makeDetail({ id: "e2", itemType: "entity", entityType: "place", body: "Entity Two" }),
+      },
+    });
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    // endpoints repeats "e1" - two <li> entries render its resolved label,
+    // but the underlying id must be fetched only once (this test's point).
+    await screen.findAllByText(/entity: Entity One/);
+    expect(screen.getAllByText(/entity: Entity One/)).toHaveLength(2);
+    expect(screen.getByText(/entity: Entity Two/)).toBeInTheDocument();
+    const e1Calls = global.fetch.mock.calls.filter(([url]) => new URL(url).pathname === "/domains/PERSONAL/proposals/e1");
+    expect(e1Calls).toHaveLength(1);
   });
 });
 

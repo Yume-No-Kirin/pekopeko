@@ -1,7 +1,9 @@
 """
 Review route tests: AC6 (list/filter matches review.list_proposals),
 AC7 (missing proposal 404), AC8 (accept happy path, pure pass-through),
-AC9 (accept on non-PROPOSED -> 409), AC10 (accept on entity -> 422),
+AC9 (accept on non-PROPOSED -> 409), AC10 (accept on entity/event/
+relationship -> 200, since TASK-005 - see that ticket for the superseded
+original AC10; the relationship case is TASK-012's own AC12),
 AC11 (reject with reason -> 200, rejection_reason set).
 
 TASK-013 edit route tests (AC1-8 of that ticket): success path, missing
@@ -72,7 +74,9 @@ def test_accept_non_proposed_returns_409(client, auth_headers, make_proposal_fil
     assert resp.get_json()["error"]["type"] == "InvalidProposalStatusError"
 
 
-def test_accept_entity_proposal_returns_422(client, auth_headers, make_proposal_file):
+def test_accept_entity_proposal_returns_200(client, auth_headers, make_proposal_file):
+    # TASK-005 supersedes TASK-007's original AC10 (422 for non-assertion
+    # accept) - entity/event/relationship proposals are now acceptable.
     proposal_id, _ = make_proposal_file(
         status="PROPOSED", proposed_item_type="entity", entity_type="person"
     )
@@ -82,8 +86,52 @@ def test_accept_entity_proposal_returns_422(client, auth_headers, make_proposal_
         json={"reviewer_id": "reviewer-1"},
         headers=auth_headers,
     )
-    assert resp.status_code == 422
-    assert resp.get_json()["error"]["type"] == "UnsupportedProposalTypeError"
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["assertion_id"].startswith("entity-")
+
+
+def test_accept_event_proposal_returns_200(client, auth_headers, make_proposal_file):
+    # TASK-012 AC12: event accept succeeds, carrying starts_at/ends_at.
+    proposal_id, _ = make_proposal_file(
+        status="PROPOSED", proposed_item_type="event", starts_at="2026-08-01T10:00:00", ends_at=None
+    )
+
+    resp = client.post(
+        f"/domains/PERSONAL/proposals/{proposal_id}/accept",
+        json={"reviewer_id": "reviewer-1"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["assertion_id"].startswith("event-")
+
+
+def test_accept_relationship_proposal_returns_200(client, auth_headers, make_proposal_file):
+    # TASK-012 AC12: relationship accept succeeds once every endpoint is
+    # already resolvable (an ACCEPTED proposal's resulting_item_id, or a
+    # passthrough id matching no proposal at all).
+    endpoint_id, _ = make_proposal_file(status="PROPOSED", proposed_item_type="entity", entity_type="person")
+    client.post(
+        f"/domains/PERSONAL/proposals/{endpoint_id}/accept",
+        json={"reviewer_id": "reviewer-1"},
+        headers=auth_headers,
+    )
+    proposal_id, _ = make_proposal_file(
+        status="PROPOSED",
+        proposed_item_type="relationship",
+        relationship_type="attended",
+        endpoints=[endpoint_id, "some-existing-canonical-id"],
+    )
+
+    resp = client.post(
+        f"/domains/PERSONAL/proposals/{proposal_id}/accept",
+        json={"reviewer_id": "reviewer-1"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["assertion_id"].startswith("relationship-")
 
 
 def test_reject_with_reason_returns_200_and_sets_rejection_reason(client, auth_headers, make_proposal_file):

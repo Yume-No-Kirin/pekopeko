@@ -29,7 +29,13 @@ class InvalidProposalStatusError(ReviewError):
 
 
 class UnsupportedProposalTypeError(ReviewError):
-    """Raised when proposed_item_type != 'assertion' (V1 scope)."""
+    """Raised when proposed_item_type is not one of the recognized
+    'assertion'/'entity'/'event'/'relationship' values."""
+
+
+class UnresolvedRelationshipEndpointError(ReviewError):
+    """Raised when accepting a relationship proposal whose endpoints include at least one
+    identifier that matches another proposal in the same domain that is not yet ACCEPTED."""
 
 
 class InvalidDomainError(ReviewError):
