@@ -36,7 +36,7 @@ Implement a Python package providing:
 - **Malformed content is an error.** Invalid YAML syntax, or a present value that fails schema validation (unknown provider name, non-numeric timeout, etc.), raises a typed `ConfigError` before returning — never silently ignored or defaulted.
 - **Environment-variable overrides are a bounded, explicit list** — not a generic arbitrary-key override mechanism: `PEKOPEKO_CONFIG_PATH`, `PEKOPEKO_LLM_PROVIDER`, `PEKOPEKO_OLLAMA_BASE_URL`, `PEKOPEKO_OLLAMA_MODEL`, `PEKOPEKO_OLLAMA_TIMEOUT`, `PEKOPEKO_TASK_STATE_DIR`, `PEKOPEKO_RETRIEVAL_INDEX_DIR`. When set, an env var overrides the corresponding file value (or default) for that one key only.
 - **Provider selection stays a two-step, explicit process.** `load_config()` never returns a `Provider` instance itself (it has no knowledge of the `Provider` protocol, to avoid `app/config` depending on `app.ingestion`/`app.extraction`). Each pipeline's own `providers/factory.py` maps config values to that pipeline's own concrete provider class. `ingest_source()`/`extract_source()` keep `provider` as a required parameter with no default — the factory is a convenience for callers, never invoked implicitly by the pipeline.
-- **Only the `ollama` branch is required for V1** in each factory — matches the one concrete provider TASK-001/003 already ship. The schema/factory shape must make adding a second provider (TASK-020) a matter of adding a sub-section plus a branch, not a redesign, but that second provider is not built here.
+- **Only the `ollama` branch is required for V1** in each factory — matches the one concrete provider TASK-001/003 already ship. The schema/factory shape must make adding a second provider (the old `TASK-020` of `BACKLOG-CLAUDE.md`, renumbered `TASK-021` in `BACKLOG-CLAUDE-V2.md`) a matter of adding a sub-section plus a branch, not a redesign, but that second provider is not built here.
 - **`task_state.dir` is a single root**, with each pipeline resolving its own subfolder (`<task_state.dir>/ingestion`, `<task_state.dir>/extraction`) — replacing the two independently-hardcoded literals that exist today.
 
 ### YAML Config schema (exact contract)
@@ -137,7 +137,7 @@ Each raises a typed error (not a silent default to `ollama`) if `cfg.llm_provide
 - No change to the public signature of `ingest_source()` or `extract_source()` — only the internal default-resolution of `state_dir` changes; `provider` remains a required parameter with no default.
 - No generic/arbitrary environment-variable override mechanism — only the bounded, explicitly-named list above.
 - No CLI or GUI for editing configuration — a hand-edited YAML file is sufficient for V1.
-- No second concrete LLM provider (Anthropic/OpenAI, etc.) — future ticket (TASK-020, `specs/tasks/BACKLOG-CLAUDE.md`).
+- No second concrete LLM provider (Anthropic/OpenAI, etc.) — future ticket (the old `TASK-020` of `specs/tasks/BACKLOG-CLAUDE.md`, renumbered `TASK-021` in `BACKLOG-CLAUDE-V2.md`).
 - No changes to `review/` — it has no LLM provider and no asynchronous task state (ADI-005 rule 3: accept/reject is synchronous), so nothing in this ticket applies to it.
 - No consumption of `retrieval.index_dir` by any actual retrieval code — that key is reserved for future TASK-007, not implemented here.
 
@@ -197,13 +197,13 @@ Project-wide coverage discipline applies: ≥80% line coverage of `app/config` a
 ## Out of scope
 
 - Actual consumption of `retrieval.index_dir` by a retrieval/search implementation — reserved for future TASK-007.
-- A second concrete LLM provider (Anthropic, OpenAI, etc.) — future TASK-020; only the `ollama` branch is required here.
+- A second concrete LLM provider (Anthropic, OpenAI, etc.) — future work: the old `TASK-020` of `BACKLOG-CLAUDE.md`, renumbered `TASK-021` in `BACKLOG-CLAUDE-V2.md`; only the `ollama` branch is required here.
 - Per-call provider override (choosing a model for one specific ingestion/extraction call rather than the device-level default) — an alternative ADI-008 explicitly did not reject but deferred; not built here.
 - `vault_root` as a configuration value — despite being mentioned in `src/README.md`'s old aspirational "Configuration" section, it remains an explicit caller-supplied parameter to `ingest_source`/`extract_source`; no schema field, YAML or `.env`, exists for it.
 - **`default.domain`** (amendment, 2026-08-30) is a *reserved, unconsumed* schema field — mirroring how `retrieval.index_dir` is reserved for future TASK-007. It round-trips through YAML partial-override like the other sections, but `ingest_source()`/`extract_source()` never read it; `domain` stays a required, explicit caller-supplied parameter with no signature change, same as before this amendment.
 - Any CLI or GUI for creating/editing the config file.
 - Any change to `review/` (`app.review`) — out of scope per ADI-005 rule 3 (no LLM provider, no asynchronous task state there).
-- Consolidating `ingestion/providers/` and `extraction/providers/` code (duplication between their respective `OllamaProvider`/`OllamaProviderConfig` classes is pre-existing and deliberate, per TASK-003's notes) — future TASK-033, not this ticket.
+- Consolidating `ingestion/providers/` and `extraction/providers/` code (duplication between their respective `OllamaProvider`/`OllamaProviderConfig` classes is pre-existing and deliberate, per TASK-003's notes) — future work: the old `TASK-033` of `BACKLOG-CLAUDE.md`, renumbered `TASK-037` in `BACKLOG-CLAUDE-V2.md` — not this ticket.
 
 ## Verification record (2026-08-30)
 
@@ -432,7 +432,7 @@ made -- most did not hold up.
   concurrently.
 - `[DECLINED]` "Hardcoded `VALID_PROVIDERS = {'ollama'}`" -- explicit,
   documented V1 scope (Constraints: "No second concrete LLM provider...
-  future ticket TASK-020"; AC7 requires exactly this rejection behavior),
+  future ticket TASK-020" (old numbering; `TASK-021` in `BACKLOG-CLAUDE-V2.md`); AC7 requires exactly this rejection behavior),
   not an oversight.
 - `[DECLINED]` "Memory leak in YAML loading" -- not a real concern;
   `yaml.safe_load()` on an in-memory string holds no open file handle and

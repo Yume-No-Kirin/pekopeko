@@ -24,23 +24,28 @@ Voir `docs/ROADMAP.md` (« Tickets et implémentation ») pour leur état à jou
 - **TASK-002** — Workflow de revue des propositions (Assertions). `completed`.
 - **TASK-003** — Extraction Entity/Event/Relationship. `completed`.
 - **TASK-004** — Mécanisme de configuration locale. `completed`.
-- **TASK-005** — Revue des propositions Entity/Event/Relationship. `backlog`, ticket complet déjà
-  rédigé (`specs/tasks/backlog/TASK-005-entity-event-relationship-review.md`).
-- **TASK-006** — Statut EDITED et historisation des Proposals. `backlog`, ticket complet déjà
-  rédigé (`specs/tasks/backlog/TASK-006-proposal-edit-and-history.md`).
+- **TASK-005** — Revue des propositions Entity/Event/Relationship. `completed` (2026-09-05,
+  `specs/tasks/completed/TASK-005-entity-event-relationship-review.md`).
+- **TASK-006** — Statut EDITED et historisation des Proposals. `completed` (2026-09-01,
+  `specs/tasks/completed/TASK-006-proposal-edit-and-history.md`).
 
 Trois tickets satellites supplémentaires ont été rédigés le 2026-08-31, après ce document,
 pendant l'écriture de TASK-009/010/011 — ils n'étaient pas prévus dans la renumérotation
 initiale ci-dessous mais sont des dépendances réelles du socle GUI (section 1) :
 
-- **TASK-001a** — Métadonnées de provenance d'extraction enrichies. `backlog`. Étend TASK-001,
-  requis pour la section Provenance de TASK-011 (`specs/tasks/backlog/TASK-001a-extraction-provenance-metadata.md`).
-- **TASK-001b** — Journal d'événements de tâche (ingestion/extraction). `backlog`. Étend
-  TASK-001 et TASK-003, requis pour les sections logs de TASK-009 et TASK-011
-  (`specs/tasks/backlog/TASK-001b-task-event-log.md`).
-- **TASK-007a** — Pagination des endpoints de listing. `backlog`. Étend TASK-007, requis par
-  TASK-009 et TASK-010 pour une pagination serveur réelle
-  (`specs/tasks/backlog/TASK-007a-list-endpoint-pagination.md`).
+- **TASK-001a** — Métadonnées de provenance d'extraction enrichies. `completed` (2026-08-31).
+  Étend TASK-001, requis pour la section Provenance de TASK-011
+  (`specs/tasks/completed/TASK-001a-extraction-provenance-metadata.md`).
+- **TASK-001b** — Journal d'événements de tâche (ingestion/extraction). `completed` (2026-08-31).
+  Étend TASK-001 et TASK-003, requis pour les sections logs de TASK-009 et TASK-011
+  (`specs/tasks/completed/TASK-001b-task-event-log.md`).
+- **TASK-007a** — Pagination des endpoints de listing. `completed` (2026-09-02). Étend TASK-007,
+  requis par TASK-009 et TASK-010 pour une pagination serveur réelle
+  (`specs/tasks/completed/TASK-007a-list-endpoint-pagination.md`).
+
+Statuts de cette section 0 remis à jour le 2026-09-07 (revue de cohérence) : les six entrées
+ci-dessus étaient toutes encore marquées `backlog` alors qu'elles sont `completed` depuis les
+2026-08-31 → 2026-09-05. `docs/ROADMAP.md` reste la source d'état faisant foi.
 
 ---
 
@@ -251,26 +256,119 @@ Backend uniquement, pas de frontend : factorise la logique d'écriture atomique 
 de frontmatter dupliquée délibérément entre `ingestion/`, `review/` et `extraction/`, une fois les
 patterns stabilisés sur plusieurs tickets. Correspond à l'ancien `TASK-033`.
 
+
+## 3. Entrées ajoutées par la revue de cohérence du 2026-09-07
+
+Trois entrées issues de la revue de cohérence du 2026-09-07 : deux trous de couverture confirmés en
+confrontant les 29 tickets (21 `completed`, 8 `backlog`) et les deux backlogs aux 18 cas d'usage,
+plus une exigence d'ADR restée sans porteur (TASK-005a, depuis rédigée en ticket complet). Ils n'existaient sous **aucun ID** dans `BACKLOG-CLAUDE.md` ni
+dans les sections 0-2 ci-dessus — ce ne sont donc pas des reclassements, ce sont des manques. Leur
+place dans l'ordre de priorité reste à décider par Cleo ; ils sont listés ici, pas insérés d'autorité
+dans la section 2.
+
+### TASK-009a — Déclenchement d'une ingestion depuis le GUI
+
+Satellite lettré de TASK-009 (même convention que TASK-001a-f / TASK-007a : ne renuméroter ni les
+tickets écrits ni leurs citations croisées). Ajoute à l'écran Logs d'ingestion le bouton
+« + Nouvelle ingestion » de la maquette `pekopeko-ingestion.html`, avec un formulaire à deux
+entrées : chemin de fichier local (route `POST /domains/<domain>/ingestions`, existante depuis
+TASK-007) et URL (route `POST /domains/<domain>/ingestions/url`, apportée par TASK-016) — cette
+seconde entrée conditionnée à TASK-016, la première livrable seule.
+
+**Pourquoi.** TASK-009 a délibérément laissé ce bouton non porté, en écrivant « no endpoint exists
+to start an ingestion from an arbitrary user-supplied path… **no satellite proposed for it** —
+flagging it here rather than silently building a non-functional button ». Le satellite n'a jamais
+été écrit, et l'endpoint qui manquait existe depuis TASK-007. Conséquence mesurée le 2026-09-07 :
+les six écrans construits **plus les huit tickets `backlog` restants** ne permettent toujours pas
+d'alimenter le système autrement qu'en `curl` ou en éditant `config.yaml` à la main — TASK-001f
+(surveillance de dossier) est `enabled: false` par défaut et sans UI par son propre « Out of scope ».
+TASK-016 aggrave discrètement le trou : il ajoute un wrapper frontend `startUrlIngestion(domain,
+url)` qu'aucun composant de son scope n'appelle, donc du code mort à la livraison.
+
+C'est aussi en tension directe avec la posture actée du projet — les maquettes sont la cible, et un
+trou GUI donne un ticket satellite additif plutôt qu'une coupe silencieuse (précédent
+TASK-001a/001b/007a, décision de Cleo du 2026-08-31).
+
+**Traçabilité.** UC-001, UC-007 (déclenchement d'ingestion), `specs/ux-design/pekopeko-ingestion.html`
+(bouton d'en-tête), `specs/tasks/completed/TASK-009-ingestion-logs-screen.md` (V1 scope decisions et
+Out of scope), `specs/tasks/backlog/TASK-016-audio-video-ingestion-transcription.md` (Requirements —
+le wrapper sans appelant).
+
+### TASK-005a — Organisation en dossiers pour entity/event/relationship (adoption d'ADI-012)
+
+**Rédigé en ticket complet le 2026-09-07, implémenté et vérifié le même jour dans la même
+session** : `specs/tasks/completed/TASK-005a-entity-event-relationship-folder-path.md`, désormais
+`completed`. Étend le layout d'ADI-012 (aujourd'hui assertion-only) aux trois autres types canoniques, dans ses
+deux moitiés : la structure (`entity_path`/`event_path`/`relationship_path` et leurs writers
+acceptent des segments, `accept_proposal` les lit, le `FolderPathBuilder` s'affiche pour les
+4 types) et la valeur (le provider Ollama d'`extraction/` propose ces segments, une fois par note
+et par type). Satellite lettré de TASK-005, dont il amende les writers canoniques.
+
+**Pourquoi c'est une entrée de cette section 3 et pas une entrée de backlog ordinaire.** Ce n'est
+pas du travail nouveau : ADI-012 le prescrit déjà (« their canonical writers, once implemented,
+**must adopt this same layout** »). Le « future ticket » désigné était TASK-005 lui-même, qui a
+choisi le chemin plat une fois implémenté — laissant l'exigence d'une ADR `Accepted` sans porteur.
+Trouvé par la revue de cohérence du 2026-09-07, tranché par Cleo le même jour en faveur de
+l'adoption complète. TASK-005a acquitte cette exigence ; aucune ADR n'est amendée, ADI-012 est
+appliquée.
+
+### TASK-038 — Historisation et consultation de l'état passé d'un item canonique (UC-015)
+
+Backend + frontend associé. Écrit le `history/` d'un item **canonique** (versions complètes,
+`lifecycle_status: SUPERSEDED`, jamais de diff — ADI-001) à chaque modification, et expose la lecture
+de cet historique : liste des versions d'un item, contenu d'une version donnée, et « quel était
+l'état de cet item à telle date ».
+
+**Pourquoi.** UC-015 (« Knowledge Change History ») est le **seul des 18 cas d'usage sans aucune
+entrée** nulle part sous `specs/tasks/` — vérifié par recherche exhaustive le 2026-09-07 : ni ticket,
+ni entrée dans `BACKLOG-CLAUDE.md`, ni dans les sections 0-2 de ce fichier. Ce n'est pas un oubli
+sans conséquence : ADI-001 **impose** un sous-dossier `history/` par item avec les versions complètes
+précédentes, et ce mécanisme n'existe aujourd'hui que pour les **Proposals** (TASK-006), donc
+uniquement *avant* acceptation. Le cahier de tests le dit sans détour : « Canonical (accepted) items
+have no history/versioning mechanism at all ». Un invariant structurant d'ADI-001 n'est donc appliqué
+à aucun item canonique, et rien au backlog ne le corrige.
+
+**Relation à TASK-022** (correction et supersession). TASK-022 produirait cet historique comme
+*effet de bord* d'une correction. Ce ticket-ci en est distinct sur deux points : il couvre toute
+mutation d'un item canonique (pas seulement une correction explicite), et surtout il couvre la
+**consultation**, qui est l'objectif propre d'UC-015 et que TASK-022 ne mentionne pas. À implémenter
+après ou avec TASK-022, jamais à la place.
+
+**Traçabilité.** UC-015 (intégral), CAP-CORE-004 (Knowledge History), INV-004 (« History Is Never
+Silently Destroyed »), INV-018 (« Important Mutations Are Auditable »), ADI-001 (§historisation par
+dossier `history/`), `specs/tests/test-plan.md` (§UC-015, « ⛔ Not testable »).
+
 ---
 
 ## Table de correspondance (ancien ID `BACKLOG-CLAUDE.md` → nouvel ID)
 
 | Ancien | Nouveau | Ancien | Nouveau | Ancien | Nouveau |
 |---|---|---|---|---|---|
-| TASK-005 | TASK-005 (inchangé) | TASK-018 | TASK-017 | TASK-029 | TASK-034 |
-| TASK-006 | TASK-006 (inchangé) | TASK-019 | TASK-016 | TASK-030 | TASK-035 |
+| TASK-005 | TASK-005 (inchangé ; tranche GUI = TASK-012) | TASK-018 | TASK-017 | TASK-029 | TASK-034 |
+| TASK-006 | TASK-006 (inchangé ; tranche GUI = TASK-013) | TASK-019 | TASK-016 | TASK-030 | TASK-035 |
 | TASK-007 | TASK-018 | TASK-020 | TASK-021 | TASK-031 | TASK-036 |
 | TASK-008 | TASK-020 | TASK-021 | TASK-008 (partiel) | TASK-032 | TASK-031 |
 | TASK-009 | TASK-022 | TASK-022 | TASK-007 | TASK-033 | TASK-037 |
 | TASK-010 | TASK-023 | TASK-023 | TASK-008 (partiel) | TASK-034 | TASK-015 |
-| TASK-011 | TASK-025 | TASK-024 | TASK-010 | TASK-035 | TASK-032 |
+| TASK-011 | TASK-025 | TASK-024 | TASK-010 (+ TASK-012) | TASK-035 | TASK-032 |
 | TASK-012 | TASK-026 | TASK-025 | TASK-009 | | |
-| TASK-013 | TASK-027 | TASK-026 | TASK-011 | | |
-| TASK-014 | TASK-028 | TASK-027 | TASK-013 | | |
+| TASK-013 | TASK-027 | TASK-026 | TASK-011 (+ 012, 013) | | |
+| TASK-014 | TASK-028 | TASK-027 | TASK-014 | | |
 | TASK-015 | TASK-024 | TASK-028 | TASK-033 | | |
 | TASK-016 | TASK-029 | | | | |
 | TASK-017 | TASK-030 | | | | |
 
 Aucune entrée nouvelle sauf TASK-019 (écran de recherche) et l'écran Settings intégré à TASK-008,
 tous deux absents de `BACKLOG-CLAUDE.md` parce qu'il n'organisait pas encore le travail autour
-d'un GUI précoce.
+d'un GUI précoce. La section 3 ci-dessus (TASK-009a, TASK-038) ajoute deux entrées de plus, le
+2026-09-07 — elles ne figurent pas dans cette table : elles n'ont pas d'ancien ID, elles comblent
+des trous que ni `BACKLOG-CLAUDE.md` ni ce fichier n'avaient repérés.
+
+**Correction 2026-09-07 (revue de cohérence).** La ligne `TASK-027` de la table ci-dessus
+mappait encore l'ancien `TASK-027` (support backend de l'organisation en dossiers) vers
+`TASK-013`, alors que le corps de la section 2 le mappe vers `TASK-014` — l'inversion
+`TASK-013`/`TASK-014` confirmée par Cleo le 2026-09-04 (voir `docs/ROADMAP.md`, section
+TASK-013) avait été répercutée dans les trois tickets concernés et dans ROADMAP, mais pas
+dans cette table. Corrigée ici. Les colonnes `TASK-005`/`TASK-006` ont aussi été annotées :
+leur numéro est inchangé, mais leur tranche GUI a été extraite en `TASK-012`/`TASK-013`
+respectivement — ce que la table seule ne laissait pas voir.

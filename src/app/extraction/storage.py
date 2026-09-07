@@ -18,6 +18,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+import yaml
+
 from .errors import InvalidDomainError, ValidationError
 from .frontmatter import serialize_frontmatter
 from .providers.base import (
@@ -135,7 +137,7 @@ def write_source_file(vault_root: Path, domain: str, content: str) -> str:
 
 def _base_proposal_frontmatter(
     proposal_id: str, domain: str, source_id: str, extraction_provider: str,
-    proposed_item_type: str, epistemic_status: str,
+    proposed_item_type: str, epistemic_status: str, proposed_path_segments: list[str],
 ) -> dict[str, Any]:
     _validate_epistemic_status(epistemic_status)
     now = datetime.now().isoformat()
@@ -154,6 +156,7 @@ def _base_proposal_frontmatter(
         "epistemic_status": epistemic_status,
         "valid_from": now,
         "valid_until": None,
+        "proposed_path_segments": proposed_path_segments,
     }
 
 
@@ -162,7 +165,8 @@ def write_entity_proposal_file(
 ) -> str:
     proposal_id = _generate_proposal_id()
     frontmatter = _base_proposal_frontmatter(
-        proposal_id, domain, source_id, extraction_provider, "entity", entity.epistemic_status
+        proposal_id, domain, source_id, extraction_provider, "entity", entity.epistemic_status,
+        entity.proposed_path_segments,
     )
     frontmatter["entity_type"] = entity.entity_type
 
@@ -180,7 +184,8 @@ def write_event_proposal_file(
 ) -> str:
     proposal_id = _generate_proposal_id()
     frontmatter = _base_proposal_frontmatter(
-        proposal_id, domain, source_id, extraction_provider, "event", event.epistemic_status
+        proposal_id, domain, source_id, extraction_provider, "event", event.epistemic_status,
+        event.proposed_path_segments,
     )
     frontmatter["starts_at"] = event.starts_at
     frontmatter["ends_at"] = event.ends_at
@@ -202,7 +207,8 @@ def write_relationship_proposal_file(
 
     proposal_id = _generate_proposal_id()
     frontmatter = _base_proposal_frontmatter(
-        proposal_id, domain, source_id, extraction_provider, "relationship", relationship.epistemic_status
+        proposal_id, domain, source_id, extraction_provider, "relationship", relationship.epistemic_status,
+        relationship.proposed_path_segments,
     )
     frontmatter["relationship_type"] = relationship.relationship_type
     frontmatter["endpoints"] = resolved_endpoints
@@ -214,3 +220,85 @@ def write_relationship_proposal_file(
     path = proposal_file_path(vault_root, domain, proposal_id)
     _write_atomic_file(path, serialize_frontmatter(frontmatter, relationship.text))
     return proposal_id
+
+
+# Type-plural directory name and _generate_*_id-equivalent leaf prefix used by
+# review/storage.py for each type this pipeline ever proposes a path for.
+# extraction/ never proposes an assertion path (that's ingestion/'s pipeline),
+# so unlike review/storage.py's own four-entry map, this one only needs three.
+_ITEM_TYPE_DIRS = {
+    "entity": ("entities", "entity-"),
+    "event": ("events", "event-"),
+    "relationship": ("relationships", "relationship-"),
+}
+
+
+def scan_existing_item_folders(vault_root: Path, domain: str, item_type: str) -> list[str]:
+    """Full existing folder paths already used under <domain>/<item-type-plural>/
+    (canonical, accepted items only) - context for a provider proposing a new,
+    consistent path. Independent reimplementation of
+    ingestion/storage.py's scan_existing_assertion_folders (itself an independent
+    reimplementation of review/storage.py's scan_organization_folders) -
+    module-independence discipline, TASK-002 - returns full "/"-joined paths
+    rather than depth-grouped segment names, since that's what a path-proposal
+    prompt needs.
+    """
+    dir_name, id_prefix = _ITEM_TYPE_DIRS[item_type]
+    type_dir = vault_root / domain / dir_name
+    if not type_dir.exists():
+        return []
+    paths: list[str] = []
+
+    def _walk(directory: Path, prefix: list[str]) -> None:
+        for entry in sorted(directory.iterdir()):
+            if not entry.is_dir() or entry.name.startswith(id_prefix):
+                continue
+            new_prefix = prefix + [entry.name]
+            paths.append("/".join(new_prefix))
+            _walk(entry, new_prefix)
+
+    _walk(type_dir, [])
+    return paths
+
+
+def _read_frontmatter(path: Path) -> dict[str, Any]:
+    """Best-effort YAML frontmatter read for a Proposal file - returns {} for a file
+    with no frontmatter block, never raises on a malformed one (a single bad Proposal
+    file must not break a folder-path scan, same posture already established for
+    review/'s list_proposals and ingestion/storage.py's own _read_frontmatter)."""
+    content = path.read_text(encoding="utf-8")
+    parts = content.split("---", 2)
+    if len(parts) < 3:
+        return {}
+    return yaml.safe_load(parts[1]) or {}
+
+
+def scan_proposed_path_segments(vault_root: Path, domain: str, item_type: str) -> list[str]:
+    """Full path strings already proposed by not-yet-accepted Proposals
+    (proposal_status PROPOSED or EDITED) of the given item_type under
+    <domain>/proposals/ - context so a provider's new path proposal reuses the same
+    folder a previously-extracted, still unreviewed note already suggested, rather
+    than inventing a new spelling for the same concept (ADI-015 posture, applied
+    per-type here since the entity tree and the event tree are different taxonomies -
+    TASK-005a V1 scope decision 6). Scoped to `item_type` from the start, unlike
+    ingestion/storage.py's own scan_proposed_path_segments, which this ticket must
+    separately amend with the same filter (see ingestion/storage.py's own §D13 fix) -
+    both pipelines share this same proposals/ directory.
+    """
+    proposals_dir = vault_root / domain / "proposals"
+    if not proposals_dir.exists():
+        return []
+    paths: set[str] = set()
+    for proposal_file in proposals_dir.glob("*/*.md"):
+        try:
+            frontmatter = _read_frontmatter(proposal_file)
+        except (OSError, yaml.YAMLError):
+            continue
+        if frontmatter.get("proposal_status") not in ("PROPOSED", "EDITED"):
+            continue
+        if frontmatter.get("proposed_item_type") != item_type:
+            continue
+        segments = frontmatter.get("proposed_path_segments")
+        if segments:
+            paths.add("/".join(segments))
+    return sorted(paths)

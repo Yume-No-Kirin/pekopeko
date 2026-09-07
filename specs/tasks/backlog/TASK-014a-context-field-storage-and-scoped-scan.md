@@ -29,10 +29,15 @@ was independently testable ahead of its frontend's TASK-013 dependency.
 - **ADI-016** (`specs/decisions/ADI-016-context-universe-first-class-field.md`, Accepted): the
   decision this ticket implements — read it in full before implementing anything here, it is the
   binding contract for field shape, path placement, and what is explicitly out of scope.
-- **ADI-012** (`specs/decisions/ADI-012-folder-path-organization.md`, Accepted): the still-standing,
-  unchanged decision that `proposed_path_segments` stays assertion-only. This ticket does not touch
-  that scope — `context` is a separate, narrower, cross-type parameter, not an extension of
-  taxonomy segments to new types.
+- **ADI-012** (`specs/decisions/ADI-012-folder-path-organization.md`, Accepted): this ticket does
+  not touch `proposed_path_segments`' scope — `context` is a separate, narrower, cross-type
+  parameter, not an extension of taxonomy segments to new types. **Correction 2026-09-07**: this
+  bullet previously described ADI-012 as having decided that `proposed_path_segments` "stays
+  assertion-only". It had not: it deferred the extension to entity/event/relationship rather than
+  ruling it out. That extension was carried out by **TASK-005a** (`completed`, 2026-09-07), which
+  amended the same four `*_path`/`write_*_file` functions this ticket amends — see Dependencies for
+  how the two compose (this ticket now builds on TASK-005a's already-landed code, not a symmetric
+  race between two still-`backlog` tickets).
 - `src/app/review/storage.py:58` (`_COMMON_EDITABLE_FIELDS`), `:100-108` (`_validate_path_segments`
   — reused as-is for validating a single `context` string), `:131-150` (`assertion_path`,
   `entity_path`, `event_path`, `relationship_path`), `:283-307` (`write_entity_file`,
@@ -122,6 +127,16 @@ was independently testable ahead of its frontend's TASK-013 dependency.
 - **No retroactive relocation.** Same as ADI-012/TASK-014: setting `context` on an edit never moves
   an already-`ACCEPTED` canonical file. Only affects the physical path chosen at the moment
   `accept_proposal` runs.
+- **Ungating the "✎ Éditer" button carries a prerequisite** (added 2026-09-07). **Resolved by
+  TASK-005a, 2026-09-07 (`completed`) — no longer this ticket's problem.** This bullet originally
+  warned that this ticket's frontend half (§7) needs edit mode for all four types, but
+  `ProposalDetail.jsx` gated that button on `assertion`, and ungating it without also widening
+  `_COMMON_EDITABLE_FIELDS` to cover `proposed_path_segments` would produce `UneditableFieldError` →
+  `400` on every entity/event/relationship save. TASK-005a has since ungated the button and moved
+  `proposed_path_segments` into `_COMMON_EDITABLE_FIELDS` (its own §A4/§E14). By the time this
+  ticket is implemented, the button is already ungated and that half of the allow-list already
+  widened — this ticket only needs to add `"context"` to `_COMMON_EDITABLE_FIELDS` additively, same
+  as any other field in this shared set.
 
 ## Requirements
 
@@ -137,9 +152,13 @@ was independently testable ahead of its frontend's TASK-013 dependency.
 - No change to `edit_proposal`'s mechanism, signature, or `history/` versioning logic (TASK-006 is
   not reopened beyond the one `_COMMON_EDITABLE_FIELDS` line).
 - No new backend blueprint, no new route.
-- `proposed_path_segments`/taxonomy segments remain assertion-only — this ticket does not extend
-  them to entity/event/relationship (that gap, if ever closed, is TASK-005/012-descendant work, out
-  of scope here per ADI-016).
+- **Correction 2026-09-07**: this bullet originally said `proposed_path_segments`/taxonomy segments
+  "remain assertion-only" and deferred that gap to future TASK-005/012-descendant work. **TASK-005a
+  has since landed (`completed`, 2026-09-07)** and extended taxonomy segments to entity/event/
+  relationship — so this is no longer true, and there is nothing left for a hypothetical future
+  ticket to close on that front. `context` (this ticket's own field) is still a separate, narrower,
+  cross-type concept from taxonomy segments (per ADI-016) — this ticket does not touch
+  `proposed_path_segments` itself, it only adds `context` alongside it.
 - No file under `src/app/extraction/` or `src/app/ingestion/providers/`, `pipeline.py` is touched
   by this ticket (that's TASK-014b's scope) — this ticket only changes `review/storage.py`,
   `review/pipeline.py`, and `ingestion/storage.py`'s two scan functions.
@@ -164,6 +183,25 @@ was independently testable ahead of its frontend's TASK-013 dependency.
 
 TASK-002/TASK-005/TASK-006 (`completed`, amended here), ADI-016 (Accepted, binding contract). No
 dependency on TASK-001f or TASK-014b — see Objective.
+
+**Soft-coupled to TASK-005a** (`completed`, 2026-09-07 — ADI-012 adoption for entity/event/
+relationship), not a blocking dependency in either direction: this ticket remains independently
+implementable without it. The two tickets amend **the same** four `*_path` and four `write_*_file`
+functions and both touch `_COMMON_EDITABLE_FIELDS`; since TASK-005a has already landed, this
+ticket's own implementation composes **onto** the real, already-extended signatures below (each
+`*_path`/`write_*_file` already has `path_segments`) rather than racing them — add `context` as the
+next additive-optional parameter, in the same position ADI-016 already specifies (context first,
+taxonomy segments after):
+
+```
+entity_path(vault_root, domain, entity_id, path_segments=None, context=None)
+  -> <domain>/entities/<context>/<segments...>/<entity_id>/<entity_id>.md
+```
+
+— exactly the shape ADI-016 already specifies for assertions (`context` first, taxonomy segments
+after). The second to land composes with the first rather than replacing it, same precedent as the
+`write_source_file` signature change shared between TASK-016 and TASK-017. See also the edit-button
+prerequisite in V1 scope decisions, which both tickets share.
 
 ## Acceptance criteria
 

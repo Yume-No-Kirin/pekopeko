@@ -38,6 +38,14 @@ TASK-001f design only lists direct children of `_inbox/`). This is the ticket th
   intended behavior via a satellite" posture already used throughout this project) to recurse into
   subfolders, preserving each file's full nested `source_path` unchanged through to `ingest_source`
   (no signature impact — `ingest_source` already accepts any `Path`).
+  **Second, independent amendment to TASK-001f (2026-09-07, consistency review)**: that ticket now
+  moves each file into `<inbox_dirname>/<processed_dirname>/` **before** dispatching, and passes
+  the post-move path to `ingest_source` — the original dispatch-then-move ordering handed the
+  background thread a path that no longer existed. See TASK-001f's own "Move-before-dispatch"
+  section. Consequence here: the `source_path` this ticket's `_derive_source_context` receives from
+  the watcher path is `…/_inbox/<processed_dirname>/<context>/file.md`, not
+  `…/_inbox/<context>/file.md`. Both shapes must be handled (Scope §3, AC15) — which is why
+  `processed_dirname` is in the context dict at all.
 - `src/app/ingestion/pipeline.py:36` (`ingest_source`), context dict built at `:145`
   (`provider.extract(content, {"source_path": ..., "vault_root": ..., "domain": ...})`) — the exact
   point ADI-014 already used to add `vault_root`/`domain` additively; this ticket adds
@@ -72,8 +80,9 @@ TASK-001f design only lists direct children of `_inbox/`). This is the ticket th
    them carry any path-related field today).
 3. `ingestion/providers/ollama_provider.py::_derive_source_context(context: dict) -> Optional[str]`
    (new): reads `source_path`, `vault_root`, `domain`, `inbox_dirname`, `processed_dirname` from
-   `context`. If `source_path` resolves under
-   `<vault_root>/<domain>/<inbox_dirname>/<subfolder>/...`, returns the first subfolder name,
+   `context`. If `source_path` resolves under `<vault_root>/<domain>/<inbox_dirname>/<subfolder>/...`
+   — **or under `<vault_root>/<domain>/<inbox_dirname>/<processed_dirname>/<subfolder>/...`, with
+   the `processed_dirname` segment skipped** — returns the first subfolder name,
    normalized via the existing `_normalize_path_string` (reused, not reinvented — same
    accent-stripping/lowercasing/HTML-unescaping applied to taxonomy segments, for naming
    consistency). Returns `None` if `source_path` sits directly in `<inbox_dirname>/` with no
@@ -200,20 +209,27 @@ ticket sits alongside, not modified).
 10. `ingest_source`'s and `extract_source`'s public signatures are unchanged (regression check by
     direct comparison, same as every prior satellite).
 11. `scan_once` discovers a file nested one level under `_inbox/` (e.g. `_inbox/sport/file.md`),
-    dispatches `ingest_source` with the correct full nested path, and moves it to
-    `_inbox/processed/sport/file.md` (mirrored, not flattened) on dispatch.
+    moves it to `_inbox/processed/sport/file.md` (mirrored, not flattened), and dispatches
+    `ingest_source` with that post-move path — which exists on disk at dispatch time
+    (TASK-001f AC5/AC7, move-before-dispatch ordering).
 12. `scan_once` still correctly skips the entire `processed/` subtree at any depth and dotfiles/
     dot-directories, without regression to TASK-001f's own flat-case acceptance criteria.
-13. An end-to-end call: ingesting a hand-placed file at
-    `.../PERSONAL/_inbox/sport/file.md` via `ingest_source` directly (simulating what the watcher
-    would call) produces Proposals whose `context` is `"sport"`.
+13. An end-to-end call: ingesting a hand-placed file at `.../PERSONAL/_inbox/sport/file.md` via
+    `ingest_source` directly produces Proposals whose `context` is `"sport"`; the same test run
+    against `.../PERSONAL/_inbox/processed/sport/file.md` (the path the watcher actually dispatches
+    with, per TASK-001f's move-before-dispatch ordering) produces the identical result.
 14. Recursion into `_inbox/` subfolders does not change TASK-001d's existing duplicate-detection
     behavior (regression test against an existing TASK-001d test case, run against a nested path).
+15. `_derive_source_context` returns the same value for the **post-move** path the watcher actually
+    dispatches with (`_inbox/processed/sport/file.md` → `"sport"`) — the `processed_dirname`
+    segment is skipped, not mistaken for the context. A file moved straight to
+    `_inbox/processed/file.md` with no subfolder still returns `None` (AC1's rule, unchanged).
+    Required by TASK-001f's move-before-dispatch ordering; see that ticket's own section.
 
 ## Testing requirements
 
 `pytest`, `tmp_path`, mocked/fake providers (no real Ollama call in the default suite), no real
-`time.sleep`, covering AC1-14. Project-wide bar: at least 80% coverage on every file touched.
+`time.sleep`, covering AC1-15. Project-wide bar: at least 80% coverage on every file touched.
 
 ## Out of scope
 

@@ -132,7 +132,7 @@ of `ingestion/`.
 
 - Retroactive backfill of `provenance` on already-written Proposal files.
 - A second concrete provider reporting these fields — only `OllamaProvider` is touched
-  here (TASK-020, a future second provider, inherits this contract when it lands).
+  here (the old `TASK-020` of `BACKLOG-CLAUDE.md`, renumbered `TASK-021` in `BACKLOG-CLAUDE-V2.md` — a future second provider, inherits this contract when it lands).
 - Any GUI — TASK-011 consumes this ticket's output, implemented separately.
 - Extending `extraction/` (TASK-003's entity/event/relationship pipeline) with the same
   metadata — out of scope here since TASK-010/011 are assertion-only; a symmetric ticket

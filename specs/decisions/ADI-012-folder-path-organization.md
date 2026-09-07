@@ -56,10 +56,23 @@ Three constraints, each confirmed explicitly by Cleo rather than inferred from t
 
 **Scope: `assertion` only, for now.** TASK-014 (which this ADR unblocks) is scoped
 assertion-only, matching the same MVP boundary TASK-010/011/013 already use. `entity`/`event`/
-`relationship` (TASK-005, TASK-012 — both still `backlog`, never implemented) are **not**
-amended by this decision yet: their canonical writers, once implemented, must adopt this same
-layout (see Consequences) rather than the plain fixed layout TASK-005's current ticket text
-still cites, but that adoption is that future ticket's own work, not retroactively done here.
+`relationship` (TASK-005, TASK-012 — both `backlog` and never implemented **on the day this ADR
+was written**) are **not** amended by this decision yet: their canonical writers, once
+implemented, must adopt this same layout (see Consequences) rather than the plain fixed layout
+TASK-005's current ticket text still cites, but that adoption is that future ticket's own work,
+not retroactively done here.
+
+> **Status note added 2026-09-07 — this paragraph's parenthetical is out of date, and its
+> obligation was not honoured on schedule.** TASK-005 and TASK-012 are `completed` (2026-09-05 and
+> 2026-09-06). TASK-005 implemented the three canonical writers on the **plain fixed path**, a
+> decision taken and documented in its own session under the "Numbering/layout note" that had been
+> added to it here. That left "must adopt this same layout" with no owning ticket at all: the
+> "future ticket" this paragraph points at *was* TASK-005. The gap was found by the 2026-09-07
+> consistency review and closed by Cleo the same day, in favour of full adoption. **The obligation
+> above is now discharged by
+> `specs/tasks/completed/TASK-005a-entity-event-relationship-folder-path.md`** (`completed`,
+> 2026-09-07), which also carried the LLM-side path proposal for the three types. This ADR's
+> decision was not amended — it was applied.
 
 **Segment naming convention** (not a hard server-side guarantee unless a ticket implementing
 this ADR says so explicitly): a segment is a single non-empty path component, no `/` and no
@@ -97,11 +110,13 @@ provider doesn't supply one, never blocking or changing an existing public signa
   gain an optional `path_segments` parameter, defaulting to none — see TASK-014's own ticket for
   the exact scope. This is the same category of change TASK-001a/b/c/d already made to
   TASK-001/TASK-003's completed code.
-- TASK-005 (`backlog`, never implemented) currently cites the old fixed layout literally in its
-  own "File layout (exact contract)" section. A short note has been added there pointing at this
-  ADR (see that ticket) — TASK-005 is not rewritten here, since implementing entity/event/
-  relationship support for this layout is explicitly out of TASK-014's scope and remains future
-  work.
+- TASK-005 (`backlog` when this ADR was written, `completed` 2026-09-05) cites the old fixed
+  layout literally in its own "File layout (exact contract)" section. A short note was added there
+  pointing at this ADR — TASK-005 was not rewritten here, since implementing entity/event/
+  relationship support for this layout was explicitly out of TASK-014's scope. **Outcome
+  (2026-09-07):** TASK-005 exercised the choice that note gave it and stayed on the plain fixed
+  path, so this consequence remained unfulfilled until **TASK-005a** was written to carry it. See
+  the status note in the Decision section above.
 - A new satellite ticket (TASK-001e) is required for the extraction pipelines to propose an
   initial path — see that ticket for its own scope and constraints.
 - Obsidian's file browser will show these nested taxonomy folders directly (same consequence

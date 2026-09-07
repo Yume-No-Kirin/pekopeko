@@ -282,7 +282,10 @@ def accept_proposal(vault_root: Path, domain: str, proposal_id: str, reviewer_id
             "created_at": now,
             "provenance": base_provenance,
         }
-        written_path = storage.write_entity_file(vault_root, domain, item_frontmatter, body)
+        path_segments = frontmatter.get("proposed_path_segments") or []
+        written_path = storage.write_entity_file(
+            vault_root, domain, item_frontmatter, body, path_segments=path_segments
+        )
     elif proposed_item_type == "event":
         item_id = storage._generate_event_id()
         item_frontmatter = {
@@ -298,7 +301,10 @@ def accept_proposal(vault_root: Path, domain: str, proposal_id: str, reviewer_id
             "created_at": now,
             "provenance": base_provenance,
         }
-        written_path = storage.write_event_file(vault_root, domain, item_frontmatter, body)
+        path_segments = frontmatter.get("proposed_path_segments") or []
+        written_path = storage.write_event_file(
+            vault_root, domain, item_frontmatter, body, path_segments=path_segments
+        )
     else:
         assert proposed_item_type == "relationship"
         # Endpoint resolution must complete, with none unresolved, before any
@@ -318,7 +324,10 @@ def accept_proposal(vault_root: Path, domain: str, proposal_id: str, reviewer_id
             "created_at": now,
             "provenance": base_provenance,
         }
-        written_path = storage.write_relationship_file(vault_root, domain, item_frontmatter, body)
+        path_segments = frontmatter.get("proposed_path_segments") or []
+        written_path = storage.write_relationship_file(
+            vault_root, domain, item_frontmatter, body, path_segments=path_segments
+        )
 
     frontmatter["proposal_status"] = "ACCEPTED"
     frontmatter["reviewed_by"] = reviewer_id

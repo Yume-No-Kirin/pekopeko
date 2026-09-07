@@ -63,10 +63,15 @@ trigger.
      `<vault_root>/<domain>/<inbox_dirname>/`, creates it (and its `<processed_dirname>/`
      subfolder) if missing, lists direct children skipping dotfiles and the `processed_dirname`
      subfolder itself, keeps only files whose mtime is older than `poll_interval_seconds`, and for
-     each: mints `task_id = f"ingest-{uuid.uuid4()}"`, calls `create_task_state`/
-     `update_task_state`, dispatches `ingest_source` via `run_in_background`, then moves the file
-     into `<inbox_dirname>/<processed_dirname>/` (on a name collision, append a short uuid suffix
-     before the extension). Returns the list of dispatched `task_id`s for test assertions.
+     each: **first moves the file** into `<inbox_dirname>/<processed_dirname>/` (on a name
+     collision, append a short uuid suffix before the extension), **then** mints
+     `task_id = f"ingest-{uuid.uuid4()}"`, calls `create_task_state`/`update_task_state`, and
+     dispatches `ingest_source` via `run_in_background` **with the post-move path** — never the
+     original `_inbox/` path. Returns the list of dispatched `task_id`s for test assertions.
+     If the move itself fails (permission, file vanished between listing and move), the file is
+     skipped for this tick with a logged warning and **no** task is created — a task state
+     pointing at a file that was never moved would be indistinguishable from a real ingestion
+     failure.
    - `start_folder_watcher(app_config: PekopekoConfig, vault_root: Path, provider, state_dir:
      Path) -> None` — no-ops immediately if `app_config.folder_watch.enabled` is `False`;
      otherwise starts one daemon thread that calls `scan_once(...)` then sleeps
@@ -76,6 +81,32 @@ trigger.
 4. `src/app/api/app.py` (`create_app`): after building the app and loading config, calls
    `start_folder_watcher(config, vault_root, build_configured_provider(config), state_dir)` once,
    before returning the app.
+
+### Move-before-dispatch: correction to the ordering (2026-09-07, consistency review)
+
+ADI-013's Decision §3 says the file is moved to `processed/` "once ingestion has been
+**dispatched** (not necessarily finished)", and this ticket's Scope §3 originally implemented that
+literally: `run_in_background(ingest_source, …, <_inbox path>)` first, `move` immediately after.
+**That ordering does not work.** `run_in_background` hands the job to a daemon thread that opens
+`source_path` some milliseconds later; the watcher thread has already moved the file by then, so
+`ingest_source` raises `FileNotFoundError` on essentially every file the watcher picks up. The
+ticket's own AC5 and AC7 encoded both halves of the contradiction (dispatch *with* the `_inbox/`
+path; assert the file is *gone* from `_inbox/` right after).
+
+The fix is an ordering swap, not a change of decision: move first, then dispatch with the
+post-move path. ADI-013's stated *rationale* for moving at dispatch time — "this removes the file
+from the watched set immediately, so a later poll tick can never re-detect it — no dependency on
+TASK-001d's duplicate-detection" — is satisfied at least as well by moving first, and arguably
+better (the window in which a second tick could see the file shrinks to zero). No ADR is reopened;
+flagged here in the ticket, per the same precedent TASK-007a set when it changed TASK-007's
+response shape.
+
+One consequence for a sibling ticket: **TASK-014b** derives `context` from the source folder and
+its acceptance criteria assume a `source_path` of the form `_inbox/<context>/file.md`. With this
+ordering the watcher-supplied path is `_inbox/<processed_dirname>/<context>/file.md`, so
+`_derive_source_context` must skip the `processed_dirname` segment when present. TASK-014b already
+receives `processed_dirname` in the provider context dict for exactly this kind of reason; its
+AC2/AC13 have been amended alongside this note.
 
 ### V1 scope decisions (explicit — flag disagreement, don't silently deviate)
 
@@ -120,13 +151,22 @@ must be callable and assertable without going through `start_folder_watcher`'s l
 - New/updated tests in `src/tests/ingestion/` and `src/tests/config/` mirroring the existing
   structure: config defaults/overrides for `folder_watch`; `scan_once` behavior for a stable file,
   an unstable (too-recent) file, a domain with no `_inbox/` yet, a dotfile, an already-`processed/`
-  file, and a name collision in `processed/`.
+  file, and a name collision in `processed/`; plus the two cases added by the
+  move-before-dispatch correction — the dispatched `source_path` is the post-move one and exists
+  (AC5/AC7), and a failing move dispatches nothing (AC13).
 
 ## Dependencies
 
 TASK-001 (`completed`) and ADI-013 (Accepted). Independent of TASK-005/TASK-012/TASK-001e/
 TASK-014 — this ticket is a new trigger path, not a change to review, extraction, or folder-path
 organization logic.
+
+**Amended by TASK-014b** (`backlog`), in the reverse direction from a normal dependency: that
+ticket needs `scan_once` to walk `_inbox/` **recursively** (so a file at `_inbox/sport/note.md` is
+discovered at all) and to **mirror** the subfolder structure under `<processed_dirname>/` rather
+than flattening it, because the nested path is the signal it derives `context` from. Whichever of
+the two lands first implements that; the other reuses it. Noted here so the coupling is visible
+from both sides — TASK-014b already documents it from its own.
 
 ## Acceptance criteria
 
@@ -140,11 +180,16 @@ organization logic.
 4. With `enabled=False`, `start_folder_watcher` starts no thread and calling it has no observable
    side effect.
 5. `scan_once` dispatches `ingest_source` (verified via a fake `run_in_background`/provider) for a
-   file in `<vault_root>/<domain>/_inbox/` whose mtime is older than `poll_interval_seconds`.
+   file in `<vault_root>/<domain>/_inbox/` whose mtime is older than `poll_interval_seconds`, and
+   the `source_path` it dispatches with is the **post-move** path under
+   `_inbox/<processed_dirname>/` — a path that exists on disk at the moment of dispatch.
+   Asserted directly on the captured `run_in_background` call arguments.
 6. `scan_once` does not dispatch a file whose mtime is more recent than `poll_interval_seconds` —
    it remains in `_inbox/` for a later tick to pick up.
 7. After a successful dispatch, the source file is present in
-   `_inbox/<processed_dirname>/` and absent from `_inbox/`.
+   `_inbox/<processed_dirname>/` and absent from `_inbox/`, and the path captured in AC5 points at
+   that existing file (`dispatched_path.exists()` is true) — the regression guard for the
+   move-before-dispatch ordering.
 8. A name collision in `processed/` is resolved by suffixing, never by overwriting an existing
    processed file.
 9. Dotfiles and the `processed_dirname` subfolder itself are never dispatched.
@@ -153,11 +198,15 @@ organization logic.
 11. `scan_once` returns the `task_id`s it dispatched, enabling direct test assertions without
     inspecting task-state files.
 12. `ingest_source`'s public signature is unchanged (regression check by direct comparison).
+13. If the move raises (simulated via a patched `shutil.move`/`Path.rename`), no task state is
+    created and no dispatch happens for that file; the tick completes and other files in the same
+    `_inbox/` are still processed. Paired with AC5/AC7 as the move-before-dispatch guard.
 
 ## Testing requirements
 
 `pytest`, `tmp_path`, a fake/mocked provider and a stubbed `run_in_background` (capturing calls
-instead of spawning real threads) — no real Ollama call, no real `time.sleep`, covering AC1-12.
+instead of spawning real threads) — no real Ollama call, no real `time.sleep`, covering AC1-13
+(13 cases).
 Project-wide bar: at least 80% coverage on every file touched.
 
 ## Out of scope

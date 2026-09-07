@@ -242,7 +242,10 @@ def test_extract_merges_accepted_and_pending_proposal_folders_into_context(tmp_p
     proposal_dir = vault_root / "FICTION" / "proposals" / "prop-1"
     proposal_dir.mkdir(parents=True)
     frontmatter = yaml.dump(
-        {"proposal_status": "PROPOSED", "proposed_path_segments": ["mythologie", "kitsune"]},
+        {
+            "proposal_status": "PROPOSED", "proposed_item_type": "assertion",
+            "proposed_path_segments": ["mythologie", "kitsune"],
+        },
         default_flow_style=False,
     )
     (proposal_dir / "prop-1.md").write_text(f"---\n{frontmatter}---\n\nBody.", encoding="utf-8")

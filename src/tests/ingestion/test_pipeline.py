@@ -459,6 +459,11 @@ def test_scan_existing_assertion_folders_returns_full_paths(tmp_path):
 
 
 def _write_raw_proposal(proposals_dir: Path, proposal_id: str, frontmatter: dict, body: str = "Body."):
+    # ingestion's own write_proposal_file always sets proposed_item_type: "assertion"
+    # (it never writes any other kind of proposal) - default it here too so every
+    # existing caller of this helper keeps testing a realistic assertion proposal
+    # now that scan_proposed_path_segments filters on this field (TASK-005a SS13).
+    frontmatter = {"proposed_item_type": "assertion", **frontmatter}
     proposal_dir = proposals_dir / proposal_id
     proposal_dir.mkdir(parents=True)
     yaml_content = yaml.dump(frontmatter, default_flow_style=False, allow_unicode=True)
@@ -527,6 +532,24 @@ def test_scan_proposed_path_segments_dedupes(tmp_path):
     })
     _write_raw_proposal(proposals_dir, "prop-b", {
         "proposal_status": "EDITED", "proposed_path_segments": ["mythologie", "kitsune"]
+    })
+
+    assert scan_proposed_path_segments(tmp_path, "FICTION") == ["mythologie/kitsune"]
+
+
+def test_scan_proposed_path_segments_filters_out_non_assertion_proposals(tmp_path):
+    """TASK-005a SS13 regression: extraction/'s pipeline writes into this same
+    <domain>/proposals/ directory and, as of TASK-005a, entity/event/relationship
+    proposals also carry proposed_path_segments - without this filter, an entity's
+    folder path would leak into assertion path-proposal context."""
+    proposals_dir = tmp_path / "FICTION" / "proposals"
+    _write_raw_proposal(proposals_dir, "prop-assertion", {
+        "proposal_status": "PROPOSED", "proposed_item_type": "assertion",
+        "proposed_path_segments": ["mythologie", "kitsune"],
+    })
+    _write_raw_proposal(proposals_dir, "prop-entity", {
+        "proposal_status": "PROPOSED", "proposed_item_type": "entity",
+        "proposed_path_segments": ["personnages"],
     })
 
     assert scan_proposed_path_segments(tmp_path, "FICTION") == ["mythologie/kitsune"]

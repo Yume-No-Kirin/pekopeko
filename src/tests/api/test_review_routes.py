@@ -242,7 +242,8 @@ def test_edit_empty_body_and_field_updates_returns_400(client, auth_headers, mak
     assert resp.get_json()["error"]["type"] == "ValidationError"
 
 
-# TASK-014: GET .../organization-folders (assertion-only)
+# TASK-014: GET .../organization-folders (assertion); TASK-005a widens it to all
+# four proposed_item_types (ADI-012 adoption by entity/event/relationship).
 
 def test_get_organization_folders_empty_domain_returns_empty_structure(client, auth_headers):
     resp = client.get("/domains/PERSONAL/organization-folders?item_type=assertion", headers=auth_headers)
@@ -268,7 +269,7 @@ def test_get_organization_folders_missing_item_type_returns_400(client, auth_hea
 
 
 def test_get_organization_folders_invalid_item_type_returns_400(client, auth_headers):
-    resp = client.get("/domains/PERSONAL/organization-folders?item_type=entity", headers=auth_headers)
+    resp = client.get("/domains/PERSONAL/organization-folders?item_type=bogus", headers=auth_headers)
     assert resp.status_code == 400
     assert resp.get_json()["error"]["type"] == "ValidationError"
 
@@ -277,3 +278,37 @@ def test_get_organization_folders_invalid_domain_returns_400(client, auth_header
     resp = client.get("/domains/NOT_A_DOMAIN/organization-folders?item_type=assertion", headers=auth_headers)
     assert resp.status_code == 400
     assert resp.get_json()["error"]["type"] == "InvalidDomainError"
+
+
+# TASK-005a AC7: entity/event/relationship item_types now return 200 with the
+# same {"segments_by_depth": [...]} envelope, scoped to their own type tree.
+
+def test_get_organization_folders_entity_multi_depth_scan(client, auth_headers, vault_root):
+    entities_dir = vault_root / "PERSONAL" / "entities"
+    (entities_dir / "personnages" / "entity-1").mkdir(parents=True)
+    (entities_dir / "lieux" / "entity-2").mkdir(parents=True)
+
+    resp = client.get("/domains/PERSONAL/organization-folders?item_type=entity", headers=auth_headers)
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"segments_by_depth": [["lieux", "personnages"]]}
+
+
+def test_get_organization_folders_event_multi_depth_scan(client, auth_headers, vault_root):
+    events_dir = vault_root / "PERSONAL" / "events"
+    (events_dir / "guerre" / "event-1").mkdir(parents=True)
+
+    resp = client.get("/domains/PERSONAL/organization-folders?item_type=event", headers=auth_headers)
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"segments_by_depth": [["guerre"]]}
+
+
+def test_get_organization_folders_relationship_multi_depth_scan(client, auth_headers, vault_root):
+    relationships_dir = vault_root / "PERSONAL" / "relationships"
+    (relationships_dir / "famille" / "relationship-1").mkdir(parents=True)
+
+    resp = client.get("/domains/PERSONAL/organization-folders?item_type=relationship", headers=auth_headers)
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"segments_by_depth": [["famille"]]}

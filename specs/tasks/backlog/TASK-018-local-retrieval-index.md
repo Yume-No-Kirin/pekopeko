@@ -8,9 +8,26 @@ Implement ADI-002 (`specs/decisions/ADI-002-retrieval-system.md`) for the four c
 types — full-text search over `assertion`/`entity`/`event`/`relationship` files, via a local
 SQLite/FTS5 index that is derived, reconstructible, and never stored inside the Obsidian vault.
 Delivered directly as SQLite/FTS5 in this ticket, skipping ADI-002's intermediate "V1 in-memory at
-startup" rollout step (see V1 scope decisions below) — the destination ADI-002 already decided
-(a local, derived, rebuildable SQLite/FTS5 index outside the vault) is unchanged; only the staging
-order is skipped. Closes CAP-CORE-010/RTR-001's full-text-search and domain-specific-filtering
+startup" rollout step (see V1 scope decisions below). **Three deviations from ADI-002 as written,
+named here rather than folded into "only the staging order is skipped"** (correction 2026-09-07,
+consistency review — the earlier wording understated them):
+
+1. The intermediate in-memory rollout step is skipped. Uncontroversial: ADI-002's destination
+   (a local, derived, rebuildable SQLite/FTS5 index outside the vault) is unchanged.
+2. **This ticket is not incremental.** ADI-002's step 2 specifies the FTS5 index is "updated
+   incrementally as files change rather than fully rescanned each time"; this ticket does a full
+   rebuild at process startup instead (see V1 scope decisions). What ships is therefore step 2's
+   *storage* with step 1's *refresh strategy* — a real, deliberate halfway point, not step 2.
+3. **`proposals/` are not indexed.** ADI-002 states the index is "required infrastructure for the
+   **review queue** and search from early in V1", justified explicitly by the "hundreds of
+   thousands of proposals" pressure point (`specs/product/use-cases.md`, Architectural Pressure
+   Points §7). This ticket serves *search over canonical items* only; the review queue keeps
+   TASK-010's client-side filtering over a `limit=500` fetch. ADI-002's review-queue rationale is
+   therefore still unaddressed after this ticket — see TASK-015's own note on the same gap.
+
+None of the three is treated as an ADI-002 amendment: the architectural decision (derived, local,
+never-in-vault, rebuildable) holds in all three cases. They are V1 scope reductions, and they are
+Cleo's to accept or refuse at read time. Closes CAP-CORE-010/RTR-001's full-text-search and domain-specific-filtering
 requirements (`specs/architecture/capabilities.md`, `specs/architecture/technical-requirements.md`)
 — RTR-001's semantic-search and relationship-based-navigation requirements remain future work per
 ADI-002 itself (steps 3 and out-of-scope respectively).
@@ -61,31 +78,42 @@ route file.
      frontmatter parser (re-implemented here, not imported from `review.frontmatter` — same
      module-independence discipline `review/storage.py`'s own docstring already documents for
      itself relative to `ingestion/storage.py`: only the on-disk contract is shared, not code).
-     `proposals/` and `sources/` are never walked (see V1 scope decisions).
+     `proposals/`, `sources/` and **every `history/` subfolder** are never walked (see V1 scope
+     decisions). The `history/` exclusion is load-bearing, not incidental: a per-item
+     `history/<timestamp>--v<n>.md` snapshot (ADI-001, written by TASK-006's `edit_proposal`)
+     carries `lifecycle_status: SUPERSEDED` and a body that is a *previous* version of a live
+     item — indexing it would make every edited item appear several times in search results, with
+     stale text. Filtering on "filename stem equals its parent directory name" already excludes
+     them by construction, but the exclusion must be explicit and directly tested (AC12), not left
+     as a side effect of the glob's shape.
    - `index_store.py` — SQLite/FTS5 schema and low-level access:
      - A virtual table `items_fts` (FTS5) with an indexed `body` column and unindexed columns
-       `id`, `item_type` (`assertion`/`entity`/`event`/`relationship`), `domain`,
+       `id`, `item_type` (`assertion`/`entity`/`event`/`relationship`), `domain`, `context`,
        `epistemic_status`, `lifecycle_status`, `path_segments` (JSON-encoded list, empty for
        types other than `assertion` — the only type with a folder-path builder, TASK-014).
+       `context` is the first-class field ADI-016 puts on all four canonical types (`NULL` when
+       the item has none) — see "Relation to ADI-016/TASK-014a" below.
      - `build_index(vault_root, index_dir) -> None` — drops and recreates the SQLite file at
        `index_dir` from scratch via a full `scanner.py` walk of every domain. Idempotent,
        jettable at any time (INV-011).
      - `index_item(index_dir, item)` / `remove_item(index_dir, item_id)` — single-row upsert/
        delete, defined for future incremental use but not called by any pipeline in this ticket
        (see V1 scope decisions).
-   - `search.py` — `search(index_dir, domain, query, item_type=None, limit=50, offset=0) ->
-     (results, total)`: FTS5 `MATCH` against `body`, filtered by `domain` (required) and
-     `item_type` (optional), ordered by FTS5 `rank`, sliced by `limit`/`offset`. Each result
+   - `search.py` — `search(index_dir, domain, query, item_type=None, context=None, limit=50,
+     offset=0) -> (results, total)`: FTS5 `MATCH` against `body`, filtered by `domain` (required),
+     `item_type` (optional) and `context` (optional), ordered by FTS5 `rank`, sliced by
+     `limit`/`offset`. Each result
      includes an FTS5 `snippet()` excerpt around the match plus the item's full `body` (see
      rationale below) and its metadata columns.
 2. New endpoint `GET /domains/<domain>/search` in a new `src/app/api/routes_search.py`:
    - Query params: `q` (required, non-empty string), `item_type` (optional, one of
-     `assertion`/`entity`/`event`/`relationship`), `limit`/`offset` (TASK-007a's
-     `parse_pagination_args`, same defaults/bounds as every other list endpoint).
+     `assertion`/`entity`/`event`/`relationship`), `context` (optional, a single non-empty
+     string — restricts results to items carrying that ADI-016 `context`), `limit`/`offset`
+     (TASK-007a's `parse_pagination_args`, same defaults/bounds as every other list endpoint).
    - Response: `{"items": [...], "total": N, "limit": L, "offset": O}` (TASK-007a's envelope,
      reused via `serialization.paginate`/a shared per-item serializer). Each item:
-     `{"id", "item_type", "domain", "epistemic_status", "lifecycle_status", "path_segments",
-     "snippet", "body"}`.
+     `{"id", "item_type", "domain", "context", "epistemic_status", "lifecycle_status",
+     "path_segments", "snippet", "body"}`.
    - Full `body` is included in every result, not only the `snippet` — deliberate: TASK-019 has
      no separate canonical-item-detail endpoint to fetch from (none exists yet, see TASK-019's own
      Objective), so the search response itself must carry everything the frontend needs to expand
@@ -104,18 +132,39 @@ route file.
 ### V1 scope decisions (explicit — flag disagreement, don't silently deviate)
 
 - **No in-memory-first staging step.** ADI-002's "Concrete scaling path" describes step 1
-  (in-memory, rebuilt at startup) before step 2 (SQLite/FTS5). This ticket implements step 2
-  directly. Rationale (Cleo, 2026-09-06): building and testing a throwaway in-memory
+  (in-memory, rebuilt at startup) before step 2 (SQLite/FTS5). This ticket implements step 2's
+  storage directly. Rationale (Cleo, 2026-09-06): building and testing a throwaway in-memory
   implementation only to replace it immediately is wasted work — going straight to the
   already-decided destination avoids maintaining two code paths for one ticket. ADI-002's actual
-  architectural decision (derived, reconstructible, local, never-in-vault) is unchanged; only the
-  intermediate rollout step is skipped. Not treated as an ADI-002 amendment (no new ADR) because
-  the destination itself doesn't change — same "flag in the ticket, don't reopen the ADR"
-  precedent TASK-007a already set when it changed TASK-007's response shape.
-- **Indexes only the four canonical item types** — `proposals/` (review queue, not yet canonical)
-  and `sources/` (raw ingested content, not itself "knowledge") are explicitly excluded. Flagged
+  architectural decision (derived, reconstructible, local, never-in-vault) is unchanged. Not
+  treated as an ADI-002 amendment (no new ADR) because the destination itself doesn't change —
+  same "flag in the ticket, don't reopen the ADR" precedent TASK-007a already set when it changed
+  TASK-007's response shape. **But see the Objective's three-point deviation list**: skipping the
+  staging step is only one of the three ways this ticket differs from ADI-002 as written.
+- **The index is stale between restarts, and that is user-visible.** Since the only refresh is the
+  full rebuild in `create_app()`, an item accepted during a running session (`accept_proposal`
+  writes a new canonical file) is **not findable in search until the API process is restarted**.
+  This is not a performance footnote — it is the search screen (TASK-019) silently failing to show
+  something the reviewer just created, minutes earlier. Named here rather than discovered in use.
+  ADI-002 anticipated exactly this ("if Cleo searches from a device she hasn't used in a while, its
+  index may be stale until Pekopeko rebuilds… e.g. rebuild-on-launch if the vault's changed",
+  Consequences) and left it to a later phase; nobody has owned it since. **Flagged for Cleo's
+  decision at read time**: accept the restart-to-refresh limitation for V1, or pull one of
+  (a) calling `index_item` from `review/pipeline.py`'s accept path, (b) a `POST .../search/rebuild`
+  route, (c) a cheap mtime-based staleness check per request — into this ticket's scope. This
+  ticket as written assumes (a)/(b)/(c) are all out.
+- **Indexes only the four canonical item types, live versions only** — `proposals/` (review queue,
+  not yet canonical), `sources/` (raw ingested content, not itself "knowledge") and every
+  per-item `history/` subfolder (superseded snapshots, ADI-001) are explicitly excluded. Flagged
   for Cleo's confirmation at review time: if raw source content search turns out to be wanted too,
-  that's an easy additive extension to `scanner.py`, not a redesign.
+  that's an easy additive extension to `scanner.py`, not a redesign. Searching *historical* item
+  states is a different question entirely and belongs to UC-015's own (still un-ticketed) scope,
+  not here.
+- **`context` is indexed and filterable, not derived here.** This ticket reads whatever `context`
+  ADI-016/TASK-014a put in a canonical item's frontmatter and exposes it as a column plus an
+  optional filter. It never computes, guesses, or defaults one (that is TASK-014b's scope), and it
+  works unchanged against a vault where no item has a `context` yet — every row simply carries
+  `NULL` and the filter is never used. See "Relation to ADI-016/TASK-014a" below.
 - **No semantic/embedding search** — ADI-002 step 3, explicitly future work.
 - **No relationship-based traversal in results** — depends on TASK-020's adjacency structure,
   not yet built.
@@ -130,6 +179,23 @@ route file.
   aggregate search. Consistent with INV-008/INV-009 and every existing endpoint; cross-domain
   operations remain a separate future concern (TASK-028/TASK-031 territory), not reopened here.
 - **Full `body` returned per result, not only a snippet** — see Scope §2 rationale above.
+
+### Relation to ADI-016/TASK-014a (added 2026-09-07, consistency review)
+
+This ticket and TASK-019 were originally written the same day as TASK-014a/TASK-014b and cited
+neither ADI-016 nor `context` anywhere — an omission with a concrete consequence, since TASK-019 is
+by its own Objective **the first screen in the product where Cleo sees canonical knowledge at all**
+after it leaves the review queue. Without a `context` column and filter, that screen mixes two
+fictional universes with no way to separate them: exactly the symptom UC-018 ("Fictional Universe
+Isolation" — two novels, two characters named "Alex") describes and that ADI-016 exists to fix.
+Domain-level filtering does not help, because both novels live in the same `FICTION` domain.
+
+Concretely: `context`'s physical position in the path (`<domain>/<type-plural>/<context>/…`,
+ADI-016) means the scanner already walks past it; reading it from frontmatter and carrying it into
+the index is additive and cheap. Ordering constraint, not a blocking dependency: if TASK-014a has
+not landed when this ticket is implemented, no canonical file carries a `context` key yet — the
+scanner reads `None` for every item, the column is uniformly `NULL`, the filter matches nothing,
+and every other acceptance criterion here still holds. Nothing about this ticket needs to wait.
 
 ## Requirements
 
@@ -174,12 +240,16 @@ Read-only consumer of the on-disk file contracts already established by TASK-001
 Depends on TASK-007/TASK-007a (`completed`) for the API conventions (`app.py` blueprint
 registration, `X-API-Key`, error envelope, `api.errors.ValidationError`,
 `parse_pagination_args`/`paginate`) this ticket's route reuses. Independent of TASK-015/016/017.
+**Soft-coupled to TASK-014a** (`backlog`, ADI-016's `context` field): not a blocking dependency —
+see "Relation to ADI-016/TASK-014a" above for why this ticket works either way, and what is
+degraded while TASK-014a is unimplemented.
 
 ## Acceptance criteria
 
 1. `build_index` run against a fixture vault with assertions/entities/events/relationships across
    two domains produces a SQLite file whose `items_fts` table contains exactly those items (count
-   and `id`s match), and none from `proposals/` or `sources/` even when those exist in the fixture.
+   and `id`s match), and none from `proposals/`, `sources/` or any `history/` subfolder even when
+   all three exist in the fixture.
 2. `search(index_dir, domain="PERSONAL", query=...)` never returns an item whose `domain` column
    is not `PERSONAL`, even when matching items exist in other domains in the same index.
 3. `item_type="entity"` returns every matching entity and no assertion/event/relationship, even
@@ -201,20 +271,37 @@ registration, `X-API-Key`, error envelope, `api.errors.ValidationError`,
 11. Starting the API (`create_app()`) against a fixture vault populates the index before the first
     request is served — a `GET .../search` immediately after startup (no prior explicit
     `build_index` call by the test) returns results from files already on disk at startup time.
+12. A fixture item that has a `history/<timestamp>--v<n>.md` snapshot (`lifecycle_status:
+    SUPERSEDED`, a *different* body from the live file) appears **exactly once** in
+    `items_fts`, with the live body — searching for a term present only in the superseded body
+    returns no result. Guards the `history/` exclusion directly rather than relying on the glob's
+    shape (see Scope §1).
+13. An item whose frontmatter carries `context: "tatouages"` is indexed with that value in its
+    `context` column; `search(..., context="tatouages")` returns it and excludes an otherwise
+    matching item from the same domain whose `context` is a different value or absent.
+    `GET .../search?context=tatouages` behaves identically through the route.
+14. Against a fixture vault where **no** item carries a `context` key (i.e. TASK-014a not yet
+    implemented), `build_index` succeeds, every row's `context` is `NULL`, and AC1-AC11 all still
+    hold — confirms the soft coupling stated in "Relation to ADI-016/TASK-014a".
 
 ## Testing requirements
 
 `pytest`, `tmp_path` for both `vault_root` and `index_dir`, Flask's `app.test_client()` for route
 tests, fixture vaults built directly via `review.storage`'s own
 `write_assertion_file`/`write_entity_file`/`write_event_file`/`write_relationship_file` (so
-fixtures match the real on-disk contract rather than a hand-rolled approximation). Minimum: one
-test per acceptance criterion above (11 total). Coverage ≥80% on `src/app/retrieval/` and
+fixtures match the real on-disk contract rather than a hand-rolled approximation), plus
+`review.pipeline.edit_proposal` (or a hand-written snapshot matching TASK-006's `history/`
+contract) for AC12's superseded-version fixture. Minimum: one test per acceptance criterion above
+(14 total). Coverage ≥80% on `src/app/retrieval/` and
 `src/app/api/routes_search.py`.
 
 ## Out of scope
 
 - Incremental index updates wired into `review/pipeline.py` / `ingestion/pipeline.py` — a full
-  rebuild at API startup is this ticket's V1 mechanism (see V1 scope decisions).
+  rebuild at API startup is this ticket's V1 mechanism, with the staleness consequence named
+  explicitly in V1 scope decisions rather than left for Cleo to discover in use.
+- Searching superseded/historical item versions (`history/`) — UC-015's own concern, un-ticketed.
+- Deriving or defaulting a `context` value (TASK-014b) — this ticket only reads and filters it.
 - Semantic/embedding-based search (ADI-002 step 3).
 - Relationship-based result traversal (depends on TASK-020, not yet built).
 - Cross-domain search.

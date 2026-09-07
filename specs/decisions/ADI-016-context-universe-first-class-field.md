@@ -93,8 +93,14 @@ that has such a scan mechanism at all.
 - **No entity/relationship dedup-by-context.** No dedup/matching mechanism exists in this codebase
   for any item type today (verified above) — there is nothing to scope by context. This remains
   open, owned by whenever entity resolution itself is designed (TASK-029).
-- **No taxonomy segments for entity/event/relationship.** `proposed_path_segments` stays
-  assertion-only, exactly as ADI-012 already decided — this ADR does not retroactively extend it.
+- **No taxonomy segments for entity/event/relationship.** `proposed_path_segments` is untouched
+  by this ADR, which neither extends nor restricts its scope. **Correction 2026-09-07**: the
+  original wording here said it "stays assertion-only, exactly as ADI-012 already decided", which
+  misread ADI-012 — that ADR deferred the extension ("their canonical writers, once implemented,
+  must adopt this same layout"), it did not rule it out. The extension was carried out by
+  TASK-005a (`completed`, 2026-09-07). Nothing in this ADR depended on which way that went:
+  `context` is a separate, narrower, cross-type field, and the two compose (see the path shapes
+  above, and TASK-005a §F).
 - **No existing-context-folder scan for entity/event/relationship.** No scan mechanism of any kind
   exists for those types today (unlike assertions, which already had one from ADI-014/015) — there
   is nothing to add a `context` parameter to.

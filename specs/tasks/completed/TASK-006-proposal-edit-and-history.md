@@ -139,7 +139,7 @@ pre-edit content intact) — no content is ever lost either way.
 - No bulk edit; one proposal, one call.
 - No restore/rollback to a prior archived version — `history/` is a read-only audit trail in V1,
   same posture TASK-002/TASK-003 took toward other deferred mechanisms.
-- No diffing/comparison view between versions — out of scope, a future UI concern (TASK-026) if
+- No diffing/comparison view between versions — out of scope, a future UI concern (the old `TASK-026` of `BACKLOG-CLAUDE.md` — the Proposal Detail screen, in fact shipped as `TASK-011`; **not** `BACKLOG-CLAUDE-V2.md`'s `TASK-026`) if
   ever needed.
 - `reviewer_id` remains an explicit parameter, never inferred — same as TASK-002.
 - `domain` remains an explicit parameter (INV-008/AP-005), must match the proposal's own `domain`.
@@ -257,7 +257,7 @@ atomicity (AC12), no-git (AC13).
 ## Out of scope
 
 - Restore/rollback to a prior `history/` version — future ticket if ever needed.
-- Diff/comparison view between versions — future UI concern (TASK-026), not this ticket.
+- Diff/comparison view between versions — future UI concern (the old `TASK-026` of `BACKLOG-CLAUDE.md`, shipped as `TASK-011`; not `BACKLOG-CLAUDE-V2.md`'s `TASK-026`), not this ticket.
 - Bulk edit.
 - Widening `accept_proposal`/`reject_proposal`'s type restriction beyond assertion — TASK-005.
 - Any GUI or CLI.

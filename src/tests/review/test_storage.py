@@ -298,12 +298,15 @@ def test_validate_path_segments_rejects_empty_segment():
         storage._validate_path_segments([""])
 
 
-def test_editable_fields_by_type_assertion_scoped_only():
+def test_editable_fields_by_type_proposed_path_segments_common_to_all_types():
+    """TASK-005a: proposed_path_segments moved into _COMMON_EDITABLE_FIELDS so all
+    four proposed_item_types accept it through edit_proposal (supersedes TASK-014's
+    original assertion-only scoping, since that reason no longer applies)."""
+    assert "proposed_path_segments" in storage._COMMON_EDITABLE_FIELDS
     assert "proposed_path_segments" in storage.EDITABLE_FIELDS_BY_TYPE["assertion"]
-    assert "proposed_path_segments" not in storage._COMMON_EDITABLE_FIELDS
-    assert "proposed_path_segments" not in storage.EDITABLE_FIELDS_BY_TYPE["entity"]
-    assert "proposed_path_segments" not in storage.EDITABLE_FIELDS_BY_TYPE["event"]
-    assert "proposed_path_segments" not in storage.EDITABLE_FIELDS_BY_TYPE["relationship"]
+    assert "proposed_path_segments" in storage.EDITABLE_FIELDS_BY_TYPE["entity"]
+    assert "proposed_path_segments" in storage.EDITABLE_FIELDS_BY_TYPE["event"]
+    assert "proposed_path_segments" in storage.EDITABLE_FIELDS_BY_TYPE["relationship"]
 
 
 def test_scan_organization_folders_empty_domain(tmp_path):
@@ -332,6 +335,53 @@ def test_entity_event_relationship_path_helpers(tmp_path):
     assert storage.relationship_path(tmp_path, "PERSONAL", "relationship-1") == (
         tmp_path / "PERSONAL" / "relationships" / "relationship-1" / "relationship-1.md"
     )
+
+
+# TASK-005a: ADI-012 adoption by entity/event/relationship (mirrors TASK-014's
+# assertion-only path-segment support exactly, for the three remaining types)
+
+def test_entity_event_relationship_path_no_segments_matches_current_behavior(tmp_path):
+    """AC1: byte-for-byte regression against today's path when path_segments is
+    omitted, None, or []."""
+    for path_segments in (None, [], "__omitted__"):
+        kwargs = {} if path_segments == "__omitted__" else {"path_segments": path_segments}
+        assert storage.entity_path(tmp_path, "PERSONAL", "entity-1", **kwargs) == (
+            tmp_path / "PERSONAL" / "entities" / "entity-1" / "entity-1.md"
+        )
+        assert storage.event_path(tmp_path, "PERSONAL", "event-1", **kwargs) == (
+            tmp_path / "PERSONAL" / "events" / "event-1" / "event-1.md"
+        )
+        assert storage.relationship_path(tmp_path, "PERSONAL", "relationship-1", **kwargs) == (
+            tmp_path / "PERSONAL" / "relationships" / "relationship-1" / "relationship-1.md"
+        )
+
+
+def test_entity_event_relationship_path_with_segments_inserts_between_type_dir_and_id(tmp_path):
+    """AC2: segments insert between the type-plural folder and the id folder."""
+    assert storage.entity_path(tmp_path, "PERSONAL", "entity-1", path_segments=["a", "b"]) == (
+        tmp_path / "PERSONAL" / "entities" / "a" / "b" / "entity-1" / "entity-1.md"
+    )
+    assert storage.event_path(tmp_path, "PERSONAL", "event-1", path_segments=["a", "b"]) == (
+        tmp_path / "PERSONAL" / "events" / "a" / "b" / "event-1" / "event-1.md"
+    )
+    assert storage.relationship_path(tmp_path, "PERSONAL", "relationship-1", path_segments=["a", "b"]) == (
+        tmp_path / "PERSONAL" / "relationships" / "a" / "b" / "relationship-1" / "relationship-1.md"
+    )
+
+
+def test_entity_event_relationship_path_rejects_invalid_segments(tmp_path):
+    """AC3: a segment containing '/' or equal to '..' is rejected for all three
+    types, before any write - same ValidationError _validate_path_segments already
+    raises for assertion."""
+    for path_fn, item_id in (
+        (storage.entity_path, "entity-1"),
+        (storage.event_path, "event-1"),
+        (storage.relationship_path, "relationship-1"),
+    ):
+        with pytest.raises(ValidationError):
+            path_fn(tmp_path, "PERSONAL", item_id, path_segments=["a/b"])
+        with pytest.raises(ValidationError):
+            path_fn(tmp_path, "PERSONAL", item_id, path_segments=[".."])
 
 
 def _base_provenance():
@@ -418,3 +468,71 @@ def test_scan_organization_folders_multi_depth_excludes_assert_prefix(tmp_path):
         ["livres", "mythologie"],
         ["histoire", "japonaise"],
     ]
+
+
+def test_scan_organization_folders_default_item_type_is_assertion(tmp_path):
+    """AC6: called with no item_type, behaves exactly as before this ticket."""
+    assertions_dir = tmp_path / "PERSONAL" / "assertions"
+    (assertions_dir / "mythologie" / "assert-1").mkdir(parents=True)
+
+    assert storage.scan_organization_folders(tmp_path, "PERSONAL") == (
+        storage.scan_organization_folders(tmp_path, "PERSONAL", item_type="assertion")
+    )
+
+
+def test_write_entity_file_with_path_segments_writes_to_segmented_path(tmp_path):
+    frontmatter = {
+        "id": "entity-1", "type": "entity", "domain": "PERSONAL", "entity_type": "person",
+        "epistemic_status": "direct", "lifecycle_status": "ACTIVE", "valid_from": "2026-01-01T00:00:00",
+        "valid_until": None, "created_at": "2026-01-01T00:00:00", "provenance": _base_provenance(),
+    }
+    path = storage.write_entity_file(tmp_path, "PERSONAL", frontmatter, "body text", path_segments=["a", "b"])
+    assert path == storage.entity_path(tmp_path, "PERSONAL", "entity-1", path_segments=["a", "b"])
+    assert path.exists()
+
+
+def test_write_event_file_with_path_segments_writes_to_segmented_path(tmp_path):
+    frontmatter = {
+        "id": "event-1", "type": "event", "domain": "PERSONAL", "starts_at": "2026-01-01T00:00:00",
+        "ends_at": None, "epistemic_status": "direct", "lifecycle_status": "ACTIVE",
+        "valid_from": "2026-01-01T00:00:00", "valid_until": None, "created_at": "2026-01-01T00:00:00",
+        "provenance": _base_provenance(),
+    }
+    path = storage.write_event_file(tmp_path, "PERSONAL", frontmatter, "body text", path_segments=["a", "b"])
+    assert path == storage.event_path(tmp_path, "PERSONAL", "event-1", path_segments=["a", "b"])
+    assert path.exists()
+
+
+def test_write_relationship_file_with_path_segments_writes_to_segmented_path(tmp_path):
+    frontmatter = {
+        "id": "relationship-1", "type": "relationship", "domain": "PERSONAL",
+        "relationship_type": "knows", "endpoints": ["entity-a", "entity-b"],
+        "epistemic_status": "direct", "lifecycle_status": "ACTIVE",
+        "valid_from": "2026-01-01T00:00:00", "valid_until": None, "created_at": "2026-01-01T00:00:00",
+        "provenance": _base_provenance(),
+    }
+    path = storage.write_relationship_file(
+        tmp_path, "PERSONAL", frontmatter, "body text", path_segments=["a", "b"]
+    )
+    assert path == storage.relationship_path(tmp_path, "PERSONAL", "relationship-1", path_segments=["a", "b"])
+    assert path.exists()
+
+
+def test_scan_organization_folders_entity_event_relationship_multi_depth_scan(tmp_path):
+    """AC6: scoped to the requested type's own tree, excludes that type's own id
+    prefix as a leaf, never reads from assertions/."""
+    entities_dir = tmp_path / "PERSONAL" / "entities"
+    (entities_dir / "personnages" / "entity-1").mkdir(parents=True)
+    (entities_dir / "lieux" / "entity-2").mkdir(parents=True)
+    events_dir = tmp_path / "PERSONAL" / "events"
+    (events_dir / "guerre" / "event-1").mkdir(parents=True)
+    relationships_dir = tmp_path / "PERSONAL" / "relationships"
+    (relationships_dir / "famille" / "relationship-1").mkdir(parents=True)
+    assertions_dir = tmp_path / "PERSONAL" / "assertions"
+    (assertions_dir / "should-not-appear" / "assert-1").mkdir(parents=True)
+
+    assert storage.scan_organization_folders(tmp_path, "PERSONAL", item_type="entity") == [
+        ["lieux", "personnages"]
+    ]
+    assert storage.scan_organization_folders(tmp_path, "PERSONAL", item_type="event") == [["guerre"]]
+    assert storage.scan_organization_folders(tmp_path, "PERSONAL", item_type="relationship") == [["famille"]]

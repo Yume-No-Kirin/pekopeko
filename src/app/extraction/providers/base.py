@@ -26,6 +26,9 @@ class ExtractedEntity:
     entity_type: str  # free text, e.g. person|place|organization|object|other
     text: str
     epistemic_status: str  # "direct" | "inferred" | "uncertain" | "contested"
+    # Folder-path taxonomy segments (ADI-012 adoption, TASK-005a), resolved once
+    # per source note per type by the provider - see OllamaProvider._ensure_path_segments.
+    proposed_path_segments: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -35,6 +38,7 @@ class ExtractedEvent:
     epistemic_status: str  # "direct" | "inferred" | "uncertain" | "contested"
     starts_at: Optional[str] = None
     ends_at: Optional[str] = None
+    proposed_path_segments: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -46,6 +50,7 @@ class ExtractedRelationship:
     # to a real proposal_id by the pipeline before writing) or an existing
     # canonical item's stable id, passed through unchanged.
     endpoints: list[str] = field(default_factory=list)
+    proposed_path_segments: list[str] = field(default_factory=list)
 
 
 @dataclass

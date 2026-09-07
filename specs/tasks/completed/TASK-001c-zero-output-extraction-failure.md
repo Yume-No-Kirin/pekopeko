@@ -135,7 +135,7 @@ of `ingestion/` and `extraction/`.
   anywhere outside the raised error's message string — no schema change to
   `ExtractionResult`, `TaskState`, or Proposal `provenance`.
 - A second concrete `Provider` implementation adopting this contract — inherits it
-  automatically per ADI-011 once it lands (TASK-020, not yet ticketed).
+  automatically per ADI-011 once it lands (the old `TASK-020` of `BACKLOG-CLAUDE.md`, renumbered `TASK-021` in `BACKLOG-CLAUDE-V2.md` — not yet ticketed).
 - Any GUI change — `TaskStatusBadge.jsx`/`IngestionLogs.jsx` already render `"failed"` +
   `error` correctly; no frontend file touched.
 

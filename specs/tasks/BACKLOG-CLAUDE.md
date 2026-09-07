@@ -132,3 +132,22 @@ Implémente UC-009 (ex. compatibilité entre charge de publication et objectifs 
 
 ### TASK-033 — Consolidation du stockage/frontmatter dupliqué
 TASK-001 et TASK-003 dupliquent délibérément leur logique d'écriture atomique et de validation de frontmatter plutôt que de dépendre d'un module commun (décision produit explicite). Une fois les patterns stabilisés sur plusieurs tickets, ce ticket factorise cette logique dans un module partagé, sans casser l'indépendance déjà en place entre `ingestion/`, `review/` et `extraction/`.
+
+---
+
+## 7. Trous relevés après coup (revue de cohérence du 2026-09-07)
+
+Cette liste se voulait exhaustive sur « tout ce que le corpus de specs décrit comme nécessaire ».
+Deux manques y ont été trouvés en la confrontant aux 18 cas d'usage, un an de tickets plus tard.
+Les deux sont rédigés comme entrées dans `BACKLOG-CLAUDE-V2.md` section 3 ; répertoriés ici pour
+que ce fichier ne continue pas à se présenter comme complet alors qu'il ne l'est pas.
+
+- **UC-015 (Knowledge Change History) n'avait aucune entrée**, dans aucun des deux backlogs — seul
+  des 18 UC dans ce cas. ADI-001 impose pourtant un `history/` par item ; il n'existe que pour les
+  Proposals (TASK-006), donc uniquement avant acceptation. → `TASK-038` (V2, section 3).
+- **Aucun moyen de déclencher une ingestion depuis le GUI.** TASK-009 avait explicitement signalé
+  le trou en notant qu'aucun satellite n'était proposé ; il ne l'a jamais été. → `TASK-009a`
+  (V2, section 3).
+
+Voir `docs/OPEN-ISSUES.md` (entrées du 2026-09-07) pour les cinq points de la même revue qui
+demandent une décision de Cleo avant d'être ticketables.

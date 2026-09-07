@@ -329,15 +329,24 @@ def test_edit_proposal_field_update_assertion_proposed_path_segments(tmp_path, m
     assert len(list(history_dir.glob("*--v1.md"))) == 1
 
 
-def test_edit_proposal_proposed_path_segments_uneditable_for_non_assertion(tmp_path, make_entity_proposal_file):
-    proposal_id, proposal_file = make_entity_proposal_file(domain="PERSONAL")
-    original_content = proposal_file.read_text(encoding="utf-8")
+# TASK-005a: proposed_path_segments moved into _COMMON_EDITABLE_FIELDS, so it is now
+# editable via edit_proposal for entity/event/relationship too (supersedes the old
+# TASK-014-era "uneditable for non-assertion" behavior this test used to assert -
+# AC5, and the direct regression guard for the ProposalDetail.jsx §E14 trap).
+@pytest.mark.parametrize(
+    "make_fixture_name",
+    ["make_entity_proposal_file", "make_event_proposal_file", "make_relationship_proposal_file"],
+)
+def test_edit_proposal_field_update_proposed_path_segments_all_types(tmp_path, request, make_fixture_name):
+    make_fixture = request.getfixturevalue(make_fixture_name)
+    proposal_id, proposal_file = make_fixture(domain="PERSONAL")
 
-    with pytest.raises(UneditableFieldError):
-        pipeline.edit_proposal(
-            tmp_path, "PERSONAL", proposal_id, "editor-1",
-            field_updates={"proposed_path_segments": ["a"]},
-        )
+    pipeline.edit_proposal(
+        tmp_path, "PERSONAL", proposal_id, "editor-1",
+        field_updates={"proposed_path_segments": ["a", "b"]},
+    )
 
-    assert proposal_file.read_text(encoding="utf-8") == original_content
-    assert not storage.proposal_history_dir(tmp_path, "PERSONAL", proposal_id).exists()
+    live_frontmatter, _ = parse_frontmatter(proposal_file.read_text(encoding="utf-8"))
+    assert live_frontmatter["proposed_path_segments"] == ["a", "b"]
+    history_dir = storage.proposal_history_dir(tmp_path, "PERSONAL", proposal_id)
+    assert len(list(history_dir.glob("*--v1.md"))) == 1

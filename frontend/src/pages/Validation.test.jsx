@@ -96,7 +96,12 @@ function makeFetchMock({
 
     const foldersMatch = path.match(/^\/domains\/([A-Z]+)\/organization-folders$/);
     if (foldersMatch && method === "GET") {
-      const segments_by_depth = organizationFoldersByDomain[foldersMatch[1]] || [];
+      const itemType = parsed.searchParams.get("item_type");
+      const fixture = organizationFoldersByDomain[foldersMatch[1]];
+      // Two supported fixture shapes: a flat segments_by_depth array (existing
+      // tests - same options regardless of item_type), or a { itemType: [...] }
+      // map (TASK-005a - lets a test differentiate options per proposed_item_type).
+      const segments_by_depth = Array.isArray(fixture) ? fixture : (fixture && fixture[itemType]) || [];
       return Promise.resolve(jsonResponse(200, { segments_by_depth }));
     }
 
@@ -591,7 +596,7 @@ describe("Validation", () => {
     expect(screen.getByText("Affichage 1-10 notes sur 10 notes · 1 sources")).toBeInTheDocument();
   });
 
-  it("TASK-012 AC13/AC14/AC15/AC19: renders all 4 proposal types with type-specific fields, folder column assertion-only", async () => {
+  it("TASK-012 AC13/AC14/AC15, TASK-005a AC18: renders all 4 proposal types with type-specific fields, folder-path builder on every row", async () => {
     global.fetch = makeFetchMock({
       proposalsByDomain: {
         PERSONAL: [
@@ -635,11 +640,79 @@ describe("Validation", () => {
     expect(screen.getByText(/entity: Entity body/)).toBeInTheDocument();
     expect(screen.getByText("some-canonical-id")).toBeInTheDocument();
 
-    // AC19: no folder-path builder for non-assertion rows.
-    const entityRow = screen.getByText("Entity body").closest("tr");
-    expect(entityRow.querySelector(".folder-cell")).toBeEmptyDOMElement();
+    // TASK-005a AC18: every row, not just assertion, gets a folder-path builder.
+    for (const text of ["Assertion body", "Entity body", "Event body", "Relationship body"]) {
+      const row = screen.getByText(text).closest("tr");
+      expect(row.querySelector(".folder-cell")).not.toBeEmptyDOMElement();
+    }
+  });
+
+  it("TASK-005a AC18: each row's dropdown options come from its own item type's folder list, never another type's", async () => {
+    const user = userEvent.setup();
+    global.fetch = makeFetchMock({
+      proposalsByDomain: {
+        PERSONAL: [
+          makeSummary({ id: "p-assert", itemType: "assertion" }),
+          makeSummary({ id: "p-entity", itemType: "entity" }),
+        ],
+      },
+      detailsById: {
+        "p-assert": makeDetail({
+          id: "p-assert", sourceId: "src-a", body: "Assertion body", itemType: "assertion",
+          proposedPathSegments: ["existing"],
+        }),
+        "p-entity": makeDetail({
+          id: "p-entity", sourceId: "src-a", body: "Entity body", itemType: "entity", entityType: "person",
+          proposedPathSegments: ["existing"],
+        }),
+      },
+      organizationFoldersByDomain: {
+        PERSONAL: {
+          assertion: [["mythologie"]],
+          entity: [["personnages"]],
+          event: [["guerre"]],
+          relationship: [["famille"]],
+        },
+      },
+    });
+
+    renderValidation();
+    await screen.findByText("Assertion body");
+
     const assertRow = screen.getByText("Assertion body").closest("tr");
-    expect(assertRow.querySelector(".folder-cell")).not.toBeEmptyDOMElement();
+    await user.click(within(assertRow).getByRole("button", { name: /existing/ }));
+    expect(within(assertRow).getByText("mythologie")).toBeInTheDocument();
+    expect(within(assertRow).queryByText("personnages")).not.toBeInTheDocument();
+
+    const entityRow = screen.getByText("Entity body").closest("tr");
+    await user.click(within(entityRow).getByRole("button", { name: /existing/ }));
+    expect(within(entityRow).getByText("personnages")).toBeInTheDocument();
+    expect(within(entityRow).queryByText("mythologie")).not.toBeInTheDocument();
+  });
+
+  it("TASK-005a AC19: a failed organization-folders fetch for one domain/type leaves the rest of the screen rendering, with that row's options degraded to []", async () => {
+    global.fetch = vi.fn((url, options = {}) => {
+      const parsed = new URL(url);
+      const path = parsed.pathname;
+      if (path === "/domains/PERSONAL/organization-folders" && parsed.searchParams.get("item_type") === "entity") {
+        return Promise.reject(new Error("network error"));
+      }
+      return makeFetchMock({
+        proposalsByDomain: { PERSONAL: [makeSummary({ id: "p-entity", itemType: "entity" })] },
+        detailsById: {
+          "p-entity": makeDetail({
+            id: "p-entity", sourceId: "src-a", body: "Entity body", itemType: "entity", entityType: "person",
+          }),
+        },
+      })(url, options);
+    });
+
+    renderValidation();
+
+    await screen.findByText("Entity body");
+    const entityRow = screen.getByText("Entity body").closest("tr");
+    expect(entityRow.querySelector(".folder-cell")).not.toBeEmptyDOMElement();
+    expect(entityRow.querySelector(".folder-add-btn")).toBeInTheDocument();
   });
 });
 

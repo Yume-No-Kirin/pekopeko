@@ -30,9 +30,12 @@ via inline expansion, not by navigating to a detail route that doesn't exist.
   mockup exists, unlike TASK-009/010/011. This ticket is not bound to pixel-level mockup fidelity;
   it should still visually match the existing screens (reusing their layout/badge components).
 - `specs/tasks/backlog/TASK-018-local-retrieval-index.md`: the exact contract this screen consumes
-  — `GET /domains/<domain>/search?q=&item_type=&limit=&offset=` →
-  `{items: [{id, item_type, domain, epistemic_status, lifecycle_status, path_segments, snippet,
-  body}], total, limit, offset}`.
+  — `GET /domains/<domain>/search?q=&item_type=&context=&limit=&offset=` →
+  `{items: [{id, item_type, domain, context, epistemic_status, lifecycle_status, path_segments,
+  snippet, body}], total, limit, offset}`.
+- **ADI-016** (`specs/decisions/ADI-016-context-universe-first-class-field.md`, Accepted) and
+  **TASK-014a** (`backlog`): the `context` field this screen filters on. See Scope §1 and
+  TASK-018's own "Relation to ADI-016/TASK-014a" section for why this matters *here* specifically.
 - `frontend/src/api/client.js` (`get`, `buildListUrl`, `ApiError`) and
   `frontend/src/api/review.js` (thin per-resource wrapper pattern) — `frontend/src/api/search.js`
   follows the same shape.
@@ -50,6 +53,13 @@ via inline expansion, not by navigating to a detail route that doesn't exist.
    - A text input for the query (`q`) and a required domain selector (same constraint as every
      other screen in this frontend — no cross-domain view).
    - An optional `item_type` filter (`assertion`/`entity`/`event`/`relationship`/"all").
+   - An optional `context` filter (free text, or a select populated from the `context` values
+     present in the current result set — implementer's choice, document whichever is chosen).
+     **Not cosmetic**: this screen is the first place in the product where canonical knowledge is
+     visible at all (see Objective), so without it two novels sharing a character name are
+     displayed intermixed with no way to separate them — the exact scenario UC-018 ("Fictional
+     Universe Isolation") describes and ADI-016 exists to address. `domain` cannot substitute for
+     it: both novels live in the same `FICTION` domain.
    - Submitting (on input debounce or explicit submit — implementer's choice, document whichever
      is chosen) calls `search(domain, { q, itemType, limit, offset })` via the new
      `frontend/src/api/search.js`.
@@ -58,7 +68,13 @@ via inline expansion, not by navigating to a detail route that doesn't exist.
      existing pagination UI.
 2. Result rendering, one row/card per item:
    - `item_type`, `domain`, `epistemic_status`, `lifecycle_status` via the existing badge
-     components.
+     components. Note that `lifecycle_status` is `ACTIVE` for every canonical item today (only
+     `history/` snapshots carry `SUPERSEDED`, and TASK-018 does not index those) — the badge is
+     therefore constant until supersession of canonical items exists (`BACKLOG-CLAUDE-V2.md`'s
+     TASK-022). Rendered anyway for forward-compatibility, not because it currently distinguishes
+     anything; do not spend design effort on it.
+   - `context` when present (a small chip next to the domain badge), so a result's universe/project
+     is readable at a glance and not only via the filter.
    - The `snippet` (already highlighting the matched term, produced server-side by TASK-018's
      FTS5 `snippet()`), rendered as-is.
    - An expand/collapse affordance that reveals the already-fetched `body` in full — no additional
@@ -66,6 +82,12 @@ via inline expansion, not by navigating to a detail route that doesn't exist.
 3. Loading and error states matching `Validation.jsx`/`IngestionLogs.jsx`'s existing conventions:
    a loading skeleton/indicator while the request is in flight, and a readable error message
    (not a blank/broken screen) when the request rejects with an `ApiError`.
+   Plus one static, always-visible note near the results header stating that the index is rebuilt
+   at API startup, so an item accepted during the current session may not appear until the server
+   is restarted (TASK-018's V1 refresh model). A one-line honest statement, not a freshness
+   timestamp — the API exposes no such value, and this ticket adds no backend surface (see
+   Constraints). Remove it if and when TASK-018's staleness question is resolved in the other
+   direction.
 4. `frontend/src/pages/Dashboard.jsx`: the `Recherche` `ModuleCard` (lines 151-155) gets
    `status="available"` and `to="/search"`, matching the Validation/Ingestion Logs/Settings cards
    exactly.
@@ -80,6 +102,9 @@ via inline expansion, not by navigating to a detail route that doesn't exist.
   FTS5); no "smart search" affordance implying capabilities that don't exist yet.
 - **One domain at a time**, matching every other screen in this frontend — no "all domains"
   aggregate search option.
+- **The `context` filter reads, never writes.** Editing an item's `context` happens in
+  `ProposalDetail.jsx`'s edit mode (TASK-014a), pre-acceptance; nothing on this screen changes a
+  canonical item (no canonical-item write path exists anywhere in the API today).
 
 ## Requirements
 
@@ -107,7 +132,9 @@ via inline expansion, not by navigating to a detail route that doesn't exist.
 ## Dependencies
 
 Depends on TASK-018 (backend, `backlog`) existing first — this ticket's `api/search.js` is a
-thin wrapper around TASK-018's exact response shape. Independent of TASK-015/TASK-016/TASK-017.
+thin wrapper around TASK-018's exact response shape. Soft-coupled to TASK-014a (`backlog`) for the
+`context` field, exactly as TASK-018 is: the filter and chip degrade to "no item has a context" and
+every other acceptance criterion still holds (AC9). Independent of TASK-015/TASK-016/TASK-017.
 
 ## Acceptance criteria
 
@@ -125,12 +152,18 @@ thin wrapper around TASK-018's exact response shape. Independent of TASK-015/TAS
    to `/search` on click.
 7. No query and/or no domain selected does not trigger a request (mirrors TASK-018's own
    `q`-required validation, checked client-side before calling the API).
+8. Changing the `context` filter re-issues the search with the corresponding `context` query
+   parameter; clearing it re-issues the search with no `context` parameter at all (not an empty
+   one). A fixture with two items differing only by `context` confirms only the matching one is
+   rendered.
+9. A result carrying a `context` renders its chip; one with `context: null` renders no chip and no
+   empty placeholder — the screen must work unchanged against a vault predating TASK-014a.
 
 ## Testing requirements
 
 Vitest + React Testing Library, matching `Validation.test.jsx`/`IngestionLogs.test.jsx`'s existing
 conventions (mocked `client.js`, no real network calls). Minimum: one test per acceptance
-criterion above (7 total). Coverage ≥80% on `Search.jsx` and `api/search.js`.
+criterion above (9 total). Coverage ≥80% on `Search.jsx` and `api/search.js`.
 
 ## Out of scope
 

@@ -116,6 +116,13 @@ def scan_proposed_path_segments(vault_root: Path, domain: str) -> list[str]:
     provider's new path proposal reuses the same folder a previously-ingested, still
     unreviewed note already suggested, rather than inventing a new spelling for the
     same concept (ADI-015, amends ADI-014).
+
+    Filtered to proposed_item_type == "assertion" (TASK-005a §D13 regression fix):
+    extraction/'s pipeline writes into this same <domain>/proposals/ directory and,
+    as of TASK-005a, also carries proposed_path_segments on entity/event/relationship
+    proposals - without this filter, this scan would leak entity/event/relationship
+    folder paths into assertion path-proposal context, a cross-taxonomy contamination
+    this function must not produce.
     """
     proposals_dir = vault_root / domain / "proposals"
     if not proposals_dir.exists():
@@ -127,6 +134,8 @@ def scan_proposed_path_segments(vault_root: Path, domain: str) -> list[str]:
         except (OSError, yaml.YAMLError):
             continue
         if frontmatter.get('proposal_status') not in ('PROPOSED', 'EDITED'):
+            continue
+        if frontmatter.get('proposed_item_type') != 'assertion':
             continue
         segments = frontmatter.get('proposed_path_segments')
         if segments:

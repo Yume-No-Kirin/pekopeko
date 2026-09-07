@@ -99,17 +99,25 @@ async function fetchGroups(domains) {
   return { groups: Array.from(groupsByKey.values()), detailsById };
 }
 
-// One organization-folders fetch per visible domain (assertion-only, same scope as
-// the FolderPathBuilder everywhere else) - a domain whose fetch fails degrades to no
-// suggested options rather than blocking the table, same non-blocking-satellite
-// posture as the rest of this fetch.
+const ORGANIZATION_ITEM_TYPES = ["assertion", "entity", "event", "relationship"];
+
+// Four organization-folders fetches per visible domain, one per proposed_item_type
+// (TASK-005a: ADI-012 adoption widens this beyond assertion-only) - each
+// (domain, itemType) pair degrades independently to no suggested options on
+// failure, rather than blocking the table, same non-blocking-satellite posture as
+// the rest of this fetch. Result is keyed by domain, then by item type.
 async function fetchFolderOptionsByDomain(domains) {
   const entries = await Promise.all(
-    domains.map((domain) =>
-      listOrganizationFolders(domain, "assertion")
-        .then((result) => [domain, result.segments_by_depth || []])
-        .catch(() => [domain, []])
-    )
+    domains.map(async (domain) => {
+      const byType = await Promise.all(
+        ORGANIZATION_ITEM_TYPES.map((itemType) =>
+          listOrganizationFolders(domain, itemType)
+            .then((result) => [itemType, result.segments_by_depth || []])
+            .catch(() => [itemType, []])
+        )
+      );
+      return [domain, Object.fromEntries(byType)];
+    })
   );
   return Object.fromEntries(entries);
 }
@@ -161,14 +169,12 @@ function NoteRow({ note, folderOptions, detailsById, onAccept, onReject, onPathC
         {itemType === "relationship" && <RelationshipEndpoints endpoints={resolvedEndpoints} />}
       </td>
       <td className="folder-cell">
-        {itemType === "assertion" && (
-          <FolderPathBuilder
-            editable={true}
-            segments={note.detail.frontmatter.proposed_path_segments || []}
-            optionsByDepth={folderOptions || []}
-            onChange={(segments) => onPathChange(note.domain, note.id, segments)}
-          />
-        )}
+        <FolderPathBuilder
+          editable={true}
+          segments={note.detail.frontmatter.proposed_path_segments || []}
+          optionsByDepth={(folderOptions && folderOptions[itemType]) || []}
+          onChange={(segments) => onPathChange(note.domain, note.id, segments)}
+        />
       </td>
       <td>
         <div className="note-actions">

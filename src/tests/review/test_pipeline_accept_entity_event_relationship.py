@@ -168,3 +168,79 @@ def test_accept_then_reject_raises_for_entity(tmp_path, make_entity_proposal_fil
 
     with pytest.raises(InvalidProposalStatusError):
         pipeline.reject_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-2")
+
+
+# TASK-005a: ADI-012 adoption by entity/event/relationship - accept_proposal reads
+# proposed_path_segments from the accepted proposal for these three types too.
+
+def test_accept_entity_proposal_writes_segmented_path_when_proposed_path_segments_present(
+    tmp_path, make_entity_proposal_file
+):
+    """AC4."""
+    proposal_id, _ = make_entity_proposal_file(
+        domain="PERSONAL", proposed_path_segments=["mythologie", "personnages"]
+    )
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    assert result.assertion_path == storage.entity_path(
+        tmp_path, "PERSONAL", result.assertion_id, path_segments=["mythologie", "personnages"]
+    )
+    assert result.assertion_path.exists()
+
+
+def test_accept_event_proposal_writes_segmented_path_when_proposed_path_segments_present(
+    tmp_path, make_event_proposal_file
+):
+    """AC4."""
+    proposal_id, _ = make_event_proposal_file(domain="PERSONAL", proposed_path_segments=["guerre"])
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    assert result.assertion_path == storage.event_path(
+        tmp_path, "PERSONAL", result.assertion_id, path_segments=["guerre"]
+    )
+    assert result.assertion_path.exists()
+
+
+def test_accept_relationship_proposal_writes_segmented_path_when_proposed_path_segments_present(
+    tmp_path, make_relationship_proposal_file
+):
+    """AC4."""
+    proposal_id, _ = make_relationship_proposal_file(domain="PERSONAL", proposed_path_segments=["famille"])
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    assert result.assertion_path == storage.relationship_path(
+        tmp_path, "PERSONAL", result.assertion_id, path_segments=["famille"]
+    )
+    assert result.assertion_path.exists()
+
+
+@pytest.mark.parametrize(
+    "make_fixture_name",
+    ["make_entity_proposal_file", "make_event_proposal_file", "make_relationship_proposal_file"],
+)
+def test_accept_writes_plain_path_when_proposed_path_segments_absent(tmp_path, request, make_fixture_name):
+    """AC4/AC5: field absent (proposal predating TASK-005a) writes to the plain
+    fixed path - no regression, no error."""
+    make_fixture = request.getfixturevalue(make_fixture_name)
+    proposal_id, _ = make_fixture(domain="PERSONAL")
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    # Plain path has exactly 2 path components below the type-plural folder:
+    # <item_id>/<item_id>.md - no extra taxonomy segment directories.
+    assert result.assertion_path.parent.parent.name in ("entities", "events", "relationships")
+    assert result.assertion_path.parent.name == result.assertion_id
+
+
+def test_accept_entity_proposal_writes_plain_path_when_proposed_path_segments_null(
+    tmp_path, make_entity_proposal_file
+):
+    """AC4/AC5: field explicitly null behaves the same as absent."""
+    proposal_id, _ = make_entity_proposal_file(domain="PERSONAL", proposed_path_segments=None)
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    assert result.assertion_path == storage.entity_path(tmp_path, "PERSONAL", result.assertion_id)

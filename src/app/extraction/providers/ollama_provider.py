@@ -7,8 +7,12 @@ import is deferred into __init__ so that importing this module (or any
 other extraction/ module) never requires `requests` to be installed unless
 OllamaProvider is actually instantiated.
 """
+import html
 import json
+import re
+import unicodedata
 from dataclasses import dataclass
+from pathlib import Path
 
 from .base import (
     VALID_EPISTEMIC_STATUSES,
@@ -18,6 +22,42 @@ from .base import (
     ExtractionResult,
     Provider,
 )
+from ..storage import scan_existing_item_folders, scan_proposed_path_segments
+
+# Every entity/event/relationship must have a dedicated folder path (TASK-005a,
+# ADI-012 adoption - mirrors ADI-014's mandatory-path guarantee for ingestion's
+# OllamaProvider). Resolved once per source note per type (not per item, unlike
+# ingestion's per-assertion granularity - V1 scope decision 3): one call per
+# non-empty type, up to PATH_PROPOSAL_MAX_ATTEMPTS retries each, falling back to
+# FALLBACK_PATH_SEGMENTS if a type's call still fails to yield a usable path.
+PATH_PROPOSAL_MAX_ATTEMPTS = 3
+FALLBACK_PATH_SEGMENTS = ["uncategorized"]
+
+# Nomenclature enforcement (ADI-015 posture, independently reimplemented here -
+# no import from ingestion/, per this ticket's module-independence requirement).
+# Splitting on separators happens BEFORE stopword filtering, so a connector word
+# glued in with underscores/hyphens (e.g. "cooperation_vs_pouvoir") still gets
+# caught - a \b-based regex substitution on the raw string would not, since "_"
+# counts as a word character and blocks the word boundary.
+_PATH_STOPWORDS = {"vs", "et", "and", "de", "du", "des", "la", "le", "les", "l"}
+_LIGATURE_TRANSLATION = str.maketrans({"œ": "oe", "Œ": "oe", "æ": "ae", "Æ": "ae"})
+
+
+def _normalize_path_string(raw: str) -> list[str]:
+    """Turn a raw, possibly messy model-proposed path string into clean, single-word,
+    unaccented, lowercase segments - a deterministic safety net independent of the
+    model actually following the nomenclature rules in the prompt."""
+    unescaped = html.unescape(raw)
+    segments: list[str] = []
+    for part in unescaped.split('/'):
+        part = part.replace('&', ' ')
+        for token in re.split(r'[\s_\-]+', part):
+            token = token.translate(_LIGATURE_TRANSLATION)
+            token = unicodedata.normalize('NFKD', token).encode('ascii', 'ignore').decode('ascii')
+            token = re.sub(r'[^a-z0-9]', '', token.lower())
+            if token and token not in _PATH_STOPWORDS:
+                segments.append(token)
+    return segments
 
 
 @dataclass
@@ -26,6 +66,7 @@ class OllamaProviderConfig:
     base_url: str = "http://localhost:11434"
     model: str = "llama3"
     timeout: int = 60
+    temperature: float = 0.7
 
 
 class OllamaProvider(Provider):
@@ -85,6 +126,7 @@ class OllamaProvider(Provider):
                     f"Ollama returned 0 entities/events/relationships (done_reason={done_reason!r}, "
                     f"model={self.config.model!r}, response_chars={len(extracted_text)})"
                 )
+            self._ensure_path_segments(result, text, context)
             return result
 
         except Exception as e:
@@ -191,3 +233,99 @@ present in the text. Now extract from the input text:
             relationship_type=item["relationship_type"],
             endpoints=list(item["endpoints"]),
         )
+
+    def _ensure_path_segments(self, result: ExtractionResult, source_text: str, context: dict) -> None:
+        """Guarantee every entity/event/relationship has a non-empty
+        proposed_path_segments, mutating in place. Resolved once per type per call
+        (not once per item, unlike ingestion's per-assertion granularity) - at most
+        three extra Ollama calls regardless of how many items were extracted, and a
+        type with zero items triggers no call at all.
+
+        existing_folders (per type, never shared across types - the entity tree and
+        the event tree are different taxonomies) seeds from both the canonical,
+        accepted tree and paths already proposed by not-yet-accepted Proposals of the
+        same type. Unlike ingestion's in-batch accumulation between assertions, there
+        is no analogous accumulation here: each type resolves exactly once per call.
+        """
+        vault_root = context.get("vault_root")
+        domain = context.get("domain")
+        for item_type, items in (
+            ("entity", result.entities),
+            ("event", result.events),
+            ("relationship", result.relationships),
+        ):
+            if not items:
+                continue
+
+            existing_folders: list[str] = []
+            if vault_root is not None and domain is not None:
+                accepted = scan_existing_item_folders(Path(vault_root), domain, item_type)
+                pending = scan_proposed_path_segments(Path(vault_root), domain, item_type)
+                existing_folders = sorted(set(accepted) | set(pending))
+
+            segments = self._propose_path_with_retry(item_type, items, source_text, existing_folders)
+            for item in items:
+                item.proposed_path_segments = list(segments)
+
+    def _propose_path_with_retry(
+        self, item_type: str, items: list, source_text: str, existing_folders: list[str]
+    ) -> list[str]:
+        for _ in range(PATH_PROPOSAL_MAX_ATTEMPTS):
+            try:
+                segments = self._propose_path(item_type, items, source_text, existing_folders)
+                if segments:
+                    return segments
+            except Exception:
+                pass
+        return list(FALLBACK_PATH_SEGMENTS)
+
+    def _propose_path(
+        self, item_type: str, items: list, source_text: str, existing_folders: list[str]
+    ) -> list[str]:
+        prompt = self._build_path_prompt(item_type, items, source_text, existing_folders)
+        response = self.requests.post(
+            f"{self.config.base_url}/api/generate",
+            json={
+                "model": self.config.model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": self.config.temperature}
+            },
+            timeout=self.config.timeout
+        )
+        response.raise_for_status()
+        raw = response.json().get("response", "").strip()
+        first_line = raw.splitlines()[0].strip() if raw else ""
+        return _normalize_path_string(first_line)
+
+    def _build_path_prompt(
+        self, item_type: str, items: list, source_text: str, existing_folders: list[str]
+    ) -> str:
+        type_labels = {"entity": "entities", "event": "events", "relationship": "relationships"}
+        type_label = type_labels[item_type]
+        folders_block = "\n".join(f"- {folder}" for folder in existing_folders) if existing_folders else "(none yet)"
+        items_block = "\n".join(f"- {item.text}" for item in items)
+        return f"""You are organizing extracted knowledge into folders inside a personal knowledge vault.
+
+Full note content (for context):
+{source_text}
+
+Existing folder paths already used in this vault (reuse one if it clearly fits;
+otherwise propose a new one consistent with this style):
+{folders_block}
+
+The following {type_label} were all extracted from the note above. Propose ONE short
+folder path (2-4 segments) that fits all of them together thematically. Rules:
+- Each segment is exactly one lowercase French word, no accents, no special
+  characters (no "&", no underscores, no hyphens), "/" as separator between segments.
+- Never join two ideas into one segment (not "enjeux_thematiques", not
+  "conflit_vs_pouvoir") - put each idea in its own segment instead.
+- Order segments from the broadest/general category to the most specific.
+- Bad: `mission/intrigue_academie/conflict Escalation`
+  Good: `intrigue/mission/conflit/escalation`
+
+{type_label.capitalize()}:
+{items_block}
+
+Respond with ONLY the folder path, nothing else. Example: mythologie/japonaise/kitsune
+"""

@@ -55,10 +55,13 @@ REQUIRED_ASSERTION_PROVENANCE_FIELDS = [
     "source_id", "extraction_provider", "proposal_id", "reviewed_by", "reviewed_at",
 ]
 
-_COMMON_EDITABLE_FIELDS = {"body", "epistemic_status", "valid_from", "valid_until"}
+# proposed_path_segments is common to all four types (TASK-005a, ADI-012 adoption
+# by entity/event/relationship) - unlike TASK-014's original assertion-only scoping,
+# there is no longer a type-specific reason to keep it out of the common set.
+_COMMON_EDITABLE_FIELDS = {"body", "epistemic_status", "valid_from", "valid_until", "proposed_path_segments"}
 
 EDITABLE_FIELDS_BY_TYPE = {
-    "assertion": _COMMON_EDITABLE_FIELDS | {"proposed_path_segments"},
+    "assertion": _COMMON_EDITABLE_FIELDS,
     "entity": _COMMON_EDITABLE_FIELDS | {"entity_type"},
     "event": _COMMON_EDITABLE_FIELDS | {"starts_at", "ends_at"},
     "relationship": _COMMON_EDITABLE_FIELDS | {"relationship_type", "endpoints"},
@@ -138,16 +141,34 @@ def assertion_path(
     return base / assertion_id / f"{assertion_id}.md"
 
 
-def entity_path(vault_root: Path, domain: str, entity_id: str) -> Path:
-    return vault_root / domain / "entities" / entity_id / f"{entity_id}.md"
+def entity_path(
+    vault_root: Path, domain: str, entity_id: str, path_segments: list[str] | None = None
+) -> Path:
+    _validate_path_segments(path_segments)
+    base = vault_root / domain / "entities"
+    for segment in path_segments or []:
+        base = base / segment
+    return base / entity_id / f"{entity_id}.md"
 
 
-def event_path(vault_root: Path, domain: str, event_id: str) -> Path:
-    return vault_root / domain / "events" / event_id / f"{event_id}.md"
+def event_path(
+    vault_root: Path, domain: str, event_id: str, path_segments: list[str] | None = None
+) -> Path:
+    _validate_path_segments(path_segments)
+    base = vault_root / domain / "events"
+    for segment in path_segments or []:
+        base = base / segment
+    return base / event_id / f"{event_id}.md"
 
 
-def relationship_path(vault_root: Path, domain: str, relationship_id: str) -> Path:
-    return vault_root / domain / "relationships" / relationship_id / f"{relationship_id}.md"
+def relationship_path(
+    vault_root: Path, domain: str, relationship_id: str, path_segments: list[str] | None = None
+) -> Path:
+    _validate_path_segments(path_segments)
+    base = vault_root / domain / "relationships"
+    for segment in path_segments or []:
+        base = base / segment
+    return base / relationship_id / f"{relationship_id}.md"
 
 
 def source_path(vault_root: Path, domain: str, source_id: str) -> Path:
@@ -239,29 +260,42 @@ def list_proposal_ids(vault_root: Path, domain: str) -> list[str]:
     )
 
 
-def scan_organization_folders(vault_root: Path, domain: str) -> list[list[str]]:
-    """Distinct taxonomy segment names under <domain>/assertions/, grouped by depth
-    (index 0 = segments directly under assertions/, etc).
+# Type-plural directory name and the _generate_*_id prefix that marks a leaf
+# (an item's own id folder, not a taxonomy segment) for each of the four
+# canonical item types (TASK-005a, ADI-012 adoption by entity/event/relationship).
+_ORGANIZATION_ITEM_TYPE_DIRS = {
+    "assertion": ("assertions", "assert-"),
+    "entity": ("entities", "entity-"),
+    "event": ("events", "event-"),
+    "relationship": ("relationships", "relationship-"),
+}
 
-    A directory named with the "assert-" prefix _generate_assertion_id produces is
-    an item's own id folder - a leaf, not a taxonomy segment, and not descended
-    into further.
+
+def scan_organization_folders(
+    vault_root: Path, domain: str, item_type: str = "assertion"
+) -> list[list[str]]:
+    """Distinct taxonomy segment names under <domain>/<item-type-plural>/, grouped by
+    depth (index 0 = segments directly under the type folder, etc).
+
+    A directory named with that type's own _generate_*_id prefix is an item's own id
+    folder - a leaf, not a taxonomy segment, and not descended into further.
     """
-    assertions_dir = vault_root / domain / "assertions"
-    if not assertions_dir.exists():
+    dir_name, id_prefix = _ORGANIZATION_ITEM_TYPE_DIRS[item_type]
+    type_dir = vault_root / domain / dir_name
+    if not type_dir.exists():
         return []
     segments_by_depth: list[set[str]] = []
 
     def _walk(directory: Path, depth: int) -> None:
         for entry in sorted(directory.iterdir()):
-            if not entry.is_dir() or entry.name.startswith("assert-"):
+            if not entry.is_dir() or entry.name.startswith(id_prefix):
                 continue
             if len(segments_by_depth) <= depth:
                 segments_by_depth.append(set())
             segments_by_depth[depth].add(entry.name)
             _walk(entry, depth + 1)
 
-    _walk(assertions_dir, 0)
+    _walk(type_dir, 0)
     return [sorted(depth_segments) for depth_segments in segments_by_depth]
 
 
@@ -280,29 +314,47 @@ def write_assertion_file(
     return path
 
 
-def write_entity_file(vault_root: Path, domain: str, frontmatter: dict[str, Any], body: str) -> Path:
+def write_entity_file(
+    vault_root: Path,
+    domain: str,
+    frontmatter: dict[str, Any],
+    body: str,
+    path_segments: list[str] | None = None,
+) -> Path:
     _validate_frontmatter(frontmatter, REQUIRED_ENTITY_FIELDS)
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
 
-    path = entity_path(vault_root, domain, frontmatter["id"])
+    path = entity_path(vault_root, domain, frontmatter["id"], path_segments=path_segments)
     _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
     return path
 
 
-def write_event_file(vault_root: Path, domain: str, frontmatter: dict[str, Any], body: str) -> Path:
+def write_event_file(
+    vault_root: Path,
+    domain: str,
+    frontmatter: dict[str, Any],
+    body: str,
+    path_segments: list[str] | None = None,
+) -> Path:
     _validate_frontmatter(frontmatter, REQUIRED_EVENT_FIELDS)
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
 
-    path = event_path(vault_root, domain, frontmatter["id"])
+    path = event_path(vault_root, domain, frontmatter["id"], path_segments=path_segments)
     _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
     return path
 
 
-def write_relationship_file(vault_root: Path, domain: str, frontmatter: dict[str, Any], body: str) -> Path:
+def write_relationship_file(
+    vault_root: Path,
+    domain: str,
+    frontmatter: dict[str, Any],
+    body: str,
+    path_segments: list[str] | None = None,
+) -> Path:
     _validate_frontmatter(frontmatter, REQUIRED_RELATIONSHIP_FIELDS)
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
 
-    path = relationship_path(vault_root, domain, frontmatter["id"])
+    path = relationship_path(vault_root, domain, frontmatter["id"], path_segments=path_segments)
     _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
     return path
 

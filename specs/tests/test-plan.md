@@ -10,12 +10,31 @@ invented or assumed behavior.
 This document is **exhaustive over all 18 use cases**, but **automated only where the
 code actually supports it today**. Pekopeko's product vision (`specs/product/use-cases.md`)
 describes domain modules (Fiction, Personal Planning, Japanese Learning, Research),
-retrieval, reasoning, and knowledge-health monitoring that do not exist in code yet — only
-eight tickets are `completed` as of this writing: TASK-001, TASK-001a, TASK-001b,
-TASK-002, TASK-003, TASK-004, TASK-006, TASK-007 (generic ingestion of Assertions,
-Entity/Event/Relationship extraction, Proposal review/accept/reject/edit for assertions,
-local config, and an HTTP API wrapper — no domain module, no retrieval, no reasoning, no
-GUI).
+retrieval, reasoning, and knowledge-health monitoring that do not exist in code yet.
+
+**Status refresh, 2026-09-07 (consistency review).** This document had drifted badly from the
+repository: it still claimed only eight tickets were `completed` and still described TASK-005 as
+`backlog` and its own two Findings as open, four sessions after all three had changed. Current
+state (updated 2026-09-07 same day, TASK-005a landing) — **22 tickets `completed`**: TASK-001,
+TASK-001a, TASK-001b, TASK-001c, TASK-001d, TASK-001e, TASK-002, TASK-003, TASK-003a, TASK-004,
+TASK-005, TASK-005a, TASK-006, TASK-007, TASK-007a, TASK-008, TASK-009, TASK-010, TASK-011,
+TASK-012, TASK-013, TASK-014. Eight remain `backlog`
+(TASK-001f, TASK-014a, TASK-014b, TASK-015, TASK-016, TASK-017, TASK-018, TASK-019).
+
+What that adds since this cahier was written (2026-09-02): review/accept/reject for
+entity/event/relationship (TASK-005, with TASK-003a reconciling the two field contracts first),
+the whole React GUI (TASK-008 → TASK-012: Dashboard/Settings, Ingestion Logs, Validation, Proposal
+Detail, then the entity/event/relationship integration), proposal edit mode end-to-end (TASK-013),
+folder-path organization (TASK-014/ADI-012), and the LLM-proposed folder path (TASK-001e, amended
+the same day by ADI-014 then ADI-015). Still absent, and still the reason most UC sections below
+read ⛔: no domain module, no retrieval, no reasoning, no canonical-item history.
+
+**The per-UC sections below have *not* all been re-verified against the current code.** Only the
+sections whose verdict actually changed have been revised (UC-001, UC-011, and the Findings block);
+the others were re-read and left as-is because their ⛔/🟡 verdict still holds for the same stated
+reason. Where a section's automation pointers predate the tickets above, that is called out inline
+rather than silently corrected — this cahier's value is that it never claims coverage it hasn't
+observed.
 
 Each UC section below is marked:
 - ✅ **Covered** — the UC's goal is fully implemented and tested.
@@ -24,10 +43,17 @@ Each UC section below is marked:
 - ⛔ **Not testable** — the capability the UC needs doesn't exist in code yet; no test
   case is listed, only the one-line reason.
 
-**Maintenance rule**: when a `backlog` ticket (TASK-005, TASK-007a, TASK-008..TASK-012, …)
-lands, update that UC's section — status, test cases, automation pointers — as part of
-the same session, the same way `docs/ROADMAP.md`'s "État actuel" gets updated. This is
-what keeps the cahier usable throughout the rest of development instead of going stale.
+**Maintenance rule**: when a `backlog` ticket lands, update that UC's section — status, test
+cases, automation pointers — as part of the same session, the same way `docs/ROADMAP.md`'s
+"État actuel" gets updated. This is what keeps the cahier usable throughout the rest of
+development instead of going stale.
+
+This rule was **not** followed between 2026-09-02 and 2026-09-06: thirteen tickets landed without a
+single edit here, and the drift was only caught by a dedicated consistency review. Worth noting
+because the failure mode is silent — a stale cahier reads exactly like an accurate one, and it
+understates real coverage (UC-001 and UC-011 were both worse here than in the code). If a future
+session finds updating this file too heavy to do inline, that is a signal to shrink the cahier,
+not to skip the update.
 
 ## Test layers
 
@@ -87,7 +113,29 @@ each module directory separately (as the counts in `docs/ROADMAP.md` already imp
 being run), or add `__init__.py` files under `src/tests/*/` (out of this task's scope —
 flagged for Cleo, not silently fixed).
 
-## Findings surfaced while building this suite
+## Findings surfaced while building this suite — BOTH RESOLVED
+
+> **Resolution status, 2026-09-07.** Both findings below were open when written (2026-09-02) and
+> are described in the present tense throughout. **They are now closed** — kept verbatim rather
+> than deleted, because they are the record of how the gap was found and of what the fix had to
+> cover. Do not read them as current behavior.
+>
+> - **Finding 1 closed by TASK-003a** (`completed`, 2026-09-05): reconciles the two field
+>   contracts — extraction-produced proposals now carry the top-level `id`/`type` fields
+>   `review/storage.py`'s `REQUIRED_PROPOSAL_FIELDS` demands, so they are visible to
+>   `list_proposals` and fetchable by `get_proposal`. This was written specifically to unblock
+>   TASK-005, in the same session.
+> - **Finding 2 closed by TASK-005 + TASK-012** (`completed`, 2026-09-05/06): TASK-007's AC10
+>   ("accept on entity/event/relationship → 422") is **superseded**, not fixed —
+>   accept now *succeeds* for those three types. `UnresolvedRelationshipEndpointError` is mapped
+>   to `409` in `src/app/api/app.py`'s error table, which is the only failure mode left on that
+>   path (a relationship whose endpoints are not themselves `ACCEPTED` yet).
+>
+> Consequence for the two e2e regression guards named at the end of this section: they assert the
+> *old*, broken behavior. Whoever next runs `pytest -m e2e` should expect them to fail and should
+> rewrite them to assert the fixed behavior (proposals visible, accept returning 200/409) rather
+> than deleting them. Flagged here rather than silently rewritten, since this review did not run
+> the e2e layer.
 
 These were discovered by writing and running real tests against real code (including a
 real server and real Ollama) — not assumed, not read off a comment. Both concern the same
@@ -179,9 +227,14 @@ module — `domain` is just a folder-partition label).
 - **Determinism notes:** the `ValidationError`/400/list-emptiness assertions are
   content-independent (they hold regardless of what the LLM actually extracted, as long
   as it extracts ≥1 item) — fully deterministic even in the real-E2E layer.
-- **Gap named, not silently cut:** review/accept for these types is TASK-005 (`backlog`);
-  the deeper contract mismatch (Finding 1/2) means TASK-005 must reconcile field names
-  too, not just add business logic.
+- **Gap closed since (2026-09-05/06):** review/accept for these types was TASK-005, then
+  `backlog`, now `completed` — and the deeper contract mismatch (Finding 1/2) did indeed have to
+  be reconciled first, by the satellite TASK-003a it made necessary. Entity/event/relationship
+  proposals are now listable, fetchable and acceptable through `review/` and through the API, and
+  visible in the Validation/Detail screens (TASK-012). **No acceptance test for that path has been
+  added to this cahier**; TASK-005's and TASK-012's own suites cover it. A TC-UC001-03
+  (extraction → review → canonical, end to end for the three types) is the obvious missing case
+  here — named, not silently skipped.
 
 Not covered: FICTION-domain-specific interpretation (no Fiction module exists);
 multimodal source formats (see UC-007).
@@ -252,7 +305,12 @@ here would add nothing; the cahier cites it instead:
 - `src/tests/extraction/test_extensibility.py`
 
 Not covered: PDF, image, audio, video, web page, or any other format — no reader exists
-for any of them.
+for any of them. Still true on 2026-09-07; **TASK-016** (audio/video via URL + Whisper) and
+**TASK-017** (PDF, plain text, web page) are written and `backlog`. Note for whoever updates this
+section when they land: TASK-016 stores the *transcript*, not the media, as the Source file's
+content, which is in open tension with this UC's own "Original content files preserved and
+accessible" postcondition — see `docs/OPEN-ISSUES.md` (2026-09-07). Do not mark this UC ✅ on the
+strength of those tickets without that point being settled first.
 
 ---
 
@@ -318,9 +376,20 @@ canonical item.
 🟡 **Partial (best-covered UC in the repo).** The V1 individual-review slice is fully
 implemented: list (status filter), get (+ resolved source), accept, reject (+ reason),
 edit (+ history versioning), invalid-transition guard. Bulk operations, richer
-filtering/sorting/grouping, and analytics are not implemented. **Finding 1 above** also
-belongs here: the review queue is silently blind to every entity/event/relationship
-proposal.
+filtering/sorting/grouping, and analytics are not implemented.
+
+**Updated 2026-09-07.** Two things changed since this section was written:
+1. **Finding 1 no longer applies** — the review queue is no longer blind to entity/event/
+   relationship proposals (TASK-003a + TASK-005 + TASK-012). All four `proposed_item_type` values
+   are now listed, fetchable, acceptable and rendered in the GUI.
+2. The UC-011 stages this cahier listed as unimplemented now split three ways: stage 5 (editing)
+   is `completed` end-to-end including the GUI (TASK-006 + TASK-013); stages 4/6/7 (bulk
+   operations, richer filter/sort, prioritization) remain unimplemented and are TASK-015
+   (`backlog`); and UC-011's *scale* requirement ("human validation remains practical at scale")
+   is covered by **no ticket at all** — `Validation.jsx` fetches at most 500 proposals per domain
+   and filters/sorts them client-side. See `docs/OPEN-ISSUES.md` (2026-09-07) for that open point.
+
+The test cases below still pass and still validate what they claim; none was rewritten.
 
 #### TC-UC011-01 — `list_proposals` filters by status
 - **Validates:** TASK-002 AC6
@@ -394,8 +463,14 @@ source content.
 ⛔ **Not testable** for its actual goal (querying a *canonical* item's state as of a past
 point in time). TASK-006's `history/` mechanism is Proposal-level only, and applies only
 before acceptance — not counted as coverage of this UC, to avoid overstating what exists.
-Canonical (accepted) items have no history/versioning mechanism at all in the 8 completed
-tickets.
+Canonical (accepted) items have no history/versioning mechanism at all.
+
+**Still exactly true on 2026-09-07, across all 21 `completed` tickets** — and the consistency
+review of that date found the reason: UC-015 was the only one of the 18 use cases with **no entry
+in any backlog**, so nothing was ever going to close it. ADI-001 nonetheless requires a per-item
+`history/` holding complete previous versions for canonical items. Now tracked as **TASK-038**
+(`specs/tasks/BACKLOG-CLAUDE-V2.md`, section 3), to be implemented with or after TASK-022
+(correction/supersession), never instead of it.
 
 ---
 
@@ -459,6 +534,20 @@ contested items.
 guarantees). There is **no "context"/sub-domain concept** in the schema (e.g.
 distinguishing two FICTION novels that happen to share a character name) — this UC's
 actual goal is not covered.
+
+**Still true in code on 2026-09-07, but now decided.** **ADI-016** (`Accepted`, 2026-09-06) makes
+`context: Optional[str]` a first-class frontmatter field on all four canonical item types,
+physically reflected in the path (`<domain>/<type-plural>/<context>/…`) — written precisely for
+this UC's two-novels-one-"Alex" scenario. It is implemented by **TASK-014a** (structure) and
+**TASK-014b** (value derivation), both `backlog`. Two things to keep straight when updating this
+section after they land:
+- ADI-016 explicitly does **not** close the dedup half of the problem: no entity dedup/matching
+  mechanism exists for any item type (`_generate_entity_id` always mints a fresh UUID), so there is
+  nothing yet to make context-aware. That part is deferred to a Fiction module ticket.
+- `context` was also missing from the retrieval layer until the same 2026-09-07 review added a
+  column and filter to TASK-018/TASK-019 — without which the first screen showing canonical items
+  would have mixed the two universes back together regardless of ADI-016.
+So: 🟡 will become "covered for isolation, not for dedup" once TASK-014a/b land — not ✅.
 
 #### TC-UC018-01 — Same-named entities across two extraction calls never merge
 - **Validates:** demonstrates the system doesn't accidentally conflate same-named

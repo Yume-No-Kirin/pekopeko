@@ -168,6 +168,29 @@ alongside this ticket) — `Validation.jsx` already fetches, groups, and renders
   `ERROR_STATUS_MAP` — same minimal-surface posture as TASK-012.
 - The maquette's "Statut ingestion" filter remains out of scope, same as TASK-010's own decision —
   not reopened here.
+- **Everything this ticket adds is client-side, over TASK-010's `limit=500`-per-domain fetch —
+  so none of it is "the review queue at scale."** (Added 2026-09-07, consistency review; the
+  ticket previously left this unstated.) `Validation.jsx` fetches each in-scope domain's queue once
+  with `limit=500` (TASK-007a's own maximum, a deliberate design confirmed with Cleo in TASK-010 —
+  see that ticket's "Pagination design"), then groups, paginates, filters and sorts entirely in
+  memory. Three consequences, none of them bugs introduced here, all of them inherited and now
+  named:
+  1. Past 500 proposals in one domain, the queue silently shows a truncated set. "Tout accepter"
+     then acts on a subset of that truncation, and the new sort control orders only what was
+     fetched — a "Plus ancien d'abord" that cannot reach the genuinely oldest note.
+  2. The two new filters (type, epistemic status) are client-side by construction (Scope §12);
+     they filter the fetched window, not the queue.
+  3. `BACKLOG-CLAUDE.md` designates this ticket (as its own `TASK-034`) as the implementation of
+     **CAP-CORE-015 (UXR-001)** and of UC-011's deferred stages. It delivers the *ergonomics*
+     half honestly; it does **not** deliver UC-011's stated Expected Result ("Large-scale proposal
+     handling capability… human validation remains practical at scale") or CAP-CORE-013, and
+     ADI-002's own reason for existing early ("required infrastructure for the review queue…
+     hundreds of thousands of proposals") stays unaddressed — TASK-018 indexes canonical items
+     only, explicitly not `proposals/`.
+  **Flagged for Cleo, not decided here**: at personal scale a 500-item ceiling per domain may
+  simply be fine, in which case the right move is to record that in the ticket and move on. If it
+  is not fine, the fix is server-side filtering/sorting/counting on `list_proposals`, which is a
+  distinctly larger ticket than this one and should not be smuggled into it.
 
 ## Requirements
 
@@ -265,3 +288,5 @@ alongside this ticket) — `Validation.jsx` already fetches, groups, and renders
 - Per-item bulk-reject reasons (one shared reason per batch only).
 - The maquette's "Statut ingestion" filter (pre-existing TASK-010 deferral, not reopened).
 - Folder-path bulk edit (distinct from accept/reject; not addressed here).
+- Server-side filtering, sorting or counting on `list_proposals`, and anything else that would
+  lift TASK-010's `limit=500`-per-domain fetch ceiling — see the last V1 scope decision above.

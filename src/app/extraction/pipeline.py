@@ -121,7 +121,9 @@ def extract_source(
         append_task_event(task_state, state_dir, "info", "Provider extraction call started",
                            {"provider": extraction_provider})
         try:
-            extraction_result = provider.extract(content, {"source_path": str(source_path)})
+            extraction_result = provider.extract(
+                content, {"source_path": str(source_path), "vault_root": vault_root, "domain": domain}
+            )
         except Exception as e:
             append_task_event(task_state, state_dir, "warning", "Provider extraction call failed",
                                {"provider": extraction_provider, "error": str(e)})

@@ -13,7 +13,7 @@ from .domains import VALID_DOMAINS
 
 review_bp = Blueprint("review", __name__)
 
-_VALID_ORGANIZATION_ITEM_TYPES = {"assertion"}
+_VALID_ORGANIZATION_ITEM_TYPES = {"assertion", "entity", "event", "relationship"}
 
 
 def _vault_root():
@@ -81,5 +81,5 @@ def get_organization_folders(domain):
         raise ValidationError(
             f"item_type must be one of {sorted(_VALID_ORGANIZATION_ITEM_TYPES)}, got {item_type!r}"
         )
-    segments_by_depth = storage.scan_organization_folders(_vault_root(), domain)
+    segments_by_depth = storage.scan_organization_folders(_vault_root(), domain, item_type=item_type)
     return jsonify(serialization.organization_folders_to_dict(segments_by_depth)), 200

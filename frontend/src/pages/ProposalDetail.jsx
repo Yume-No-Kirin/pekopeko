@@ -168,7 +168,7 @@ export default function ProposalDetail() {
     setDraftPathSegments(frontmatter.proposed_path_segments || []);
     setActionError(null);
     setEditing(true);
-    listOrganizationFolders(domain, "assertion")
+    listOrganizationFolders(domain, frontmatter.proposed_item_type)
       .then((result) => setFolderOptions(result.segments_by_depth || []))
       .catch(() => setFolderOptions([]));
   }
@@ -288,11 +288,9 @@ export default function ProposalDetail() {
                   <button type="button" className="btn btn-accept" onClick={handleAccept}>
                     ✓ Accepter
                   </button>
-                  {frontmatter.proposed_item_type === "assertion" && (
-                    <button type="button" className="btn btn-edit" onClick={handleEditToggle}>
-                      ✎ Éditer
-                    </button>
-                  )}
+                  <button type="button" className="btn btn-edit" onClick={handleEditToggle}>
+                    ✎ Éditer
+                  </button>
                 </>
               )}
             </div>
@@ -383,17 +381,6 @@ export default function ProposalDetail() {
                         )}
                       </div>
                     </div>
-                    <div className="metadata-row">
-                      <div className="metadata-label">Dossier proposé</div>
-                      <div className="metadata-value">
-                        <FolderPathBuilder
-                          segments={editing ? draftPathSegments : (frontmatter.proposed_path_segments || [])}
-                          optionsByDepth={folderOptions}
-                          editable={editing}
-                          onChange={setDraftPathSegments}
-                        />
-                      </div>
-                    </div>
                   </>
                 )}
                 {frontmatter.proposed_item_type === "entity" && (
@@ -431,6 +418,17 @@ export default function ProposalDetail() {
                     </div>
                   </>
                 )}
+                <div className="metadata-row">
+                  <div className="metadata-label">Dossier proposé</div>
+                  <div className="metadata-value">
+                    <FolderPathBuilder
+                      segments={editing ? draftPathSegments : (frontmatter.proposed_path_segments || [])}
+                      optionsByDepth={folderOptions}
+                      editable={editing}
+                      onChange={setDraftPathSegments}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

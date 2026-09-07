@@ -219,6 +219,24 @@ def test_extract_source_signature_unchanged():
     assert sig.parameters['task_id'].default is None
 
 
+def test_extract_source_passes_vault_root_and_domain_to_provider_context(tmp_path, source_file):
+    """TASK-005a: provider.extract()'s context dict gains vault_root/domain keys
+    (additive - extract_source's own public signature is unchanged, per the test
+    above) so OllamaProvider can scan existing folders for path proposals."""
+    captured_context = {}
+
+    class CapturingProvider:
+        def extract(self, text, context):
+            captured_context.update(context)
+            return _full_extraction_result()
+
+    extract_source(tmp_path, "PERSONAL", source_file, CapturingProvider())
+
+    assert captured_context["vault_root"] == tmp_path
+    assert captured_context["domain"] == "PERSONAL"
+    assert captured_context["source_path"] == str(source_file)
+
+
 def test_successful_extraction_event_sequence(tmp_path, source_file):
     """TASK-001b AC2: a successful extract_source call produces an
     equivalent, independently-implemented events sequence for its own steps."""

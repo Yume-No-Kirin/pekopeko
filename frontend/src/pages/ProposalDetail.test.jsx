@@ -553,14 +553,68 @@ describe("ProposalDetail", () => {
     expect(JSON.parse(editCall[1].body).field_updates.proposed_path_segments).toEqual(["mythologie"]);
   });
 
-  it("TASK-012: hides the Éditer button for entity/event/relationship proposals", async () => {
+  it("TASK-005a AC16: shows the Éditer button for entity/event/relationship proposals too", async () => {
     global.fetch = makeFetchMock({
       detailsById: { p1: makeDetail({ id: "p1", itemType: "entity", entityType: "person" }) },
     });
     renderDetailAtRoute("/validation/PERSONAL/p1");
 
     await screen.findByText("Contenu de test");
-    expect(screen.queryByRole("button", { name: /Éditer/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Éditer/ })).toBeInTheDocument();
+  });
+
+  it("TASK-005a AC16: renders the 'Dossier proposé' row for entity/event/relationship proposals too", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: {
+        p1: makeDetail({ id: "p1", itemType: "entity", entityType: "person", proposedPathSegments: ["personnages"] }),
+      },
+    });
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    expect(screen.getByText("Dossier proposé")).toBeInTheDocument();
+    expect(screen.getByText("personnages")).toBeInTheDocument();
+  });
+
+  it("TASK-005a AC17: entering edit mode on an entity proposal fetches organization-folders with item_type=entity, not the literal \"assertion\"", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", itemType: "entity", entityType: "person" }) },
+      organizationFoldersByDomain: { PERSONAL: [["personnages"]] },
+    });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    await user.click(screen.getByRole("button", { name: /Éditer/ }));
+
+    const foldersCall = await waitFor(() =>
+      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/organization-folders"))
+    );
+    expect(new URL(foldersCall[0]).searchParams.get("item_type")).toBe("entity");
+  });
+
+  it("TASK-005a AC17: saving an edited entity proposal's path succeeds (no 400/UneditableFieldError) and persists the segments - the §E14 trap regression guard", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", itemType: "entity", entityType: "person", proposedPathSegments: ["personnages"] }) },
+      organizationFoldersByDomain: { PERSONAL: [["personnages", "lieux"]] },
+    });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    await user.click(screen.getByRole("button", { name: /Éditer/ }));
+    await user.click(screen.getByRole("button", { name: /\+ Ajouter/ }));
+    await user.type(screen.getByLabelText("Nom du nouveau dossier"), "nouveau");
+    await user.click(screen.getByRole("button", { name: "Créer" }));
+
+    global.fetch.mockClear();
+    await user.click(screen.getByRole("button", { name: /Sauvegarder/ }));
+
+    const editCall = await waitFor(() =>
+      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/edit"))
+    );
+    expect(JSON.parse(editCall[1].body).field_updates.proposed_path_segments).toEqual(["personnages", "nouveau"]);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("TASK-012 AC14: renders EntityTypeBadge/EventTemporalRange metadata rows for entity/event proposals", async () => {
