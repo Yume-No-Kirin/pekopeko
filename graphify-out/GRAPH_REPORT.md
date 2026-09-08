@@ -1,28 +1,28 @@
-# Graph Report - pekopeko  (2026-09-05)
+# Graph Report - pekopeko  (2026-09-07)
 
 ## Corpus Check
-- 264 files · ~217,369 words
+- 266 files · ~252,301 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2907 nodes · 5207 edges · 191 communities (155 shown, 36 thin omitted)
-- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 367 edges (avg confidence: 0.87)
+- 2997 nodes · 5432 edges · 188 communities (154 shown, 34 thin omitted)
+- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 374 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5cf17242`
+- Built from commit: `fa12f681`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- SourceReaderRegistry
+- SourceReader
 - Knowledge Invariants Document
 - ADI-001: Canonical Persistence Model Decision
 - Generic Knowledge Core
 - Invariance Compliance Principle
-- ingestion/test_pipeline.py
+- ExtractionResult
 - What is a Module?
-- Design Document Template
+- OllamaProviderConfig
 - Task Lifecycle Conventions
 - Retrieval & Performance Requirements
 - Product Boundaries
@@ -55,11 +55,11 @@
 - test_pipeline_accept_entity_event_relationship.py
 - 2. Knowledge Core — cycle de vie proposition/canonique (manquant)
 - extraction/storage.py
-- ingestion/test_task_state.py
+- routes_ingestion.py
 - Section Authoring Guidance
 - Pekopeko — Questions ouvertes, points à définir, incohérences
 - serialization.py
-- make_proposal_file
+- test_review_routes.py
 - load_config
 - Data Ingestion Module (TASK-001)
 - AGENTS.md
@@ -72,11 +72,11 @@
 - extraction/pipeline.py
 - SourceReaderRegistry
 - kiro-review
-- ExtractedRelationship
+- ExtractedEntity
 - review/test_storage.py
 - Design Review Process
 - Core Principles
-- ValidationError
+- parse_frontmatter
 - Quick Spec Generator
 - TASK-001: Data Ingestion Module (V1)
 - Pekopeko Knowledge Management System - UX Specification
@@ -93,10 +93,10 @@
 - Execution Steps
 - kiro-verify-completion
 - Architectural Decision Inputs (Section 23)
-- Authentication & Authorization Standards
+- ExtractionResult
 - Module Structure
 - KC-001 Canonical Item Storage Ticket
-- Technology Stack
+- TASK-005a: Folder-Path Organization for Entity/Event/Relationship (ADI-012 adoption)
 - get
 - Discovery
 - Execution Protocol
@@ -108,51 +108,51 @@
 - Technical Design Validation
 - Implementation Gap Validation
 - CAP-CORE-001 — Knowledge Representation Capability
-- Deployment Standards
-- Security Standards
+- TASK-017: Additional Source Readers — PDF, Plain Text, Web Page (V1)
+- TASK-012: Entity, Event and Relationship Review — API Integration and GUI (V1)
 - Task Implementation Reviewer
 - Focused Discovery Steps
-- Research & Design Decisions Template
-- Database Standards
+- test_pagination.py
+- TASK-009a: GUI Ingestion Trigger — Upload, Domain, Optional Context
 - 2. Suite re-priorisée (TASK-013 → TASK-037)
 - Spec Batch
 - Execution Steps
-- Requirements Document
-- API Standards
-- Error Handling Standards
-- Project Structure
+- TASK-014a: Context Field — Storage, Path Placement, Scoped Scan (All Item Types)
+- TASK-015: Review Queue Bulk Operations and Filter/Sort (V1)
+- TASK-016: Audio/Video Ingestion with Transcription (YouTube/TikTok/Instagram, V1)
+- TASK-014b: Context Derivation — Source Folder, with LLM Fallback (Both Pipelines)
 - AP-004: Historical State Preservation Requirement
 - UC-018 Fictional Universe Isolation
 - Design Review Gate
 - Requirements Review Gate
 - Parallel Task Analysis Rules
-- Testing Standards
+- TASK-018: Local Retrieval Index (SQLite/FTS5, V1)
 - Spec Initialization
-- Path
+- ingestion/test_pipeline.py
 - edit_proposal
 - Debug Investigator
 - ADI-009: Frontend Framework for the Pekopeko Application Interface
 - Design Synthesis
-- Task Format Template
-- Product Overview
+- api/conftest.py
+- TASK-019: Search Screen (frontend)
 - CAP-CORE-012 — Asynchronous Task Management Capability
-- ExtractionResult
+- test_ingestion_routes.py
 - MockTextReader
 - extraction/test_import_isolation.py
-- Requirements Document
+- e2e/conftest.py
 - test_no_git.py
 - TASK-004: Local Configuration Mechanism (V1)
 - review/pipeline.py
-- routes_ingestion.py
+- .extract
 - TASK-006: Proposal EDITED Status and History Versioning (V1)
 - TASK-007: Backend API Layer for the Knowledge Core (V1)
-- ExtractedEntity
+- ingest_source
 - TASK-008: React Scaffold, Dashboard and Settings Screens (V1)
 - TASK-001a: Enriched Extraction Provenance Metadata (V1)
-- TASK-012: Entity, Event and Relationship Review — API Integration and GUI (V1)
+- Pekopeko — Incohérences, bugs, améliorations à débattre
 - TASK-001b: Task Event Log for Ingestion and Extraction (V1)
 - TASK-014: Folder-Path Organization — Backend API + Frontend Builder (Assertions, V1)
-- ProposalDetail.jsx
+- Validation.jsx
 - Dashboard.jsx
 - Pekopeko Test Plan (Cahier de Tests)
 - FolderPathBuilder
@@ -168,7 +168,7 @@
 - poll_task_until_terminal
 - TASK-001d: Duplicate Detection Ignores Partial-Failure Retries (V1)
 - TASK-007a: Pagination for List Endpoints (V1)
-- app.py
+- api/__init__.py
 - TASK-009: Ingestion Logs Screen (V1)
 - extraction/test_provider_factory.py
 - TASK-010: Validation Screen, Assertions Only (V1)
@@ -184,11 +184,11 @@
 - TASK-011: Proposal Detail Screen, Assertions Only (V1)
 - Validation
 - TASK-001c: Fail Loudly on Zero-Output Provider Extraction (Ingestion + Extraction)
-- Validation.jsx
+- ADI-016: Context/Universe as a First-Class Field (amends ADI-012)
 - TASK-001f: Automatic Folder-Watch Ingestion Trigger
-- ProposalDetail
-- ingest_source
-- test_duplicate_and_modified_ingestion.py
+- ProposalDetail.test.jsx
+- test_implementation.py
+- Pekopeko
 - ADI-011: Provider Zero-Output Contract
 - ADI-012: Folder-Path Organization (amends ADI-004)
 - ADI-013: Automatic Folder-Watch Ingestion Trigger
@@ -196,26 +196,23 @@
 - ADI-015: Path-Segment Nomenclature Enforcement + Cross-Proposal Context (amends ADI-014)
 - App.jsx
 - TASK-003a: Extraction Proposal `id`/`type` Fields (V1)
-- routes_extraction.py
-- load_task_state_resilient
-- TaskEvent
-- test_proposal_id_type_fields.py
-- ._parse_extraction_result
+- routes_config.py
+- ProvenanceSection.jsx
+- test_ingestion.py
+- OllamaProvider
 - .extract
-- ExtractionPipelineResult
-- test_from_dict_tolerates_missing_events_key
 
 ## God Nodes (most connected - your core abstractions)
 1. `ingest_source()` - 76 edges
-2. `make_proposal_file()` - 66 edges
-3. `load_config()` - 62 edges
-4. `extract_source()` - 59 edges
-5. `accept_proposal()` - 59 edges
-6. `ExtractionResult` - 57 edges
-7. `OllamaProvider` - 56 edges
+2. `OllamaProvider` - 68 edges
+3. `make_proposal_file()` - 66 edges
+4. `accept_proposal()` - 64 edges
+5. `load_config()` - 62 edges
+6. `extract_source()` - 60 edges
+7. `ExtractionResult` - 57 edges
 8. `OllamaProvider` - 55 edges
-9. `parse_frontmatter()` - 51 edges
-10. `ExtractionResult` - 46 edges
+9. `parse_frontmatter()` - 52 edges
+10. `OllamaProviderConfig` - 48 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `ADR Format Specification` --semantically_similar_to--> `Structured Verification Report Discipline`  [INFERRED] [semantically similar]
@@ -230,10 +227,10 @@
   CLAUDE.md → docs/ROADMAP.md
 
 ## Import Cycles
-- 3-file cycle: `src/app/api/__init__.py -> src/app/api/app.py -> src/app/api/routes_config.py -> src/app/api/__init__.py`
 - 3-file cycle: `src/app/api/__init__.py -> src/app/api/app.py -> src/app/api/routes_ingestion.py -> src/app/api/__init__.py`
-- 3-file cycle: `src/app/api/__init__.py -> src/app/api/app.py -> src/app/api/routes_extraction.py -> src/app/api/__init__.py`
+- 3-file cycle: `src/app/api/__init__.py -> src/app/api/app.py -> src/app/api/routes_config.py -> src/app/api/__init__.py`
 - 3-file cycle: `src/app/api/__init__.py -> src/app/api/app.py -> src/app/api/routes_review.py -> src/app/api/__init__.py`
+- 3-file cycle: `src/app/api/__init__.py -> src/app/api/app.py -> src/app/api/routes_extraction.py -> src/app/api/__init__.py`
 
 ## Hyperedges (group relationships)
 - **Canonical/Derived Storage Split Pattern** — specs_decisions_adi_001_canonical_persistence_model_decision, specs_decisions_adi_002_retrieval_system_decision, specs_decisions_adi_003_relationship_model_decision, specs_decisions_adi_006_persistence_vs_recomputation_decision [INFERRED 0.85]
@@ -241,11 +238,11 @@
 - **Universal Human Validation Gate** — specs_domain_knowledge_invariants_inv_001_universal_human_validation, specs_modules_module_architecture_mod_001_modules_cannot_bypass_human_validation, specs_product_capabilities_cap_002_human_reviewed_knowledge_ingestion, specs_domain_knowledge_model_validation, specs_product_product_model_human_control [INFERRED 0.85]
 - **Obsidian Vault Sync-Conflict Avoidance Pattern** — specs_decisions_adi_001_canonical_persistence_model_decision, specs_decisions_adi_002_retrieval_system_decision, specs_decisions_adi_003_relationship_model_decision, specs_decisions_adi_005_sync_vs_async_decision, specs_decisions_adi_008_llm_provider_architecture_decision [INFERRED 0.85]
 
-## Communities (191 total, 36 thin omitted)
+## Communities (188 total, 34 thin omitted)
 
-### Community 0 - "SourceReaderRegistry"
-Cohesion: 0.05
-Nodes (39): Path, Protocol, Base interfaces for source readers used in ingestion., Registry mapping file extensions to SourceReader implementations., Register a reader for a specific file extension., Get the reader class for a given file extension., Read content from a file using the appropriate reader., Interface for reading source files. (+31 more)
+### Community 0 - "SourceReader"
+Cohesion: 0.07
+Nodes (22): Path, Protocol, Register a reader for a specific file extension., Get the reader class for a given file extension., Read content from a file using the appropriate reader., Interface for reading source files., SourceReader, MarkdownReader (+14 more)
 
 ### Community 1 - "Knowledge Invariants Document"
 Cohesion: 0.10
@@ -263,17 +260,17 @@ Nodes (34): CAP-CORE-001 Knowledge Management, CAP-CORE-002 Human Review, CAP-CO
 Cohesion: 0.18
 Nodes (13): CAP-CORE-014 — Cross-Domain Authorization Capability, CAP-CORE-005 — Domain Isolation Capability, Security Requirement Principle, CAP-CORE-007 — Temporal Reasoning Capability, CAP-CORE-008 — Uncertainty Preservation Capability, AP-005: Domain Boundary Enforcement Requirement, AP-006: Cross-Domain Authorization Requirement, AP-008: Temporal Reasoning Support Requirement (+5 more)
 
-### Community 5 - "ingestion/test_pipeline.py"
+### Community 5 - "ExtractionResult"
 Cohesion: 0.06
-Nodes (54): Ingestion module for Pekopeko - data ingestion pipeline., Main ingestion pipeline for processing source files., ExtractedAssertion, Provider, Protocol, Base interfaces for LLM providers used in ingestion., Represents a single extracted assertion from source content., Interface for LLM providers used in ingestion. (+46 more)
+Nodes (51): Ingestion module for Pekopeko - data ingestion pipeline., Main ingestion pipeline for processing source files., ExtractionResult, Provider, Protocol, Base interfaces for LLM providers used in ingestion., Result of an extraction operation., Interface for LLM providers used in ingestion. (+43 more)
 
 ### Community 6 - "What is a Module?"
 Cohesion: 0.12
 Nodes (20): INV-010 Modules Do Not Own the Core Knowledge Model, INV-017 Modules Remain Decoupled, Cross-Domain Operations, Shared Knowledge Core, MOD-003 Modules Do Not Own the Shared Knowledge Model, MOD-006 Modules Must Not Depend on Another Module's Internal Implementation, MOD-007 Module Removal Must Not Corrupt Unrelated Knowledge, MOD-008 Module-Specific Logic Must Remain Within the Module Boundary (+12 more)
 
-### Community 7 - "Design Document Template"
-Cohesion: 0.05
-Nodes (42): Allowed Dependencies, API Contract, Architecture, Architecture Pattern & Boundary Map, Batch / Job Contract, Boundary Commitments, [Component Name], Components and Interfaces (+34 more)
+### Community 7 - "OllamaProviderConfig"
+Cohesion: 0.10
+Nodes (42): _normalize_path_string(), OllamaProviderConfig, Turn a raw, possibly messy model-proposed path string into clean, single-word,…, Configuration for Ollama provider., _mock_path_response(), _mock_response(), OllamaProvider unit tests: prompt building and JSON response parsing. No real…, AC8: entities+events+relationships all non-empty -> exactly 3 path-proposal… (+34 more)
 
 ### Community 8 - "Task Lifecycle Conventions"
 Cohesion: 0.47
@@ -288,24 +285,24 @@ Cohesion: 0.67
 Nodes (3): Core Product Areas, Long-Term Direction, Product Boundaries
 
 ### Community 11 - "OllamaProvider"
-Cohesion: 0.09
-Nodes (63): OllamaProvider, OllamaProviderConfig, Provider, Configuration for Ollama provider., Concrete implementation of Provider using Ollama API., _normalize_path_string(), OllamaProvider, OllamaProviderConfig (+55 more)
+Cohesion: 0.12
+Nodes (41): _normalize_path_string(), OllamaProvider, OllamaProviderConfig, Provider, Turn a raw, possibly messy model-proposed path string into clean, single-word,…, Configuration for Ollama provider., Concrete implementation of Provider using Ollama API., _mock_response() (+33 more)
 
 ### Community 37 - "test_pipeline_accept_entity_event_relationship.py"
 Cohesion: 0.11
-Nodes (27): make_entity_proposal_file(), make_event_proposal_file(), make_relationship_proposal_file(), make_source_file(), fixture, Path, Fixture builders for Proposal/Source files matching TASK-001's on-disk contract…, _write_frontmatter_file() (+19 more)
+Nodes (29): make_entity_proposal_file(), make_event_proposal_file(), make_relationship_proposal_file(), make_source_file(), fixture, Path, Fixture builders for Proposal/Source files matching TASK-001's on-disk contract…, _write_frontmatter_file() (+21 more)
 
 ### Community 38 - "2. Knowledge Core — cycle de vie proposition/canonique (manquant)"
 Cohesion: 0.05
-Nodes (42): 1. Knowledge Core — déjà ticketé, 2. Knowledge Core — cycle de vie proposition/canonique (manquant), 3. Ingestion & Extraction — extensibilité (manquant), 4. Interface (ADI-009 tranche React, aucun ticket n'existe encore), 5. Modules de domaine (aucun n'existe, seul le Knowledge Core est ticketé), 6. Dette technique assumée, Backlog complet Pekopeko (vue indépendante), TASK-001 — Module d'ingestion de données (Assertions) (+34 more)
+Nodes (43): 1. Knowledge Core — déjà ticketé, 2. Knowledge Core — cycle de vie proposition/canonique (manquant), 3. Ingestion & Extraction — extensibilité (manquant), 4. Interface (ADI-009 tranche React, aucun ticket n'existe encore), 5. Modules de domaine (aucun n'existe, seul le Knowledge Core est ticketé), 6. Dette technique assumée, 7. Trous relevés après coup (revue de cohérence du 2026-09-07), Backlog complet Pekopeko (vue indépendante) (+35 more)
 
 ### Community 39 - "extraction/storage.py"
-Cohesion: 0.11
-Nodes (38): Raised when frontmatter is missing/invalid, before any file is written., ValidationError, Any, YAML frontmatter serialization for the extraction pipeline. Write-side only:…, Render frontmatter + body as "---\\n<yaml>---\\n\\n<body>". Uses the same…, serialize_frontmatter(), _base_proposal_frontmatter(), _generate_proposal_id() (+30 more)
+Cohesion: 0.07
+Nodes (59): ExtractionError, Exception, Typed exceptions for the entity/event/relationship extraction pipeline., Raised when frontmatter is missing/invalid, before any file is written., Base class for all extraction/ module errors., ValidationError, Any, YAML frontmatter serialization for the extraction pipeline. Write-side only:… (+51 more)
 
-### Community 40 - "ingestion/test_task_state.py"
-Cohesion: 0.17
-Nodes (26): append_task_event(), create_task_state(), list_task_states(), load_task_state(), Path, Task state management for ingestion pipeline., Load task state from disk. Args: state_dir: Directory where task state is saved…, Create a new task state. Args: source_path: Path to the source file domain:… (+18 more)
+### Community 40 - "routes_ingestion.py"
+Cohesion: 0.06
+Nodes (52): get_ingestion(), list_ingestions(), route, Ingestion endpoints (async, ADI-010 SS2): POST starts a background…, start_ingestion(), _state_dir(), _vault_root(), load_task_state_resilient() (+44 more)
 
 ### Community 41 - "Section Authoring Guidance"
 Cohesion: 0.06
@@ -316,12 +313,12 @@ Cohesion: 0.13
 Nodes (14): 10. Glossaire, 11. ADR — sous-questions différées, 12. Format des ADR, 13. Points de vérification (pour mémoire — pas des questions ouvertes), 1. Vision & portée produit, 2. Besoins utilisateurs, 3. Modèle produit, 4. Capacités produit (CAP-001/002/003) (+6 more)
 
 ### Community 43 - "serialization.py"
-Cohesion: 0.15
-Nodes (21): get_config(), route, accept_result_to_dict(), config_to_dict(), edit_result_to_dict(), extraction_result_to_dict(), ingestion_result_to_dict(), organization_folders_to_dict() (+13 more)
+Cohesion: 0.17
+Nodes (19): accept_result_to_dict(), config_to_dict(), edit_result_to_dict(), extraction_result_to_dict(), ingestion_result_to_dict(), organization_folders_to_dict(), paginate(), paginated_response() (+11 more)
 
-### Community 44 - "make_proposal_file"
-Cohesion: 0.06
-Nodes (44): make_proposal_file(), AC16: responses carry a CORS header allowing a different localhost origin to…, test_cors_header_present_on_post(), _assert_envelope(), AC15: every non-2xx response follows {"error": {"type": ..., "message": ...}},…, ExtractionValidationError/ReviewValidationError/ConfigError never propagate…, Any exception type with no registered handler still yields the same JSON…, test_domain_mismatch_maps_to_400() (+36 more)
+### Community 44 - "test_review_routes.py"
+Cohesion: 0.07
+Nodes (32): make_proposal_file(), AC16: responses carry a CORS header allowing a different localhost origin to…, test_cors_header_present_on_post(), _assert_envelope(), AC15: every non-2xx response follows {"error": {"type": ..., "message": ...}},…, Any exception type with no registered handler still yields the same JSON…, ExtractionValidationError/ReviewValidationError/ConfigError never propagate…, test_domain_mismatch_maps_to_400() (+24 more)
 
 ### Community 45 - "load_config"
 Cohesion: 0.11
@@ -340,8 +337,8 @@ Cohesion: 0.20
 Nodes (9): analyze_pipeline_imports(), Static analysis test to verify pipeline code doesn't directly import LLM SDKs., Verify that no git usage exists in ingestion module., Run comprehensive git verification across all files., Test that provider classes are only imported where they should be., Analyze the pipeline.py file for direct imports of LLM SDKs., test_comprehensive_git_verification(), test_no_git_usage() (+1 more)
 
 ### Community 49 - "make_proposal_file"
-Cohesion: 0.11
-Nodes (49): parse_frontmatter(), Split raw markdown file content into (frontmatter, body). Raises…, accept_proposal(), AcceptResult, reject_proposal(), RejectResult, make_proposal_file(), Unit tests for pipeline.accept_proposal (acceptance criteria 1, 3, 4, 5). (+41 more)
+Cohesion: 0.10
+Nodes (48): accept_proposal(), AcceptResult, reject_proposal(), RejectResult, test_list_proposals_filters_by_status(), make_proposal_file(), Unit tests for pipeline.accept_proposal (acceptance criteria 1, 3, 4, 5)., test_accept_already_accepted_proposal_raises_and_leaves_files_unchanged() (+40 more)
 
 ### Community 50 - "TASK-005: Entity, Event and Relationship Proposal Review (V1)"
 Cohesion: 0.10
@@ -349,31 +346,31 @@ Nodes (20): Acceptance criteria, Binding context (references, not duplicated her
 
 ### Community 51 - "extract_source"
 Cohesion: 0.08
-Nodes (43): extract_source(), Path, Provider, Path, Shared test-only helpers for extraction/ tests. Not a fixture factory that…, Parse a '---\\n<yaml>---\\n\\n<body>' file independently of app code., read_frontmatter(), test_second_provider_extensibility() (+35 more)
+Nodes (42): extract_source(), ExtractionPipelineResult, Path, Provider, Named distinctly from providers.base.ExtractionResult (the raw…, FakeProvider, FlakyProvider, _full_extraction_result() (+34 more)
 
 ### Community 53 - "devDependencies"
 Cohesion: 0.06
 Nodes (34): dependencies, react, react-dom, react-router-dom, devDependencies, jsdom, @testing-library/jest-dom, @testing-library/react (+26 more)
 
 ### Community 54 - "extraction/pipeline.py"
-Cohesion: 0.09
-Nodes (39): Entity/Event/Relationship extraction pipeline orchestration. Implements SOURCE…, append_task_event(), create_task_state(), list_task_states(), load_task_state(), Any, Path, Task state management for the extraction pipeline. Persisted outside the vault,… (+31 more)
+Cohesion: 0.08
+Nodes (48): get_extraction(), list_extractions(), route, Extraction endpoints (async, ADI-010 SS2) - identical shape to…, start_extraction(), _state_dir(), _vault_root(), InvalidDomainError (+40 more)
 
 ### Community 55 - "SourceReaderRegistry"
 Cohesion: 0.09
-Nodes (20): SourceReaderRegistry, _build_reader_registry(), Path, Protocol, Base interfaces for source readers used in extraction. Independent of…, Interface for reading source files., Registry mapping file extensions to SourceReader implementations., Register a reader for a specific file extension. (+12 more)
+Nodes (21): SourceReaderRegistry, _build_reader_registry(), Path, Protocol, Base interfaces for source readers used in extraction. Independent of…, Interface for reading source files., Registry mapping file extensions to SourceReader implementations., Register a reader for a specific file extension. (+13 more)
 
 ### Community 56 - "kiro-review"
 Cohesion: 0.08
 Nodes (25): 10.5 Boundary Audit, 10. Design Alignment, 11. Test Quality, 12. Error Handling, 1. Regression Safety, 2. No Residual Placeholder Markers, 3. No Hardcoded Secrets, 4. Boundary Respect (+17 more)
 
-### Community 57 - "ExtractedRelationship"
-Cohesion: 0.34
-Nodes (11): ExtractedRelationship, FakeProvider, _proposal_frontmatter(), ExtractionResult, Type-specific proposal fields per proposed_item_type (AC1), and relationship…, test_entity_type_field_present(), test_event_starts_ends_at_present(), test_relationship_endpoint_referencing_existing_canonical_id_passed_through() (+3 more)
+### Community 57 - "ExtractedEntity"
+Cohesion: 0.10
+Nodes (34): ExtractedEntity, ExtractedEvent, ExtractedRelationship, Base interfaces for extraction LLM providers (ADI-008). Pipeline code depends…, local_id is a transient identifier scoped to a single extraction call, assigned…, Concrete implementation of the extraction Provider using Ollama. This is the…, Path, Shared test-only helpers for extraction/ tests. Not a fixture factory that… (+26 more)
 
 ### Community 58 - "review/test_storage.py"
-Cohesion: 0.06
-Nodes (75): archive_proposal_version(), assertion_path(), entity_path(), event_path(), _generate_assertion_id(), _generate_entity_id(), _generate_event_id(), _generate_relationship_id() (+67 more)
+Cohesion: 0.05
+Nodes (89): archive_proposal_version(), assertion_path(), entity_path(), event_path(), _generate_assertion_id(), _generate_entity_id(), _generate_event_id(), _generate_relationship_id() (+81 more)
 
 ### Community 59 - "Design Review Process"
 Cohesion: 0.08
@@ -383,9 +380,9 @@ Nodes (24): 1. Existing Architecture Alignment (Critical), 2. Design Consistency
 Cohesion: 0.09
 Nodes (22): 1. Natural Language Descriptions, 2. Task Ordering Principle, 3. Task Integration & Progression, 4. Dependency Declaration, 5. Boundary Scope, 6. Flexible Task Sizing, 7.5 Observable Completion, 7. Requirements Mapping (+14 more)
 
-### Community 61 - "ValidationError"
-Cohesion: 0.17
-Nodes (15): Raised for invalid pagination query parameters (limit/offset)., ValidationError, Any, YAML frontmatter parsing and serialization. Pure string transformation, no…, Inverse of parse_frontmatter. Uses the same yaml.dump kwargs as…, serialize_frontmatter(), Unit tests for review/frontmatter.py parsing and serialization., test_parse_frontmatter_empty_frontmatter_becomes_empty_dict() (+7 more)
+### Community 61 - "parse_frontmatter"
+Cohesion: 0.13
+Nodes (23): ApiError, Exception, Typed exceptions for the api/ orchestration layer itself (as opposed to errors…, Raised for invalid pagination query parameters (limit/offset)., Base class for exceptions raised by the api/ orchestration layer itself., ValidationError, parse_frontmatter(), Any (+15 more)
 
 ### Community 62 - "Quick Spec Generator"
 Cohesion: 0.10
@@ -451,9 +448,9 @@ Nodes (13): Claim-Specific Rules, Common Rationalizations, FEATURE_GO, FIX, Gate
 Cohesion: 0.14
 Nodes (14): Read ROADMAP.md First (session start rule), PROJECT_HANDOFF.md Staleness Warning, Discipline de Continuite, Roadmap de Reprise, Demarrage de Session Procedure, ADI-001 Canonical Persistence Model (Open Question), ADI-002 Semantic Retrieval System (Open Question), ADI-003 Relationship Model (Open Question) (+6 more)
 
-### Community 78 - "Authentication & Authorization Standards"
-Cohesion: 0.14
-Nodes (13): API-to-API Auth, Authentication, Authentication & Authorization Standards, Authorization, Checks (where to enforce), Flow (high-level), Method (choose + rationale), Ownership (+5 more)
+### Community 78 - "ExtractionResult"
+Cohesion: 0.10
+Nodes (22): ExtractionResult, Run final verification of all acceptance criteria., run_final_verification(), _events_from_last_task_state(), TASK-001b AC1: a successful ingest_source call produces a TaskState.events…, TASK-001b AC3: a simulated provider failure appends a warning-level event…, TASK-001b AC4: a duplicate-source ingestion (skipped_duplicate) appends an…, Covers the 'Failed to write proposal' instrumentation branch: a warning event… (+14 more)
 
 ### Community 79 - "Module Structure"
 Cohesion: 0.22
@@ -463,13 +460,13 @@ Nodes (10): English Learning, Japanese Learning, Module Structure, Personal Brai
 Cohesion: 0.19
 Nodes (13): Pytest tmp_path Testing Convention, Python Backend Language Convention, Verification Discipline, KC-001 Canonical Item Storage Ticket, KC-001 Independent Verification Review, KC-002 Proposal Workflow Ticket, Prochaine Action Exacte, Phase 2: First Concrete Tickets (+5 more)
 
-### Community 81 - "Technology Stack"
-Cohesion: 0.15
-Nodes (12): Architecture, Code Quality, Common Commands, Core Technologies, Development Environment, Development Standards, Key Libraries, Key Technical Decisions (+4 more)
+### Community 81 - "TASK-005a: Folder-Path Organization for Entity/Event/Relationship (ADI-012 adoption)"
+Cohesion: 0.10
+Nodes (20): A. Structure — `src/app/review/` (mirrors TASK-014 exactly), Acceptance criteria, B. Proposal persistence — `src/app/extraction/`, Binding context (references, not duplicated here), C. LLM path proposal — `src/app/extraction/providers/ollama_provider.py`, Constraints, D. Regression this ticket must fix in `src/app/ingestion/`, Dependencies (+12 more)
 
 ### Community 82 - "get"
-Cohesion: 0.16
-Nodes (16): ApiError, buildListUrl(), get(), post(), request(), acceptProposal(), editProposal(), getProposal() (+8 more)
+Cohesion: 0.14
+Nodes (20): ApiError, buildListUrl(), get(), post(), request(), acceptProposal(), editProposal(), getProposal() (+12 more)
 
 ### Community 83 - "Discovery"
 Cohesion: 0.17
@@ -511,13 +508,13 @@ Nodes (10): Core Task, Error Scenarios, Execution Steps, Implementation Gap Vali
 Cohesion: 0.20
 Nodes (11): CAP-CORE-XXX Traceability Correction (2026-08-23), Gap Consigne (CAP-CORE Traceability, 3 Open Items), CAP-CORE-006 — Derived Knowledge Tracking Capability, CAP-CORE-001 — Knowledge Representation Capability, CAP-CORE-009 — Relationship Traversal Capability, AP-001: Knowledge Representation Structure Requirement, AP-007: Derived Knowledge Dependency Tracking Requirement, Relationship Modeling Principle (+3 more)
 
-### Community 93 - "Deployment Standards"
-Cohesion: 0.18
-Nodes (10): CI/CD Flow, Configuration & Secrets, Deployment Standards, Deployment Strategies, Environments, Health & Monitoring, Incident Response & DR, Philosophy (+2 more)
+### Community 93 - "TASK-017: Additional Source Readers — PDF, Plain Text, Web Page (V1)"
+Cohesion: 0.12
+Nodes (15): Acceptance criteria, Backend (new) — PDF and plain text (independent of TASK-016), Backend (new) — Web page (depends on TASK-016), Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Frontend (+7 more)
 
-### Community 94 - "Security Standards"
-Cohesion: 0.18
-Nodes (10): Authentication & Authorization, Headers & Transport, Input & Output, Logging (security-aware), Philosophy, Secrets & Configuration, Security Standards, Sensitive Data (+2 more)
+### Community 94 - "TASK-012: Entity, Event and Relationship Review — API Integration and GUI (V1)"
+Cohesion: 0.12
+Nodes (15): Acceptance criteria, Backend, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Frontend, Objective (+7 more)
 
 ### Community 95 - "Task Implementation Reviewer"
 Cohesion: 0.20
@@ -527,17 +524,17 @@ Nodes (9): Core Principle, First Action, Judgment Checks (read code, compare to 
 Cohesion: 0.20
 Nodes (9): 1. Extension Point Analysis, 2. Dependency Check, 3. Quick Technology Verification, 4. Integration Risk Assessment, Focused Discovery Steps, Light Discovery Process for Extensions, Objective, Output Requirements (+1 more)
 
-### Community 97 - "Research & Design Decisions Template"
-Cohesion: 0.20
-Nodes (9): Architecture Pattern Evaluation, Decision: `<Title>`, Design Decisions, References, Research & Design Decisions Template, Research Log, Risks & Mitigations, Summary (+1 more)
+### Community 97 - "test_pagination.py"
+Cohesion: 0.29
+Nodes (15): _item_id(), _list(), _make_items(), parametrize, Pagination tests for the three list endpoints (TASK-007a), AC1-8. AC1-5 are…, AC8 regression: single-item proposal GET and GET /config keep their pre-…, Creates n items of the given kind with distinct, increasing timestamps (item i…, test_defaults_applied_when_omitted() (+7 more)
 
-### Community 98 - "Database Standards"
-Cohesion: 0.20
-Nodes (9): Backup & Recovery, Connection & Transactions, Data Integrity, Database Standards, Migrations, Naming & Types, Philosophy, Query Patterns (+1 more)
+### Community 98 - "TASK-009a: GUI Ingestion Trigger — Upload, Domain, Optional Context"
+Cohesion: 0.13
+Nodes (14): Acceptance criteria, Backend, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Frontend, Objective (+6 more)
 
 ### Community 99 - "2. Suite re-priorisée (TASK-013 → TASK-037)"
 Cohesion: 0.05
-Nodes (36): 0. Déjà écrit ou complété — inchangé, 1. Socle GUI (TASK-007 → TASK-012), 2. Suite re-priorisée (TASK-013 → TASK-037), Backlog complet Pekopeko — v2, priorité GUI (vue indépendante), Table de correspondance (ancien ID `BACKLOG-CLAUDE.md` → nouvel ID), TASK-007 — Couche API backend pour le Knowledge Core, TASK-008 — Scaffold React + écrans Dashboard et Settings, TASK-009 — Écran Logs d'ingestion (+28 more)
+Nodes (40): 0. Déjà écrit ou complété — inchangé, 1. Socle GUI (TASK-007 → TASK-012), 2. Suite re-priorisée (TASK-013 → TASK-037), 3. Entrées ajoutées par la revue de cohérence du 2026-09-07, Backlog complet Pekopeko — v2, priorité GUI (vue indépendante), Table de correspondance (ancien ID `BACKLOG-CLAUDE.md` → nouvel ID), TASK-005a — Organisation en dossiers pour entity/event/relationship (adoption d'ADI-012), TASK-007 — Couche API backend pour le Knowledge Core (+32 more)
 
 ### Community 100 - "Spec Batch"
 Cohesion: 0.22
@@ -547,21 +544,21 @@ Nodes (8): Critical Constraints, Safety & Fallback, Spec Batch, Step 1: Read Roa
 Cohesion: 0.22
 Nodes (8): Error Scenarios, Execution Steps, List All Specs, Safety & Fallback, Specification Status, Step 1: Load Spec Context, Step 2: Analyze Status, Step 3: Generate Report
 
-### Community 102 - "Requirements Document"
-Cohesion: 0.22
-Nodes (8): Acceptance Criteria, Acceptance Criteria, Boundary Context (Optional), Introduction, Requirement 1: {{REQUIREMENT_AREA_1}}, Requirement 2: {{REQUIREMENT_AREA_2}}, Requirements, Requirements Document
+### Community 102 - "TASK-014a: Context Field — Storage, Path Placement, Scoped Scan (All Item Types)"
+Cohesion: 0.13
+Nodes (14): Acceptance criteria, Backend, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Frontend, Objective (+6 more)
 
-### Community 103 - "API Standards"
-Cohesion: 0.22
-Nodes (8): API Standards, Authentication, Endpoint Pattern, Pagination/Filtering (if applicable), Philosophy, Request/Response, Status Codes (pattern), Versioning
+### Community 103 - "TASK-015: Review Queue Bulk Operations and Filter/Sort (V1)"
+Cohesion: 0.13
+Nodes (14): Acceptance criteria, Backend (new), Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Frontend, Objective (+6 more)
 
-### Community 104 - "Error Handling Standards"
-Cohesion: 0.22
-Nodes (8): Classification (decide handling by source), Error Handling Standards, Error Shape (single canonical format), Logging (context over noise), Monitoring & Health, Philosophy, Propagation (where to convert), Retry (only when safe)
+### Community 104 - "TASK-016: Audio/Video Ingestion with Transcription (YouTube/TikTok/Instagram, V1)"
+Cohesion: 0.13
+Nodes (14): Acceptance criteria, Backend (new), Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Frontend, Objective (+6 more)
 
-### Community 105 - "Project Structure"
-Cohesion: 0.22
-Nodes (8): Code Organization Principles, Directory Patterns, Import Organization, Naming Conventions, Organization Philosophy, [Pattern Name], [Pattern Name], Project Structure
+### Community 105 - "TASK-014b: Context Derivation — Source Folder, with LLM Fallback (Both Pipelines)"
+Cohesion: 0.14
+Nodes (13): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Objective, Out of scope, Requirements (+5 more)
 
 ### Community 106 - "AP-004: Historical State Preservation Requirement"
 Cohesion: 0.28
@@ -583,21 +580,21 @@ Nodes (7): Boundary Continuity, EARS and Testability Review, Mechanical Checks, 
 Cohesion: 0.25
 Nodes (7): Grouping & Ordering Guidelines, Marking Convention, Parallel Task Analysis Rules, Purpose, Quality Checklist, Relationship to Task Ordering, When to Consider Tasks Parallel
 
-### Community 111 - "Testing Standards"
-Cohesion: 0.25
-Nodes (7): Coverage, Mocking & Data, Organization, Philosophy, Structure (AAA), Test Types, Testing Standards
+### Community 111 - "TASK-018: Local Retrieval Index (SQLite/FTS5, V1)"
+Cohesion: 0.14
+Nodes (13): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Objective, Out of scope, Relation to ADI-016/TASK-014a (added 2026-09-07, consistency review) (+5 more)
 
 ### Community 112 - "Spec Initialization"
 Cohesion: 0.29
 Nodes (6): Core Task, Execution Steps, Important Constraints, Output Description, Safety & Fallback, Spec Initialization
 
-### Community 113 - "Path"
-Cohesion: 0.13
-Nodes (20): Path, Test that pipeline handles provider failures gracefully., Read back a written Proposal file's provenance dict., AC1: OllamaProvider populates non-null provider_model/provider_temperature., AC2: one extraction_id per ingest_source call, shared by all its Proposals., Test that pipeline code doesn't directly import LLM SDKs., AC3: extraction_duration_seconds is present, numeric, and > 0., AC4: a Provider that doesn't report model/temperature yields null, no exception. (+12 more)
+### Community 113 - "ingestion/test_pipeline.py"
+Cohesion: 0.06
+Nodes (57): ExtractedAssertion, Represents a single extracted assertion from source content., Guarantee every assertion has a non-empty proposed_path_segments, mutating in…, Full path strings already proposed by not-yet-accepted Proposals…, Full existing folder paths already used under <domain>/assertions/ (canonical,…, scan_existing_assertion_folders(), scan_proposed_path_segments(), test_start_ingestion_returns_202_and_eventually_completes() (+49 more)
 
 ### Community 114 - "edit_proposal"
-Cohesion: 0.18
-Nodes (23): edit_proposal(), EditResult, proposal_history_dir(), Unit tests for pipeline.edit_proposal (acceptance criteria 1-7, 11, 12)., test_edit_proposal_archive_write_failure_leaves_live_file_untouched(), test_edit_proposal_archive_write_failure_no_orphaned_history_file(), test_edit_proposal_archive_write_is_atomic_no_partial_file_on_replace_failure(), test_edit_proposal_body_archives_pre_edit_content_and_updates_live_file() (+15 more)
+Cohesion: 0.14
+Nodes (30): edit_proposal(), EditResult, proposal_history_dir(), parametrize, Unit tests for pipeline.edit_proposal (acceptance criteria 1-7, 11, 12)., test_edit_proposal_archive_write_failure_leaves_live_file_untouched(), test_edit_proposal_archive_write_failure_no_orphaned_history_file(), test_edit_proposal_archive_write_is_atomic_no_partial_file_on_replace_failure() (+22 more)
 
 ### Community 115 - "Debug Investigator"
 Cohesion: 0.33
@@ -611,41 +608,41 @@ Nodes (5): ADI-009: Frontend Framework for the Pekopeko Application Interface, A
 Cohesion: 0.40
 Nodes (4): 1. Generalization, 2. Build vs. Adopt, 3. Simplification, Design Synthesis
 
-### Community 118 - "Task Format Template"
-Cohesion: 0.40
-Nodes (4): Implementation Plan, Major + Sub-task structure, Major task only, Task Format Template
+### Community 118 - "api/conftest.py"
+Cohesion: 0.23
+Nodes (13): app(), auth_headers(), client(), make_extraction_task_state(), make_ingestion_task_state(), make_source_file(), fixture, Path (+5 more)
 
-### Community 119 - "Product Overview"
-Cohesion: 0.40
-Nodes (4): Core Capabilities, Product Overview, Target Use Cases, Value Proposition
+### Community 119 - "TASK-019: Search Screen (frontend)"
+Cohesion: 0.15
+Nodes (12): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Objective, Out of scope, Requirements (+4 more)
 
 ### Community 120 - "CAP-CORE-012 — Asynchronous Task Management Capability"
 Cohesion: 0.40
 Nodes (5): CAP-CORE-012 — Asynchronous Task Management Capability, CAP-CORE-016 — Module Integration Capability, Cross-Module Communication Principle, Module Decoupling Principle, Task Requirements (TKR-001..002)
 
-### Community 121 - "ExtractionResult"
-Cohesion: 0.07
-Nodes (33): ExtractionResult, ExtractionResult, Result of an extraction operation., FakeExtractionProvider, FakeIngestionProvider, Path, Shared test-only helpers for api/ tests. Kept out of conftest.py so test…, Poll the on-disk TaskState until it leaves pending/running, or timeout. The… (+25 more)
+### Community 121 - "test_ingestion_routes.py"
+Cohesion: 0.10
+Nodes (13): FakeExtractionProvider, FakeIngestionProvider, Path, Shared test-only helpers for api/ tests. Kept out of conftest.py so test…, Poll the on-disk TaskState until it leaves pending/running, or timeout. The…, wait_for_terminal_status(), Extraction route tests (AC5): identical shape to test_ingestion_routes.py, kept…, test_get_extraction_wrong_domain_returns_404() (+5 more)
 
 ### Community 122 - "MockTextReader"
 Cohesion: 0.40
 Nodes (4): MockTextReader, Path, SourceReader, A second reader, registered only in this test - no pipeline.py change needed.
 
-### Community 124 - "Requirements Document"
-Cohesion: 0.50
-Nodes (3): Project Description (Input), Requirements, Requirements Document
+### Community 124 - "e2e/conftest.py"
+Cohesion: 0.29
+Nodes (10): auth_headers(), live_server(), _ollama_base_url(), ollama_reachable(), fixture, Real end-to-end fixtures for src/tests/e2e/: a genuine Flask server (not…, Gate for the whole src/tests/e2e/ layer: skips with a clear reason if the…, source_file() (+2 more)
 
 ### Community 126 - "TASK-004: Local Configuration Mechanism (V1)"
 Cohesion: 0.10
 Nodes (20): Acceptance criteria, Amendment: project-relative default paths (2026-09-03), Amendment verification (2026-08-30), Binding context (references, not duplicated here), Code-review triage (2026-08-30), Constraints, Dependencies, .env example (amendment, 2026-08-30) (+12 more)
 
 ### Community 127 - "review/pipeline.py"
-Cohesion: 0.07
-Nodes (57): DomainMismatchError, InvalidProposalStatusError, ProposalNotFoundError, Exception, Typed exceptions for the proposal review workflow., Raised when frontmatter is missing/invalid, on read or write., Raised when proposal_id does not resolve to a file under <domain>/proposals/., Raised when provenance.source_id does not resolve to a file under… (+49 more)
+Cohesion: 0.08
+Nodes (51): Flask app factory for the Pekopeko backend API (ADI-010): registers all route…, DomainMismatchError, InvalidDomainError, InvalidProposalStatusError, ProposalNotFoundError, Exception, Typed exceptions for the proposal review workflow., Raised when frontmatter is missing/invalid, on read or write. (+43 more)
 
-### Community 128 - "routes_ingestion.py"
-Cohesion: 0.17
-Nodes (14): Fixed domain enum, re-declared for the API layer's own early request-boundary…, get_ingestion(), list_ingestions(), route, Ingestion endpoints (async, ADI-010 SS2): POST starts a background…, start_ingestion(), _state_dir(), _vault_root() (+6 more)
+### Community 128 - ".extract"
+Cohesion: 0.29
+Nodes (6): Test that all providers properly implement the Provider interface., Test that providers have all required methods and structure., test_provider_comprehensive_interface(), test_provider_interface_compliance(), Test that the OllamaProvider implements the Provider interface., test_provider_interface_compliance()
 
 ### Community 129 - "TASK-006: Proposal EDITED Status and History Versioning (V1)"
 Cohesion: 0.12
@@ -655,9 +652,9 @@ Nodes (16): Acceptance criteria, Binding context (references, not duplicated her
 Cohesion: 0.12
 Nodes (16): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Domain validation, Error mapping (typed exception → HTTP status), Files/modules concerned, Implementation notes (+8 more)
 
-### Community 131 - "ExtractedEntity"
+### Community 131 - "ingest_source"
 Cohesion: 0.07
-Nodes (41): Entity/Event/Relationship extraction pipeline: SOURCE -> AI EXTRACTION ->…, ExtractedEntity, ExtractedEvent, Provider, Protocol, Base interfaces for extraction LLM providers (ADI-008). Pipeline code depends…, local_id is a transient identifier scoped to a single extraction call, assigned…, Provider-construction helper: maps a loaded config to a concrete extraction… (+33 more)
+Nodes (51): ingest_source(), Ingest a single source file and extract assertions. Args: vault_root: Root…, FixedExtractionProvider, FixedIngestionProvider, Path, Deterministic fake LLM providers and an independent frontmatter reader for…, Inverse of read_frontmatter - used only to craft a proposal file by hand (e.g.…, Matches app.ingestion.providers.base.Provider. Always returns the same fixed… (+43 more)
 
 ### Community 132 - "TASK-008: React Scaffold, Dashboard and Settings Screens (V1)"
 Cohesion: 0.11
@@ -667,9 +664,9 @@ Nodes (18): Acceptance criteria, Binding context (references, not duplicated her
 Cohesion: 0.12
 Nodes (15): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Deviation from this ticket, flagged and resolved with Cleo before implementation (2026-08-31), Files/modules concerned, Implementation notes, Objective (+7 more)
 
-### Community 134 - "TASK-012: Entity, Event and Relationship Review — API Integration and GUI (V1)"
-Cohesion: 0.13
-Nodes (14): Acceptance criteria, Backend, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Frontend, Objective (+6 more)
+### Community 134 - "Pekopeko — Incohérences, bugs, améliorations à débattre"
+Cohesion: 0.33
+Nodes (5): 2026-09-07 — [bug potentiel] La règle de stabilité d'ADI-013 suppose que mtime = date d'écriture locale, 2026-09-07 — [incohérence] La file de revue « à l'échelle » (UC-011 / CAP-CORE-013) n'est portée par aucun ticket, 2026-09-07 — [incohérence] Sources distantes : le média/HTML brut n'est jamais conservé, contre UC-007 et CAP-002, 2026-09-07 — [incohérence] `sources/` et `_inbox/` étendent le layout d'ADI-004 sans l'amender, Pekopeko — Incohérences, bugs, améliorations à débattre
 
 ### Community 135 - "TASK-001b: Task Event Log for Ingestion and Extraction (V1)"
 Cohesion: 0.13
@@ -679,17 +676,17 @@ Nodes (14): Acceptance criteria, Binding context (references, not duplicated her
 Cohesion: 0.11
 Nodes (18): Acceptance criteria, Amendment (2026-09-05): inline editing in the Validation table, matching the mockup, Amendment (2026-09-05): mockup fidelity fix + drag-to-reorder segments, Backend, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned (+10 more)
 
-### Community 137 - "ProposalDetail.jsx"
-Cohesion: 0.15
-Nodes (10): EpistemicStatusBadge(), LABELS, BASELINE_FIELDS, OPTIONAL_FIELDS, ProvenanceSection(), RejectReasonModal(), formatTimestamp(), TaskEventLog() (+2 more)
+### Community 137 - "Validation.jsx"
+Cohesion: 0.13
+Nodes (14): EntityTypeBadge(), EpistemicStatusBadge(), LABELS, EventTemporalRange(), RejectReasonModal(), RelationshipEndpoints(), EPISTEMIC_STATUSES, PROPOSAL_STATUS_LABELS (+6 more)
 
 ### Community 138 - "Dashboard.jsx"
-Cohesion: 0.18
-Nodes (9): DOMAINS, ModuleCard(), StatCard(), countRecentlyReviewed(), Dashboard(), loadDashboardStats(), sumTotals(), jsonResponse() (+1 more)
+Cohesion: 0.29
+Nodes (7): DOMAINS, ModuleCard(), StatCard(), countRecentlyReviewed(), Dashboard(), loadDashboardStats(), sumTotals()
 
 ### Community 139 - "Pekopeko Test Plan (Cahier de Tests)"
 Cohesion: 0.04
-Nodes (45): Findings surfaced while building this suite, How to run, Invariant traceability appendix (`specs/domain/knowledge-invariants.md`), Known pre-existing issue (not introduced by this test suite, verified independently), Pekopeko Test Plan (Cahier de Tests), Scope and update discipline, TC-UC001-01 — Assertion full round trip: source → proposal → accept → canonical, TC-UC001-02 — Entity/Event/Relationship: proposals created, accept fails (documented gap) (+37 more)
+Nodes (45): Findings surfaced while building this suite — BOTH RESOLVED, How to run, Invariant traceability appendix (`specs/domain/knowledge-invariants.md`), Known pre-existing issue (not introduced by this test suite, verified independently), Pekopeko Test Plan (Cahier de Tests), Scope and update discipline, TC-UC001-01 — Assertion full round trip: source → proposal → accept → canonical, TC-UC001-02 — Entity/Event/Relationship: proposals created, accept fails (documented gap) (+37 more)
 
 ### Community 140 - "FolderPathBuilder"
 Cohesion: 0.18
@@ -700,8 +697,8 @@ Cohesion: 0.20
 Nodes (10): Pekopeko, Pipeline, Candidate Capabilities, Confirmed Goals, Foundation / Discovery Phase, Explicitly Out of Scope for the Foundation Phase, Product Definition Phase, Current Product Direction (+2 more)
 
 ### Community 142 - "routes_review.py"
-Cohesion: 0.30
-Nodes (13): accept(), _check_domain(), edit(), get_organization_folders(), get_proposal_detail(), get_proposals(), route, Review endpoints (sync, ADI-010 SS3): thin pass-through to… (+5 more)
+Cohesion: 0.20
+Nodes (16): Fixed domain enum, re-declared for the API layer's own early request-boundary…, accept(), _check_domain(), edit(), get_organization_folders(), get_proposal_detail(), get_proposals(), route (+8 more)
 
 ### Community 143 - "test_auth.py"
 Cohesion: 0.33
@@ -712,8 +709,8 @@ Cohesion: 0.33
 Nodes (5): ADI-010: Backend API Layer and Frontend Integration Contract, Alternatives considered, Consequences, Context, Decision
 
 ### Community 147 - "loader.py"
-Cohesion: 0.20
-Nodes (21): ConfigError, Exception, Typed exceptions for the app/config module., Raised when a config file is malformed or a present value fails schema…, Local device configuration for Pekopeko (ADI-008). Dependency-free with respect…, _apply_env_overrides(), _build_config(), Loader for the Pekopeko local device configuration (ADI-008). Resolution order:… (+13 more)
+Cohesion: 0.17
+Nodes (25): ConfigError, Exception, Typed exceptions for the app/config module., Raised when a config file is malformed or a present value fails schema…, Local device configuration for Pekopeko (ADI-008). Dependency-free with respect…, _apply_env_overrides(), _build_config(), _load_dotenv() (+17 more)
 
 ### Community 150 - "poll_task_until_terminal"
 Cohesion: 0.15
@@ -727,25 +724,25 @@ Nodes (16): 1. Backend — duplicate check based on prior success, not file exis
 Cohesion: 0.12
 Nodes (15): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Deviation from the ticket's file list, Files/modules concerned, Implementation notes, Objective (+7 more)
 
-### Community 153 - "app.py"
-Cohesion: 0.07
-Nodes (43): Flask, create_app(), main(), Flask app factory for the Pekopeko backend API (ADI-010): registers all route…, ApiError, Exception, Typed exceptions for the api/ orchestration layer itself (as opposed to errors…, Base class for exceptions raised by the api/ orchestration layer itself. (+35 more)
+### Community 153 - "api/__init__.py"
+Cohesion: 0.24
+Nodes (13): create_app(), main(), HTTP/REST API layer for the Knowledge Core (TASK-007, ADI-010): exposes…, ApiSettings, load_settings(), MissingSettingError, Exception, API process startup settings (ADI-010 SS4/SS5): vault_root and the shared API… (+5 more)
 
 ### Community 154 - "TASK-009: Ingestion Logs Screen (V1)"
 Cohesion: 0.12
 Nodes (16): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Deviations from the ticket text (flagged, not silent), Files/modules concerned, Implementation notes, Objective (+8 more)
 
 ### Community 155 - "extraction/test_provider_factory.py"
-Cohesion: 0.39
-Nodes (7): build_configured_provider(), Provider, _config_with(), AC6/AC7/AC11: extraction.providers.factory.build_configured_provider maps a…, test_build_configured_provider_raises_on_unknown_provider(), test_build_configured_provider_returns_ollama_provider(), test_extract_source_signature_is_unchanged()
+Cohesion: 0.23
+Nodes (10): Provider, Protocol, build_configured_provider(), Provider, Provider-construction helper: maps a loaded config to a concrete extraction…, _config_with(), AC6/AC7/AC11: extraction.providers.factory.build_configured_provider maps a…, test_build_configured_provider_raises_on_unknown_provider() (+2 more)
 
 ### Community 156 - "TASK-010: Validation Screen, Assertions Only (V1)"
 Cohesion: 0.12
 Nodes (16): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Data-fetch trade-off (N+1, explicitly authorized), Dependencies, Deviations from the ticket text (flagged, not silent), Files/modules concerned, Implementation notes (+8 more)
 
 ### Community 157 - "ingestion/test_provider_factory.py"
-Cohesion: 0.39
-Nodes (8): PekopekoConfig, build_configured_provider(), Provider, _config_with(), AC6/AC7/AC11: ingestion.providers.factory.build_configured_provider maps a…, test_build_configured_provider_raises_on_unknown_provider(), test_build_configured_provider_returns_ollama_provider(), test_ingest_source_signature_is_unchanged()
+Cohesion: 0.33
+Nodes (9): PekopekoConfig, build_configured_provider(), Provider, Provider-construction helper: maps a loaded config to a concrete ingestion…, _config_with(), AC6/AC7/AC11: ingestion.providers.factory.build_configured_provider maps a…, test_build_configured_provider_raises_on_unknown_provider(), test_build_configured_provider_returns_ollama_provider() (+1 more)
 
 ### Community 158 - "test_dotenv.py"
 Cohesion: 0.29
@@ -760,16 +757,16 @@ Cohesion: 0.47
 Nodes (5): fixture, Shared fixtures for src/tests/acceptance/: tmp_path-rooted vault/state dirs for…, source_file(), state_dir(), vault_root()
 
 ### Community 161 - "test_loader_path_resolution.py"
-Cohesion: 0.20
-Nodes (10): _load_dotenv(), Path, Optional companion .env file, next to the resolved config.yaml, for…, _read_file(), _resolve_path(), AC3: PEKOPEKO_CONFIG_PATH makes load_config() read from that exact path instead…, test_default_path_used_when_no_arg_and_no_env_var(), test_env_config_path_is_used_when_no_explicit_path_given() (+2 more)
+Cohesion: 0.33
+Nodes (6): _resolve_path(), AC3: PEKOPEKO_CONFIG_PATH makes load_config() read from that exact path instead…, test_default_path_used_when_no_arg_and_no_env_var(), test_env_config_path_is_used_when_no_explicit_path_given(), test_explicit_path_argument_wins_over_env_var(), test_missing_file_at_env_config_path_is_treated_as_no_file()
 
 ### Community 163 - "TASK-013: Proposal Edit Mode — API Endpoint and Frontend (V1)"
 Cohesion: 0.12
 Nodes (16): Acceptance criteria, Backend, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Frontend, Implementation notes (2026-09-04) (+8 more)
 
 ### Community 164 - "IngestionLogs.jsx"
-Cohesion: 0.18
-Nodes (10): actionLabel(), basename(), ensurePoolDepth(), formatTimestamp(), IngestionLogs(), mergedFromPool(), STATUS_OPTIONS, TaskRow() (+2 more)
+Cohesion: 0.12
+Nodes (15): SourceGroupHeader(), formatTimestamp(), TaskEventLog(), LABELS, TaskStatusBadge(), actionLabel(), basename(), ensurePoolDepth() (+7 more)
 
 ### Community 165 - "TASK-001e: Extraction-Proposed Folder Path Segments (Assertions)"
 Cohesion: 0.12
@@ -780,32 +777,28 @@ Cohesion: 0.12
 Nodes (15): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Deviations from the ticket text (flagged, not silent), Files/modules concerned, Implementation notes, Objective (+7 more)
 
 ### Community 167 - "Validation"
-Cohesion: 0.17
-Nodes (9): packGroupsIntoPages(), jsonResponse(), makeFetchMock(), Validation(), handleAccept(), handlePathChange(), handleRejectConfirm(), setNotePathSegments() (+1 more)
+Cohesion: 0.15
+Nodes (11): fetchFolderOptionsByDomain(), fetchGroups(), packGroupsIntoPages(), jsonResponse(), makeFetchMock(), Validation(), handleAccept(), handlePathChange() (+3 more)
 
 ### Community 168 - "TASK-001c: Fail Loudly on Zero-Output Provider Extraction (Ingestion + Extraction)"
 Cohesion: 0.13
 Nodes (14): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Implementation notes, Objective, Out of scope (+6 more)
 
-### Community 169 - "Validation.jsx"
-Cohesion: 0.21
-Nodes (9): listOrganizationFolders(), SourceGroupHeader(), LABELS, TaskStatusBadge(), handleEditToggle(), fetchFolderOptionsByDomain(), filterByPeriod(), PERIOD_OPTIONS (+1 more)
+### Community 169 - "ADI-016: Context/Universe as a First-Class Field (amends ADI-012)"
+Cohesion: 0.33
+Nodes (5): ADI-016: Context/Universe as a First-Class Field (amends ADI-012), Alternatives considered, Consequences, Context, Decision
 
 ### Community 170 - "TASK-001f: Automatic Folder-Watch Ingestion Trigger"
-Cohesion: 0.15
-Nodes (12): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Objective, Out of scope, Requirements (+4 more)
+Cohesion: 0.14
+Nodes (13): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Move-before-dispatch: correction to the ordering (2026-09-07, consistency review), Objective, Out of scope (+5 more)
 
-### Community 171 - "ProposalDetail"
-Cohesion: 0.18
-Nodes (6): capitalize(), ProposalDetail(), handleAccept(), handleRejectConfirm(), jsonResponse(), makeFetchMock()
+### Community 172 - "test_implementation.py"
+Cohesion: 0.14
+Nodes (15): IngestionResult, process_source(), Path, Provider, Represents the result of an ingestion operation., Process a source file (backward compatibility alias). Args: source_path: Path…, Final verification of TASK-001 implementation. This script runs all the…, main() (+7 more)
 
-### Community 172 - "ingest_source"
-Cohesion: 0.06
-Nodes (41): ingest_source(), IngestionResult, process_source(), Path, Provider, Represents the result of an ingestion operation., Process a source file (backward compatibility alias). Args: source_path: Path…, Ingest a single source file and extract assertions. Args: vault_root: Root… (+33 more)
-
-### Community 173 - "test_duplicate_and_modified_ingestion.py"
-Cohesion: 0.27
-Nodes (9): _proposal_ids_on_disk(), UC-016 (Duplicate/Repeated Ingestion) and UC-003 (Novel Change & Staleness,…, TC-UC016-01 (ingestion): re-ingesting identical content is a no-op beyond the…, TC-UC016-02 (extraction): same guarantee as above, independent pipeline., TC-UC003-01: a modified source is treated as a brand new, independent source…, _source_ids_on_disk(), test_duplicate_extraction_creates_no_new_files_and_skips_provider_call(), test_duplicate_ingestion_creates_no_new_files_and_skips_provider_call() (+1 more)
+### Community 173 - "Pekopeko"
+Cohesion: 0.33
+Nodes (5): Contributing, Documentation, Getting Started, Pekopeko, Project Status
 
 ### Community 174 - "ADI-011: Provider Zero-Output Contract"
 Cohesion: 0.33
@@ -827,29 +820,29 @@ Nodes (5): ADI-014: Mandatory Extraction-Proposed Folder Path (amends ADI-012), 
 Cohesion: 0.33
 Nodes (5): ADI-015: Path-Segment Nomenclature Enforcement + Cross-Proposal Context (amends ADI-014), Alternatives considered, Consequences, Context, Decision
 
+### Community 179 - "App.jsx"
+Cohesion: 0.17
+Nodes (6): App(), Sidebar(), jsonResponse(), makeFetchMock(), Settings(), MOCK_CONFIG
+
 ### Community 182 - "TASK-003a: Extraction Proposal `id`/`type` Fields (V1)"
 Cohesion: 0.13
 Nodes (14): Acceptance criteria, Binding context (references, not duplicated here), Constraints, Dependencies, Files/modules concerned, Implementation notes, Objective, Out of scope (+6 more)
 
-### Community 183 - "routes_extraction.py"
-Cohesion: 0.23
-Nodes (13): get_extraction(), list_extractions(), route, Extraction endpoints (async, ADI-010 SS2) - identical shape to…, start_extraction(), _state_dir(), _vault_root(), ExtractionError (+5 more)
+### Community 183 - "routes_config.py"
+Cohesion: 0.40
+Nodes (4): Flask, get_config(), route, Config endpoint (sync, read-only, ADI-010 SS4): projects the already-loaded…
 
-### Community 184 - "load_task_state_resilient"
-Cohesion: 0.26
-Nodes (9): load_task_state_resilient(), Path, TaskState.save() (ingestion/extraction task_state.py) is not an atomic write -…, _CountingLoader, load_task_state_resilient: TaskState.save() (ingestion/extraction…, Simulates load_task_state: returns None a fixed number of times (as if racing a…, test_gives_up_after_max_attempts_if_still_unparseable(), test_retries_while_file_exists_until_it_parses() (+1 more)
+### Community 184 - "ProvenanceSection.jsx"
+Cohesion: 0.50
+Nodes (3): BASELINE_FIELDS, OPTIONAL_FIELDS, ProvenanceSection()
 
-### Community 185 - "TaskEvent"
-Cohesion: 0.18
-Nodes (6): Any, A single timestamped step recorded during an ingestion task attempt., Convert task state to dictionary., Create task state from dictionary. Tolerates a missing 'events' key (TaskState…, Save task state to disk. Args: state_dir: Directory where task state should be…, TaskEvent
+### Community 185 - "test_ingestion.py"
+Cohesion: 0.50
+Nodes (3): Simple test script to verify ingestion module works., Test that the ingestion module can be imported and basic functionality works., test_ingestion_module()
 
-### Community 186 - "test_proposal_id_type_fields.py"
-Cohesion: 0.24
-Nodes (10): _proposal_frontmatter(), TASK-003a: extraction-produced proposals must carry top-level `id`/`type`…, AC3: review/'s real validation helper, run directly against a proposal this…, AC4: no regression to fields already written before this ticket., test_entity_proposal_has_id_and_type(), test_entity_proposal_passes_reviews_own_required_fields_validation(), test_event_proposal_has_id_and_type(), test_pre_existing_fields_unchanged() (+2 more)
-
-### Community 187 - "._parse_extraction_result"
-Cohesion: 0.24
-Nodes (4): ExtractionResult, Parse the JSON extraction result from the LLM response., Extract entities, events, and relationships from text using Ollama. Args: text:…, Build the prompt for extraction.
+### Community 187 - "OllamaProvider"
+Cohesion: 0.19
+Nodes (8): OllamaProvider, ExtractionResult, Provider, Build the prompt for extraction., Parse the JSON extraction result from the LLM response., Guarantee every entity/event/relationship has a non-empty…, Concrete implementation of Provider using Ollama API., Extract entities, events, and relationships from text using Ollama. Args: text:…
 
 ### Community 188 - ".extract"
 Cohesion: 0.29
@@ -874,9 +867,9 @@ Nodes (4): ExtractionResult, Build the prompt for extraction., Parse assertions 
   specs/product/use-cases.md · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **1013 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+1008 more)
+- **1025 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+1020 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **36 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **34 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_

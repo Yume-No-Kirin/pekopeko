@@ -268,6 +268,17 @@ dans la section 2.
 
 ### TASK-009a — Déclenchement d'une ingestion depuis le GUI
 
+**Rédigé en ticket complet le 2026-09-07** :
+`specs/tasks/backlog/TASK-009a-gui-ingestion-trigger.md`, désormais `backlog` (pas encore
+implémenté — dépend de TASK-014a). Le sketch ci-dessous est conservé pour son historique/rationale,
+mais Cleo a précisé deux points le jour de la rédaction qui en font dévier le ticket réel : (1) un
+**vrai upload de fichier** (multipart, écrit dans `_inbox/<domain>/`) plutôt qu'un champ « chemin
+local » — la route `chemin local` existante ne convient pas pour un vrai bouton d'upload depuis un
+navigateur, qui ne peut pas lire un chemin absolu local ; (2) un **champ `context` optionnel avec
+autocomplétion** (ADI-016), absent de ce sketch, ajouté au ticket réel avec TASK-014a comme
+dépendance bloquante. L'entrée URL ci-dessous (gated sur TASK-016) est explicitement **hors
+périmètre** du ticket réel — à traiter en satellite séparé si besoin une fois TASK-016 fait.
+
 Satellite lettré de TASK-009 (même convention que TASK-001a-f / TASK-007a : ne renuméroter ni les
 tickets écrits ni leurs citations croisées). Ajoute à l'écran Logs d'ingestion le bouton
 « + Nouvelle ingestion » de la maquette `pekopeko-ingestion.html`, avec un formulaire à deux
