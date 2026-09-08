@@ -30,12 +30,16 @@ def _mock_response(response_text: str, done_reason: str = None):
 def test_extract_parses_assertions():
     # Neither line carries an inline "| <path>" suffix, so a path-proposal call
     # fires for each assertion (mandatory path, 2026-09-04 amendment to TASK-001e).
+    # Plus one trailing call for the context fallback (TASK-014b): no
+    # inbox_dirname/vault_root/domain in context here, so _derive_source_context
+    # returns None and the one-shot LLM fallback fires.
     provider = OllamaProvider(OllamaProviderConfig())
     provider.requests = Mock()
     provider.requests.post.side_effect = [
         _mock_response("direct: The sky is blue.\ninferred: It rained recently."),
         _mock_response("weather/observations"),
         _mock_response("weather/rain"),
+        _mock_response("none"),
     ]
 
     result = provider.extract("some source text", {"source_path": "test.md"})
@@ -46,8 +50,10 @@ def test_extract_parses_assertions():
     assert result.assertions[1].epistemic_status == "inferred"
     assert result.assertions[0].proposed_path_segments == ["weather", "observations"]
     assert result.assertions[1].proposed_path_segments == ["weather", "rain"]
+    assert result.assertions[0].context is None
+    assert result.assertions[1].context is None
 
-    assert provider.requests.post.call_count == 3
+    assert provider.requests.post.call_count == 4
     call_kwargs = provider.requests.post.call_args_list[0].kwargs
     assert call_kwargs["json"]["model"] == "llama3"
     assert call_kwargs["timeout"] == 60
@@ -116,12 +122,13 @@ def test_extract_no_path_suffix_triggers_path_proposal_call():
     provider.requests.post.side_effect = [
         _mock_response("direct: The sky is blue."),
         _mock_response("meteorologie/observations"),
+        _mock_response("none"),
     ]
 
     result = provider.extract("text", {})
 
     assert result.assertions[0].proposed_path_segments == ["meteorologie", "observations"]
-    assert provider.requests.post.call_count == 2
+    assert provider.requests.post.call_count == 3
     second_call_prompt = provider.requests.post.call_args_list[1].kwargs["json"]["prompt"]
     assert "The sky is blue." in second_call_prompt
     assert "(none yet)" in second_call_prompt  # no vault_root/domain in context
@@ -135,12 +142,13 @@ def test_extract_empty_path_suffix_triggers_path_proposal_call():
     provider.requests.post.side_effect = [
         _mock_response("direct: The sky is blue. |   "),
         _mock_response("meteorologie/observations"),
+        _mock_response("none"),
     ]
 
     result = provider.extract("text", {})
 
     assert result.assertions[0].proposed_path_segments == ["meteorologie", "observations"]
-    assert provider.requests.post.call_count == 2
+    assert provider.requests.post.call_count == 3
 
 
 def test_extract_only_calls_path_proposal_for_assertions_missing_one():
@@ -153,13 +161,14 @@ def test_extract_only_calls_path_proposal_for_assertions_missing_one():
             "direct: Has a path. | mythologie/japonaise\ninferred: Missing a path."
         ),
         _mock_response("meteorologie/observations"),
+        _mock_response("none"),
     ]
 
     result = provider.extract("text", {})
 
     assert result.assertions[0].proposed_path_segments == ["mythologie", "japonaise"]
     assert result.assertions[1].proposed_path_segments == ["meteorologie", "observations"]
-    assert provider.requests.post.call_count == 2
+    assert provider.requests.post.call_count == 3
 
 
 def test_path_proposal_retries_then_succeeds():
@@ -170,12 +179,13 @@ def test_path_proposal_retries_then_succeeds():
         _mock_response("direct: The sky is blue."),
         _mock_response(""),
         _mock_response("meteorologie/observations"),
+        _mock_response("none"),
     ]
 
     result = provider.extract("text", {})
 
     assert result.assertions[0].proposed_path_segments == ["meteorologie", "observations"]
-    assert provider.requests.post.call_count == 3
+    assert provider.requests.post.call_count == 4
 
 
 def test_path_proposal_falls_back_after_exhausting_retries():
@@ -187,12 +197,13 @@ def test_path_proposal_falls_back_after_exhausting_retries():
         _mock_response(""),
         _mock_response("   "),
         _mock_response(""),
+        _mock_response("none"),
     ]
 
     result = provider.extract("text", {})
 
     assert result.assertions[0].proposed_path_segments == ["uncategorized"]
-    assert provider.requests.post.call_count == 4
+    assert provider.requests.post.call_count == 5
 
 
 def test_path_proposal_swallows_errors_during_retry_then_falls_back():
@@ -205,6 +216,7 @@ def test_path_proposal_swallows_errors_during_retry_then_falls_back():
         ConnectionError("boom"),
         ConnectionError("boom"),
         ConnectionError("boom"),
+        _mock_response("none"),
     ]
 
     result = provider.extract("text", {})
@@ -221,6 +233,7 @@ def test_extract_passes_existing_vault_folders_to_path_prompt(tmp_path):
     provider.requests.post.side_effect = [
         _mock_response("direct: A fact."),
         _mock_response("mythologie/japonaise"),
+        _mock_response("none"),
     ]
 
     provider.extract("text", {"vault_root": str(vault_root), "domain": "FICTION"})
@@ -255,6 +268,7 @@ def test_extract_merges_accepted_and_pending_proposal_folders_into_context(tmp_p
     provider.requests.post.side_effect = [
         _mock_response("direct: A fact."),
         _mock_response("geographie"),
+        _mock_response("none"),
     ]
 
     provider.extract("text", {"vault_root": str(vault_root), "domain": "FICTION"})
@@ -390,6 +404,7 @@ def test_extract_applies_normalization_to_second_call_response():
     provider.requests.post.side_effect = [
         _mock_response("direct: Fact."),
         _mock_response("Système / Tatouages&Rituels"),
+        _mock_response("none"),
     ]
 
     result = provider.extract("text", {})
@@ -406,6 +421,7 @@ def test_extract_within_batch_reuses_earlier_assertions_path_as_context():
         _mock_response("direct: First fact.\ninferred: Second fact."),
         _mock_response("mythologie/kitsune"),
         _mock_response("mythologie/kitsune"),
+        _mock_response("none"),
     ]
 
     result = provider.extract("text", {})
@@ -416,6 +432,170 @@ def test_extract_within_batch_reuses_earlier_assertions_path_as_context():
     second_assertion_prompt = provider.requests.post.call_args_list[2].kwargs["json"]["prompt"]
     assert "mythologie/kitsune" in second_assertion_prompt
     assert "(none yet)" not in second_assertion_prompt
+
+
+# --- TASK-014b: context derivation (ADI-016) ---
+
+def _folder_watch_context(vault_root, domain, source_path, inbox_dirname="_inbox", processed_dirname="processed"):
+    return {
+        "source_path": str(source_path), "vault_root": str(vault_root), "domain": domain,
+        "inbox_dirname": inbox_dirname, "processed_dirname": processed_dirname,
+    }
+
+
+def test_derive_source_context_none_for_file_directly_in_inbox(tmp_path):
+    # AC1: no subfolder.
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "file.md")
+
+    assert provider._derive_source_context(context) is None
+
+
+def test_derive_source_context_returns_normalized_first_subfolder(tmp_path):
+    # AC2: one level deep.
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "sport" / "file.md")
+
+    assert provider._derive_source_context(context) == "sport"
+
+
+def test_derive_source_context_none_outside_inbox_tree(tmp_path):
+    # AC3: manually-triggered ingestion of an arbitrary path outside _inbox/ entirely.
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(tmp_path, "PERSONAL", tmp_path / "elsewhere" / "file.md")
+
+    assert provider._derive_source_context(context) is None
+
+
+@pytest.mark.parametrize(
+    "missing_key",
+    ["source_path", "vault_root", "domain", "inbox_dirname", "processed_dirname"],
+)
+def test_derive_source_context_none_when_context_key_missing(tmp_path, missing_key):
+    # AC4: never raises, degrades to None.
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "sport" / "file.md")
+    del context[missing_key]
+
+    assert provider._derive_source_context(context) is None
+
+
+def test_derive_source_context_normalizes_dirty_folder_name(tmp_path):
+    # AC5: accents/HTML entities/mixed case normalized via _normalize_path_string,
+    # same as a taxonomy segment.
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(
+        tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "Système&amp;Rituels" / "file.md"
+    )
+
+    assert provider._derive_source_context(context) == "systeme-rituels"
+
+
+def test_derive_source_context_skips_processed_dirname_segment(tmp_path):
+    # AC15: the post-move watcher path (_inbox/processed/sport/file.md) still
+    # resolves to "sport" - the processed_dirname segment is skipped, not
+    # mistaken for the context.
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(
+        tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "processed" / "sport" / "file.md"
+    )
+
+    assert provider._derive_source_context(context) == "sport"
+
+
+def test_derive_source_context_none_for_processed_file_with_no_subfolder(tmp_path):
+    # AC15: a file moved straight to _inbox/processed/file.md (no subfolder)
+    # still returns None - AC1's rule, unchanged by the processed_dirname skip.
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(
+        tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "processed" / "file.md"
+    )
+
+    assert provider._derive_source_context(context) is None
+
+
+def test_extract_applies_folder_derived_context_to_every_item_in_batch(tmp_path):
+    # AC6: once per note, applied identically to every assertion in a multi-item batch -
+    # no LLM fallback call needed since the folder signal resolved.
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    provider.requests.post.return_value = _mock_response(
+        "direct: First fact. | a/b\ninferred: Second fact. | a/b"
+    )
+
+    context = _folder_watch_context(tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "sport" / "file.md")
+    result = provider.extract("text", context)
+
+    assert result.assertions[0].context == "sport"
+    assert result.assertions[1].context == "sport"
+    # Only the initial extraction call - no path-proposal call (inline paths
+    # present) and no context-fallback call (folder signal resolved it).
+    assert provider.requests.post.call_count == 1
+
+
+def test_extract_llm_fallback_called_once_per_extract_call_not_per_item(tmp_path):
+    # AC7: no folder signal (context={}) - the LLM fallback fires exactly once
+    # for the whole batch, not once per assertion.
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    provider.requests.post.side_effect = [
+        _mock_response("direct: First fact. | a/b\ninferred: Second fact. | a/b"),
+        _mock_response("tatouages"),
+    ]
+
+    result = provider.extract("text", {})
+
+    assert result.assertions[0].context == "tatouages"
+    assert result.assertions[1].context == "tatouages"
+    assert provider.requests.post.call_count == 2
+
+
+def test_extract_llm_fallback_confident_response_sets_context(tmp_path):
+    # AC8.
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    provider.requests.post.side_effect = [
+        _mock_response("direct: A fact. | a/b"),
+        _mock_response("autre-roman"),
+    ]
+
+    result = provider.extract("text", {})
+
+    assert result.assertions[0].context == "autre-roman"
+
+
+def test_extract_llm_fallback_ambiguous_response_sets_none(tmp_path):
+    # AC9: an ambiguous/empty response resolves to None - not retried further
+    # (a successful, confident "no" answer, distinct from a failure).
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    provider.requests.post.side_effect = [
+        _mock_response("direct: A fact. | a/b"),
+        _mock_response("none"),
+    ]
+
+    result = provider.extract("text", {})
+
+    assert result.assertions[0].context is None
+    assert provider.requests.post.call_count == 2
+
+
+def test_extract_llm_fallback_exhausted_retries_sets_none_never_forced_value(tmp_path):
+    # AC9: exhausting PATH_PROPOSAL_MAX_ATTEMPTS (3) retries on repeated errors
+    # degrades to None - never a forced non-empty value (deliberate contrast
+    # with FALLBACK_PATH_SEGMENTS).
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    provider.requests.post.side_effect = [
+        _mock_response("direct: A fact. | a/b"),
+        ConnectionError("boom"),
+        ConnectionError("boom"),
+        ConnectionError("boom"),
+    ]
+
+    result = provider.extract("text", {})
+
+    assert result.assertions[0].context is None
 
 
 def test_missing_requests_dependency_raises_import_error(monkeypatch):

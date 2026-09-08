@@ -112,6 +112,7 @@ def test_non_mapping_top_level_yaml_raises_config_error(tmp_path):
         "retrieval: 5\n",
         "task_state: 5\n",
         "default: 5\n",
+        "folder_watch: 5\n",
     ],
 )
 def test_non_mapping_nested_section_raises_config_error(tmp_path, yaml_content):
@@ -143,3 +144,37 @@ def test_negative_timeout_via_env_var_raises_config_error(tmp_path, monkeypatch)
 
     with pytest.raises(ConfigError):
         load_config(path=tmp_path / "does_not_exist.yaml")
+
+
+# TASK-014b/TASK-001f: folder_watch section (ADI-013)
+
+def test_non_positive_poll_interval_seconds_raises_config_error(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("folder_watch:\n  poll_interval_seconds: 0\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        load_config(path=config_file)
+
+
+def test_non_integer_poll_interval_seconds_raises_config_error(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("folder_watch:\n  poll_interval_seconds: soon\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        load_config(path=config_file)
+
+
+def test_empty_inbox_dirname_raises_config_error(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("folder_watch:\n  inbox_dirname: ''\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        load_config(path=config_file)
+
+
+def test_empty_processed_dirname_raises_config_error(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("folder_watch:\n  processed_dirname: ''\n", encoding="utf-8")
+
+    with pytest.raises(ConfigError):
+        load_config(path=config_file)

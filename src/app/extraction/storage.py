@@ -138,6 +138,7 @@ def write_source_file(vault_root: Path, domain: str, content: str) -> str:
 def _base_proposal_frontmatter(
     proposal_id: str, domain: str, source_id: str, extraction_provider: str,
     proposed_item_type: str, epistemic_status: str, proposed_path_segments: list[str],
+    context: Optional[str] = None,
 ) -> dict[str, Any]:
     _validate_epistemic_status(epistemic_status)
     now = datetime.now().isoformat()
@@ -157,6 +158,7 @@ def _base_proposal_frontmatter(
         "valid_from": now,
         "valid_until": None,
         "proposed_path_segments": proposed_path_segments,
+        "context": context,
     }
 
 
@@ -166,7 +168,7 @@ def write_entity_proposal_file(
     proposal_id = _generate_proposal_id()
     frontmatter = _base_proposal_frontmatter(
         proposal_id, domain, source_id, extraction_provider, "entity", entity.epistemic_status,
-        entity.proposed_path_segments,
+        entity.proposed_path_segments, entity.context,
     )
     frontmatter["entity_type"] = entity.entity_type
 
@@ -185,7 +187,7 @@ def write_event_proposal_file(
     proposal_id = _generate_proposal_id()
     frontmatter = _base_proposal_frontmatter(
         proposal_id, domain, source_id, extraction_provider, "event", event.epistemic_status,
-        event.proposed_path_segments,
+        event.proposed_path_segments, event.context,
     )
     frontmatter["starts_at"] = event.starts_at
     frontmatter["ends_at"] = event.ends_at
@@ -208,7 +210,7 @@ def write_relationship_proposal_file(
     proposal_id = _generate_proposal_id()
     frontmatter = _base_proposal_frontmatter(
         proposal_id, domain, source_id, extraction_provider, "relationship", relationship.epistemic_status,
-        relationship.proposed_path_segments,
+        relationship.proposed_path_segments, relationship.context,
     )
     frontmatter["relationship_type"] = relationship.relationship_type
     frontmatter["endpoints"] = resolved_endpoints

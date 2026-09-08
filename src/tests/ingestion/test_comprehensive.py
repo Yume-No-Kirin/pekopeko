@@ -105,14 +105,22 @@ def test_acceptance_criteria_compliance():
         print("✓ Criterion 3: Duplicate detection works correctly")
 
         # Test Criterion 4: Error handling preserves data integrity
-        # Test with a provider that raises an exception
+        # Test with a provider that raises an exception. Uses distinct content
+        # (and thus a distinct source_id) from Criterion 1/3 so TASK-001d's
+        # duplicate-detection (skips ingestion when a prior task already
+        # completed for this source_id) doesn't short-circuit before the
+        # provider is even called.
+        error_source_file = Path(tmpdir) / "test_error.md"
+        with open(error_source_file, 'w') as f:
+            f.write("# Different Document\n\nDistinct content so this does not collide with Criterion 1's source_id.")
+
         provider_error = Mock()
         provider_error.extract.side_effect = Exception("Provider error")
 
         result_error = ingest_source(
             vault_root=vault_root,
             domain="PERSONAL",
-            source_path=source_file,
+            source_path=error_source_file,
             provider=provider_error
         )
 
@@ -148,10 +156,16 @@ def test_acceptance_criteria_compliance():
 
         mock_provider = MockProvider()
 
+        # Distinct content again (see Criterion 4 above) so this isn't caught
+        # by TASK-001d's duplicate-detection against Criterion 1's source_id.
+        ext_source_file = Path(tmpdir) / "test_ext.md"
+        with open(ext_source_file, 'w') as f:
+            f.write("# Extensibility Document\n\nYet another distinct source_id for Criterion 6.")
+
         result_ext = ingest_source(
             vault_root=vault_root,
             domain="PERSONAL",
-            source_path=source_file,
+            source_path=ext_source_file,
             provider=mock_provider
         )
 
@@ -163,14 +177,18 @@ def test_acceptance_criteria_compliance():
         # Test Criterion 7: All assertions have valid epistemic_status values
         # This was already tested above with the assertions having proper statuses
 
-        # Verify all assertions have valid epistemic status
-        proposal_path = vault_root / "PERSONAL" / "proposals" / result.proposal_ids[0] / f"{result.proposal_ids[0]}.md"
-        with open(proposal_path, 'r') as f:
-            content = f.read()
+        # Verify all assertions have valid epistemic status. Criterion 1 created
+        # 3 proposals (direct/inferred/uncertain) - check across all of them,
+        # not just proposal_ids[0], which only ever carries "direct".
+        all_proposals_content = ""
+        for proposal_id in result.proposal_ids:
+            proposal_path = vault_root / "PERSONAL" / "proposals" / proposal_id / f"{proposal_id}.md"
+            with open(proposal_path, 'r') as f:
+                all_proposals_content += f.read()
 
-        assert "epistemic_status: direct" in content
-        assert "epistemic_status: inferred" in content
-        assert "epistemic_status: uncertain" in content
+        assert "epistemic_status: direct" in all_proposals_content
+        assert "epistemic_status: inferred" in all_proposals_content
+        assert "epistemic_status: uncertain" in all_proposals_content
 
         print("✓ Criterion 7: All assertions have valid epistemic_status values")
 

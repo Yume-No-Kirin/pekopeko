@@ -251,6 +251,7 @@ def accept_proposal(vault_root: Path, domain: str, proposal_id: str, reviewer_id
 
     if proposed_item_type == "assertion":
         item_id = storage._generate_assertion_id()
+        context = frontmatter.get("context")
         item_frontmatter = {
             "id": item_id,
             "type": "assertion",
@@ -260,16 +261,18 @@ def accept_proposal(vault_root: Path, domain: str, proposal_id: str, reviewer_id
             "valid_from": frontmatter["valid_from"],
             "valid_until": frontmatter["valid_until"],
             "created_at": now,
+            "context": context,
             "provenance": base_provenance,
         }
         path_segments = frontmatter.get("proposed_path_segments") or []
         # Must fully succeed (atomic write) before the proposal is touched: a failed
         # canonical write must leave the proposal at PROPOSED, never partially accepted.
         written_path = storage.write_assertion_file(
-            vault_root, domain, item_frontmatter, body, path_segments=path_segments
+            vault_root, domain, item_frontmatter, body, path_segments=path_segments, context=context
         )
     elif proposed_item_type == "entity":
         item_id = storage._generate_entity_id()
+        context = frontmatter.get("context")
         item_frontmatter = {
             "id": item_id,
             "type": "entity",
@@ -280,14 +283,16 @@ def accept_proposal(vault_root: Path, domain: str, proposal_id: str, reviewer_id
             "valid_from": frontmatter["valid_from"],
             "valid_until": frontmatter["valid_until"],
             "created_at": now,
+            "context": context,
             "provenance": base_provenance,
         }
         path_segments = frontmatter.get("proposed_path_segments") or []
         written_path = storage.write_entity_file(
-            vault_root, domain, item_frontmatter, body, path_segments=path_segments
+            vault_root, domain, item_frontmatter, body, path_segments=path_segments, context=context
         )
     elif proposed_item_type == "event":
         item_id = storage._generate_event_id()
+        context = frontmatter.get("context")
         item_frontmatter = {
             "id": item_id,
             "type": "event",
@@ -299,11 +304,12 @@ def accept_proposal(vault_root: Path, domain: str, proposal_id: str, reviewer_id
             "valid_from": frontmatter["valid_from"],
             "valid_until": frontmatter["valid_until"],
             "created_at": now,
+            "context": context,
             "provenance": base_provenance,
         }
         path_segments = frontmatter.get("proposed_path_segments") or []
         written_path = storage.write_event_file(
-            vault_root, domain, item_frontmatter, body, path_segments=path_segments
+            vault_root, domain, item_frontmatter, body, path_segments=path_segments, context=context
         )
     else:
         assert proposed_item_type == "relationship"
@@ -311,6 +317,7 @@ def accept_proposal(vault_root: Path, domain: str, proposal_id: str, reviewer_id
         # file is written (validate-then-write ordering; INV-001 no auto-cascade).
         resolved_endpoints = _resolve_relationship_endpoints(vault_root, domain, frontmatter["endpoints"])
         item_id = storage._generate_relationship_id()
+        context = frontmatter.get("context")
         item_frontmatter = {
             "id": item_id,
             "type": "relationship",
@@ -322,11 +329,12 @@ def accept_proposal(vault_root: Path, domain: str, proposal_id: str, reviewer_id
             "valid_from": frontmatter["valid_from"],
             "valid_until": frontmatter["valid_until"],
             "created_at": now,
+            "context": context,
             "provenance": base_provenance,
         }
         path_segments = frontmatter.get("proposed_path_segments") or []
         written_path = storage.write_relationship_file(
-            vault_root, domain, item_frontmatter, body, path_segments=path_segments
+            vault_root, domain, item_frontmatter, body, path_segments=path_segments, context=context
         )
 
     frontmatter["proposal_status"] = "ACCEPTED"

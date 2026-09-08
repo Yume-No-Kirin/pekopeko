@@ -32,7 +32,7 @@ def test_import_isolation():
     # This test verifies the static analysis requirement (Criterion 2)
     # We'll check that no direct imports of requests or similar libraries exist in pipeline.py
 
-    pipeline_content = Path("app/ingestion/pipeline.py").read_text()
+    pipeline_content = (Path(__file__).resolve().parents[2] / "app" / "ingestion" / "pipeline.py").read_text(encoding="utf-8")
 
     # Verify no direct imports of http libraries or LLM SDKs
     assert "import requests" not in pipeline_content
@@ -555,6 +555,67 @@ def test_scan_proposed_path_segments_filters_out_non_assertion_proposals(tmp_pat
     assert scan_proposed_path_segments(tmp_path, "FICTION") == ["mythologie/kitsune"]
 
 
+# TASK-014a: context field (ADI-016) - scoped scan
+
+def test_scan_existing_assertion_folders_no_context_matches_current_behavior(tmp_path):
+    """AC9: context omitted or None behaves exactly as before TASK-014a."""
+    base = tmp_path / "FICTION" / "assertions"
+    (base / "mythologie" / "assert-1").mkdir(parents=True)
+
+    assert scan_existing_assertion_folders(tmp_path, "FICTION") == (
+        scan_existing_assertion_folders(tmp_path, "FICTION", context=None)
+    )
+
+
+def test_scan_existing_assertion_folders_scoped_to_context_subtree(tmp_path):
+    """AC10: only paths from within <domain>/assertions/<context>/ are returned."""
+    base = tmp_path / "FICTION" / "assertions"
+    (base / "tatouages" / "personnages" / "assert-1").mkdir(parents=True)
+    (base / "autre-roman" / "personnages" / "assert-2").mkdir(parents=True)
+
+    result = scan_existing_assertion_folders(tmp_path, "FICTION", context="tatouages")
+
+    assert result == ["personnages"]
+
+
+def test_scan_existing_assertion_folders_context_subtree_missing_returns_empty(tmp_path):
+    base = tmp_path / "FICTION" / "assertions"
+    (base / "autre-roman" / "assert-1").mkdir(parents=True)
+
+    assert scan_existing_assertion_folders(tmp_path, "FICTION", context="tatouages") == []
+
+
+def test_scan_proposed_path_segments_no_context_returns_everything_regardless_of_context_field(tmp_path):
+    """AC10 sibling behavior: context=None (the default) must keep returning
+    every matching proposal, including ones that now carry a non-null context -
+    the `is not None` guard regression this ticket must not silently break."""
+    proposals_dir = tmp_path / "FICTION" / "proposals"
+    _write_raw_proposal(proposals_dir, "prop-with-context", {
+        "proposal_status": "PROPOSED", "context": "tatouages",
+        "proposed_path_segments": ["personnages"],
+    })
+    _write_raw_proposal(proposals_dir, "prop-without-context", {
+        "proposal_status": "PROPOSED", "proposed_path_segments": ["geographie"],
+    })
+
+    assert scan_proposed_path_segments(tmp_path, "FICTION") == ["geographie", "personnages"]
+
+
+def test_scan_proposed_path_segments_scoped_to_context(tmp_path):
+    """AC10: results filtered to proposals whose own context field matches."""
+    proposals_dir = tmp_path / "FICTION" / "proposals"
+    _write_raw_proposal(proposals_dir, "prop-tatouages", {
+        "proposal_status": "PROPOSED", "context": "tatouages",
+        "proposed_path_segments": ["personnages"],
+    })
+    _write_raw_proposal(proposals_dir, "prop-autre-roman", {
+        "proposal_status": "PROPOSED", "context": "autre-roman",
+        "proposed_path_segments": ["geographie"],
+    })
+
+    assert scan_proposed_path_segments(tmp_path, "FICTION", context="tatouages") == ["personnages"]
+
+
 def test_ingest_source_passes_vault_root_and_domain_to_provider_context():
     # 2026-09-04 amendment: OllamaProvider needs vault_root/domain in context to scan
     # existing folders for its mandatory path-proposal call.
@@ -576,6 +637,29 @@ def test_ingest_source_passes_vault_root_and_domain_to_provider_context():
         assert context["domain"] == "PERSONAL"
 
         print("✓ ingest_source passes vault_root/domain to provider.extract's context")
+
+
+def test_ingest_source_passes_folder_watch_dirnames_to_provider_context():
+    # TASK-014b: OllamaProvider needs inbox_dirname/processed_dirname in context
+    # to derive `context` from the source file's own folder location.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault_root = Path(tmpdir) / "vault"
+        source_file = Path(tmpdir) / "test.md"
+        with open(source_file, 'w') as f:
+            f.write("# Test Document\n\nThis is a test.")
+
+        provider = Mock()
+        provider.extract.return_value = ExtractionResult(
+            assertions=[ExtractedAssertion(text="Fact", epistemic_status="direct")]
+        )
+
+        ingest_source(vault_root=vault_root, domain="PERSONAL", source_path=source_file, provider=provider)
+
+        context = provider.extract.call_args.args[1]
+        assert context["inbox_dirname"] == "_inbox"
+        assert context["processed_dirname"] == "processed"
+
+        print("✓ ingest_source passes inbox_dirname/processed_dirname to provider.extract's context")
 
 
 def test_ingest_source_signature_unchanged():
@@ -948,6 +1032,93 @@ def test_retry_after_failure_event_message_distinct(tmp_path):
     assert "Existing source reused, retrying ingestion" in messages
     assert "Duplicate source detected, skipping ingestion" not in messages
     assert "Source file written" not in messages
+
+
+# TASK-014b: end-to-end context derivation (AC13-14), real OllamaProvider
+# with mocked requests.post (no real network call).
+
+def test_ingest_source_end_to_end_derives_context_from_source_folder(tmp_path):
+    """AC13: ingesting a hand-placed file at .../PERSONAL/_inbox/sport/note.md
+    via ingest_source directly produces Proposals whose context is "sport"."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    source_file = vault_root / "PERSONAL" / "_inbox" / "sport" / "note.md"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_text("# Suivi calories\n\nContenu sur le sport.", encoding="utf-8")
+
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    response = Mock()
+    response.raise_for_status = Mock()
+    response.json.return_value = {"response": "direct: A fact about sport. | a/b"}
+    provider.requests.post.return_value = response
+
+    result = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+
+    assert result.status == "completed"
+    frontmatter = _read_proposal_frontmatter(vault_root, "PERSONAL", result.proposal_ids[0])
+    assert frontmatter["context"] == "sport"
+
+
+def test_ingest_source_end_to_end_derives_context_from_post_move_processed_path(tmp_path):
+    """AC13/AC15: the same test run against the post-move
+    _inbox/processed/sport/note.md path (the shape the watcher actually
+    dispatches with, per TASK-001f's move-before-dispatch ordering) produces
+    the identical result - the processed_dirname segment is skipped, not
+    mistaken for the context."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    source_file = vault_root / "PERSONAL" / "_inbox" / "processed" / "sport" / "note.md"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_text("# Suivi calories\n\nContenu sur le sport.", encoding="utf-8")
+
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    response = Mock()
+    response.raise_for_status = Mock()
+    response.json.return_value = {"response": "direct: A fact about sport. | a/b"}
+    provider.requests.post.return_value = response
+
+    result = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+
+    assert result.status == "completed"
+    frontmatter = _read_proposal_frontmatter(vault_root, "PERSONAL", result.proposal_ids[0])
+    assert frontmatter["context"] == "sport"
+
+
+def test_duplicate_detection_unaffected_by_nested_inbox_path(tmp_path):
+    """AC14: recursion into _inbox/ subfolders does not change TASK-001d's
+    existing duplicate-detection behavior (content-hash-based, already
+    path-agnostic) - regression against test_duplicate_still_skips_after_
+    prior_completed_task, run with a nested source_path."""
+    vault_root = tmp_path / "vault"
+    state_dir = tmp_path / "state"
+    source_file = vault_root / "PERSONAL" / "_inbox" / "sport" / "note.md"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_text("# Test Document\n\nThis is a test.", encoding="utf-8")
+
+    provider = Mock()
+    provider.extract.return_value = ExtractionResult(assertions=[])
+
+    result1 = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+    assert result1.status == "completed"
+
+    result2 = ingest_source(
+        vault_root=vault_root, domain="PERSONAL", source_path=source_file,
+        provider=provider, state_dir=state_dir
+    )
+    assert result2.status == "skipped_duplicate"
+    assert result2.source_id == result1.source_id
+    assert provider.extract.call_count == 1
 
 
 if __name__ == "__main__":

@@ -31,6 +31,7 @@ function makeDetail({
   ingestedAt = "2026-08-25T14:20:12",
   sourceBody = "# Source\n\nTexte source complet.",
   proposedPathSegments = [],
+  context = null,
   entityType,
   startsAt,
   endsAt,
@@ -51,6 +52,7 @@ function makeDetail({
       valid_until: validUntil,
       provenance: { source_id: sourceId, extraction_provider: extractionProvider, ...provenanceExtra },
       proposed_path_segments: proposedPathSegments,
+      context,
       entity_type: entityType,
       starts_at: startsAt,
       ends_at: endsAt,
@@ -407,6 +409,7 @@ describe("ProposalDetail", () => {
         valid_from: "2026-08-25T00:00:00",
         valid_until: null,
         proposed_path_segments: [],
+        context: null,
       },
     });
 
@@ -506,7 +509,11 @@ describe("ProposalDetail", () => {
 
   it("TASK-014 AC18: outside edit mode with no proposed_path_segments renders a placeholder without crashing", async () => {
     global.fetch = makeFetchMock({
-      detailsById: { p1: makeDetail({ id: "p1", proposedPathSegments: [], validUntil: "2026-12-31T00:00:00" }) },
+      detailsById: {
+        p1: makeDetail({
+          id: "p1", proposedPathSegments: [], validUntil: "2026-12-31T00:00:00", context: "tatouages",
+        }),
+      },
     });
     renderDetailAtRoute("/validation/PERSONAL/p1");
 
@@ -552,6 +559,86 @@ describe("ProposalDetail", () => {
     );
     expect(JSON.parse(editCall[1].body).field_updates.proposed_path_segments).toEqual(["mythologie"]);
   });
+
+  it("TASK-014a AC11: outside edit mode renders the context value read-only, for all 4 types", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", context: "tatouages" }) },
+    });
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    expect(screen.getByText("Contexte")).toBeInTheDocument();
+    expect(screen.getByText("tatouages")).toBeInTheDocument();
+  });
+
+  it("TASK-014a AC11: outside edit mode with no context renders a placeholder without crashing", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", context: null }) },
+    });
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    expect(screen.getByText("Contexte")).toBeInTheDocument();
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+  });
+
+  it("TASK-014a AC12: entering edit mode seeds the context input from frontmatter.context", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", context: "tatouages" }) },
+    });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    await user.click(screen.getByRole("button", { name: /Éditer/ }));
+
+    expect(screen.getByRole("textbox", { name: "Contexte" })).toHaveValue("tatouages");
+  });
+
+  it("TASK-014a AC12: Sauvegarder includes the edited context in field_updates", async () => {
+    global.fetch = makeFetchMock({
+      detailsById: { p1: makeDetail({ id: "p1", context: "tatouages" }) },
+    });
+    const user = userEvent.setup();
+    renderDetailAtRoute("/validation/PERSONAL/p1");
+
+    await screen.findByText("Contenu de test");
+    await user.click(screen.getByRole("button", { name: /Éditer/ }));
+    const contextInput = screen.getByRole("textbox", { name: "Contexte" });
+    await user.clear(contextInput);
+    await user.type(contextInput, "autre-roman");
+
+    global.fetch.mockClear();
+    await user.click(screen.getByRole("button", { name: /Sauvegarder/ }));
+
+    const editCall = await waitFor(() =>
+      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/edit"))
+    );
+    expect(JSON.parse(editCall[1].body).field_updates.context).toBe("autre-roman");
+  });
+
+  it.each(["entity", "event", "relationship"])(
+    "TASK-014a AC11/AC12: renders and edits context for %s proposals too",
+    async (itemType) => {
+      const extra =
+        itemType === "entity"
+          ? { entityType: "person" }
+          : itemType === "event"
+          ? { startsAt: "2026-08-01T10:00:00" }
+          : { relationshipType: "attended", endpoints: [] };
+      global.fetch = makeFetchMock({
+        detailsById: { p1: makeDetail({ id: "p1", itemType, context: "tatouages", ...extra }) },
+      });
+      const user = userEvent.setup();
+      renderDetailAtRoute("/validation/PERSONAL/p1");
+
+      await screen.findByText("Contenu de test");
+      expect(screen.getByText("tatouages")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /Éditer/ }));
+      expect(screen.getByRole("textbox", { name: "Contexte" })).toHaveValue("tatouages");
+    }
+  );
 
   it("TASK-005a AC16: shows the Éditer button for entity/event/relationship proposals too", async () => {
     global.fetch = makeFetchMock({

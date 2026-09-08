@@ -8,6 +8,7 @@ from .errors import ConfigError
 from .loader import load_config
 from .schema import (
     DefaultConfig,
+    FolderWatchConfig,
     LLMProviderConfig,
     OllamaProviderSettings,
     PekopekoConfig,
@@ -23,5 +24,6 @@ __all__ = [
     'RetrievalConfig',
     'TaskStateConfig',
     'DefaultConfig',
+    'FolderWatchConfig',
     'ConfigError',
 ]

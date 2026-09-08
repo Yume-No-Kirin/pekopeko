@@ -1,6 +1,6 @@
 # TASK-014a: Context Field — Storage, Path Placement, Scoped Scan (All Item Types)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -256,3 +256,60 @@ at least 80% coverage on every file touched.
 - Entity/relationship dedup-by-context (no dedup mechanism exists at all yet, see ADI-016).
 - A `context`-values suggestions endpoint/dropdown (see V1 scope decisions).
 - Retroactive relocation of already-canonical files.
+
+## Verification record (2026-09-08)
+
+Verified by Claude in the same session as implementation — same disclosed limitation as every prior
+ticket in this project: not a second independent reviewer. Implemented together with TASK-014b in
+one session at Cleo's explicit request; this record covers TASK-014a's own scope only (see
+TASK-014b's own file for its half). One deliberate deviation from the ticket's literal §Scope wording
+was confirmed with Cleo before implementing, not silently resolved: `accept_proposal`'s four branches
+write `"context"` as a real key into `item_frontmatter` (not just pass `context=` to `write_*_file`),
+matching ADI-016's explicit "first-class frontmatter field... queryable" language (it compares
+`context` directly to `valid_until`, an existing literal key) over the ticket's own "no other change
+to `accept_proposal`'s body" phrasing, which would have left `context` purely path-affecting like
+`proposed_path_segments` — the ticket text is arguably imprecise here, flagged rather than silently
+picked.
+
+- `[PASS]` `pytest src/tests/review --cov=src/app/review`: **181/181 pass**, 100% coverage on every
+  file in the package.
+- `[PASS]` `pytest src/tests/ingestion --cov=src/app/ingestion`: **139/139 pass** (scoped-scan tests
+  for this ticket, plus TASK-014b's own additions) plus the same 2 pre-existing, unrelated failures
+  every ticket since TASK-014 has documented (`test_comprehensive.py::test_acceptance_criteria_compliance`,
+  `test_pipeline.py::test_import_isolation`) — reconfirmed via `git stash`/re-run/`git stash pop` that
+  both fail identically without this session's changes.
+- `[PASS]` `npx vitest run` (frontend): **113/113 pass**, including the new `ContextValue.jsx` and its
+  usage in `ProposalDetail.jsx`/`Validation.jsx`.
+- `[PASS]` `npx vite build`: succeeds, no errors.
+- `[PASS]` Manual end-to-end reproduction (see TASK-014b's own Verification record — the two tickets
+  were verified together via one script exercising the full chain, since TASK-014a's structural half
+  has no independent effect without TASK-014b's value population).
+
+Acceptance criteria checked one by one:
+
+- `[PASS]` AC1 `assertion_path` no-context regression (byte-identical to pre-ticket output).
+- `[PASS]` AC2 `assertion_path(..., context="tatouages")` inserts under the type-plural folder.
+- `[PASS]` AC3 context precedes taxonomy segments when both are given.
+- `[PASS]` AC4 same regression + insertion behavior for `entity_path`/`event_path`/`relationship_path`.
+- `[PASS]` AC5 a `context` containing `/` or `..` is rejected (`ValidationError`) before any write,
+  for all 4 types — verified no directory is created on disk when rejected.
+- `[PASS]` AC6 `accept_proposal` with `context` in frontmatter writes to the context-segmented path,
+  for all 4 types, and (per the confirmed design decision above) the canonical file's own frontmatter
+  carries `context` too.
+- `[PASS]` AC7 `accept_proposal` with `context` absent/null writes the plain path, `context: null` in
+  the canonical frontmatter, no regression, for all 4 types.
+- `[PASS]` AC8 `context` accepted via `edit_proposal`'s `field_updates` for every `proposed_item_type`,
+  with a `history/` snapshot.
+- `[PASS]` AC9 `scan_existing_assertion_folders` no-context regression.
+- `[PASS]` AC10 `scan_existing_assertion_folders(..., context=...)` scoped to that subtree only;
+  `scan_proposed_path_segments` behaves symmetrically (frontmatter-filtered, since proposals have no
+  context subfolders) — including the `context=None` "still returns everything" regression guard a
+  naive unconditional filter would have silently broken.
+- `[PASS]` AC11 `ProposalDetail.jsx` renders `context` (or a clear empty state) for all 4 types outside
+  edit mode.
+- `[PASS]` AC12 edit mode seeds `draftContext`; Sauvegarder's `field_updates` includes `context` for
+  all 4 types.
+- `[PASS]` AC13 `Validation.jsx`'s `NoteRow` renders `context` read-only for all 4 types, no edit
+  affordance.
+- `[PASS]` AC14 no file under `src/app/extraction/` or `src/app/ingestion/providers/`/`pipeline.py` was
+  modified by this ticket's own commits (those changes belong to TASK-014b, tracked separately).

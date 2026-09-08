@@ -1,6 +1,6 @@
 # TASK-014b: Context Derivation — Source Folder, with LLM Fallback (Both Pipelines)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -242,3 +242,121 @@ ticket sits alongside, not modified).
 - Entity/relationship dedup-by-context (ADI-016, no mechanism exists to make context-aware).
 - Any UI (Settings screen or otherwise) to toggle or configure inbox recursion — `config.yaml`
   only, matching TASK-001f's own posture.
+
+## Verification record (2026-09-08)
+
+Verified by Claude in the same session as implementation — same disclosed limitation as every prior
+ticket in this project: not a second independent reviewer. Implemented together with TASK-014a at
+Cleo's explicit request, out of the roadmap's strict order (TASK-015 remained the "official" next
+action) — precedent already set by TASK-016/017/018/019.
+
+**TASK-001f absorbed into this ticket's implementation, as this ticket's own text anticipated.** This
+ticket's own "Files/modules concerned" said `src/app/ingestion/watcher.py` would be "implemented here
+if TASK-001f hasn't landed yet, or amended here if it has." TASK-001f was still 100% unbuilt (no
+`watcher.py` existed anywhere in the repo, confirmed by direct search before starting) when this
+session began — confirmed explicitly with Cleo before proceeding (not assumed) that this session
+should build TASK-001f's `FolderWatchConfig`/`scan_once`/`start_folder_watcher` machinery as part of
+this ticket, correctly recursive from the start rather than built flat then amended, since TASK-001f
+itself was never separately implemented. **TASK-001f's own file
+(`specs/tasks/backlog/TASK-001f-automatic-folder-ingestion.md`) is moved to `completed/` alongside
+this one, with a pointer back to this ticket** rather than getting its own separate implementation
+session — its full scope (config schema/loader, `scan_once`, `start_folder_watcher`, `api/app.py`
+wiring, all 13 of its own ACs) landed here, and its own AC set is folded into this ticket's own
+AC11-15 plus the embedded acceptance criteria below.
+
+Real gaps found during implementation, not anticipated by either ticket's text, fixed in the same
+session:
+- `scan_once`'s `rglob("*")` walk had to be materialized into a list before any move began — moving a
+  file into `processed/` while still walking the same tree, and a subfolder disappearing mid-scan
+  (the ticket's own stated constraint), both risk breaking the live iterator. Caught and fixed before
+  landing, not discovered as a bug afterward.
+- `scan_proposed_path_segments`' new `context` parameter needed an explicit `is not None` guard on the
+  filter — an unconditional equality check would have silently broken the `context=None` "return
+  everything" regression guarantee once real proposals started carrying non-null `context` values.
+- `run_in_background` and the `VALID_DOMAINS` literal are duplicated locally in `watcher.py` rather
+  than imported from `api/`, matching this codebase's own established "no module imports another
+  module's internals for shared constants" convention (and avoiding inverting the `api/` → `ingestion/`
+  dependency direction).
+- `api/app.py::create_app`'s new eager `build_configured_provider(config)` call is itself gated on
+  `config.folder_watch.enabled`, not left to `start_folder_watcher`'s own no-op check — otherwise a
+  disabled watcher would still pay the cost (and risk, e.g. a missing `requests` install) of
+  constructing a real provider at app-factory time for a feature that isn't even turned on.
+- `ingestion/storage.py::write_proposal_file` and `extraction/storage.py`'s three
+  `write_*_proposal_file` functions (plus the shared `_base_proposal_frontmatter` helper) needed an
+  explicit `context` passthrough from the `Extracted*` dataclass into the written Proposal's own
+  frontmatter — without it, `context` would be computed by the provider but never actually reach disk,
+  breaking the whole chain `accept_proposal` (TASK-014a) depends on reading from.
+
+- `[PASS]` `pytest src/tests/ingestion --cov=src/app/ingestion`: **139/139 pass**, `watcher.py` at 97%
+  coverage (only a defensive, effectively-unreachable `except ValueError` branch on
+  `entry.relative_to()` uncovered), every other touched file at 98-100%. Plus the same 2 pre-existing,
+  unrelated failures every ticket since TASK-014 has documented, reconfirmed via `git stash`/re-run/
+  `git stash pop`.
+- `[PASS]` `pytest src/tests/extraction --cov=src/app/extraction`: **114/114 pass**, 100% coverage on
+  every file in the package.
+- `[PASS]` `pytest src/tests/config --cov=src/app/config`: **46/46 pass**, 100% coverage.
+- `[PASS]` `pytest src/tests/api --cov=src/app/api`: **116/116 pass**, `app.py` at 94% (remaining gaps
+  are pre-existing/untouched: the `OPTIONS` early-return branch and the never-exercised `main()`
+  entrypoint — this ticket's own new code, the `folder_watch.enabled` branch, is fully covered).
+- `[PASS]` `npx vitest run` + `npx vite build` (frontend, shared with TASK-014a): **113/113 pass**,
+  build succeeds.
+- `[PASS]` Manual end-to-end reproduction, actually executed (not narrated): a script placing a
+  hand-built file at `<vault>/PERSONAL/_inbox/sport/suivi_calories.md`, calling `scan_once` directly
+  with `folder_watch.enabled=True` and a fake (non-network) provider mimicking
+  `OllamaProvider._derive_source_context`'s behavior. Confirmed: the file moves to
+  `_inbox/processed/sport/suivi_calories.md`; the dispatched background `ingest_source` task completes;
+  a Proposal is written with `context: "sport"` in its frontmatter; `accept_proposal` on that Proposal
+  writes the canonical file to `PERSONAL/assertions/sport/activites/<id>/<id>.md` (context-segmented
+  path, matching TASK-014a's own path placement) with `context: "sport"` in its own frontmatter and
+  the correct body. No real Ollama call — consistent with this ticket's own Testing requirements
+  (mocked/fake provider only).
+
+Acceptance criteria checked one by one:
+
+- `[PASS]` AC1 `_derive_source_context` (both pipelines) → `None` for a file directly in `_inbox/`.
+- `[PASS]` AC2 → normalized first-subfolder name one level deep.
+- `[PASS]` AC3 → `None` for a `source_path` outside the inbox tree entirely, no raise.
+- `[PASS]` AC4 → `None`, no raise, when any required context key is missing.
+- `[PASS]` AC5 dirty folder name normalized via the existing `_normalize_path_string`.
+- `[PASS]` AC6 folder-derived context applied identically to every item in a multi-item batch.
+- `[PASS]` AC7 LLM fallback called exactly once per `extract()` call, not once per item.
+- `[PASS]` AC8 confident fallback response sets `context` for every item in the batch.
+- `[PASS]` AC9 ambiguous/empty response or exhausted retries sets `context` to `None`, never forced
+  non-empty.
+- `[PASS]` AC10 `ingest_source`/`extract_source` public signatures unchanged (regression check).
+- `[PASS]` AC11 `scan_once` discovers a file nested one level under `_inbox/`, moves it mirrored (not
+  flattened) into `processed/`, dispatches with the post-move path that exists on disk at dispatch time.
+- `[PASS]` AC12 `scan_once` still skips the entire `processed/` subtree at any depth and
+  dotfiles/dot-directories.
+- `[PASS]` AC13 end-to-end: both `_inbox/sport/file.md` and `_inbox/processed/sport/file.md` produce
+  identical `context: "sport"` results (verified directly via `_derive_source_context` unit tests and
+  the manual end-to-end script above).
+- `[PASS]` AC14 recursion into `_inbox/` subfolders doesn't change TASK-001d's duplicate-detection
+  behavior — regression test against a nested `source_path`, content-hash-based skip still fires.
+- `[PASS]` AC15 `_derive_source_context` skips the `processed_dirname` segment, not mistaking it for
+  the context; a file moved straight to `_inbox/processed/file.md` with no subfolder still returns
+  `None`.
+
+Embedded TASK-001f acceptance criteria (absorbed into this ticket, see note above):
+
+- `[PASS]` `FolderWatchConfig` defaults load correctly when the section is absent from `config.yaml`.
+- `[PASS]` An explicit `folder_watch` section overrides any subset of its 4 fields, omitted fields keep
+  defaults.
+- `[PASS]` An invalid `poll_interval_seconds` (non-positive, non-integer) raises `ConfigError`, same as
+  empty `inbox_dirname`/`processed_dirname`.
+- `[PASS]` `enabled=False` → `start_folder_watcher` starts no thread, no observable side effect
+  (verified both directly and via `create_app()`, which now gates provider construction on `enabled`
+  too).
+- `[PASS]` `scan_once` dispatches a stable file with the post-move path, which exists on disk at
+  dispatch time.
+- `[PASS]` `scan_once` does not dispatch a file whose mtime is too recent.
+- `[PASS]` After a successful dispatch, the file is present in `processed/` (mirrored) and absent from
+  `_inbox/`.
+- `[PASS]` A name collision in `processed/` is resolved by suffixing, never overwriting.
+- `[PASS]` Dotfiles/dot-directories and the `processed_dirname` subfolder itself are never dispatched.
+- `[PASS]` A domain with no `_inbox/` yet does not raise — created (with `processed/`) on first tick,
+  contributes no dispatches.
+- `[PASS]` `scan_once` returns the dispatched `task_id`s for direct test assertion.
+- `[PASS]` `ingest_source`'s public signature is unchanged (regression check, shared with AC10 above).
+- `[PASS]` A failing move (patched `shutil.move`) dispatches nothing for that file, no task state
+  created; the tick completes and other files in the same `_inbox/` are still processed.

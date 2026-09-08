@@ -58,7 +58,11 @@ REQUIRED_ASSERTION_PROVENANCE_FIELDS = [
 # proposed_path_segments is common to all four types (TASK-005a, ADI-012 adoption
 # by entity/event/relationship) - unlike TASK-014's original assertion-only scoping,
 # there is no longer a type-specific reason to keep it out of the common set.
-_COMMON_EDITABLE_FIELDS = {"body", "epistemic_status", "valid_from", "valid_until", "proposed_path_segments"}
+# context is cross-type by design from the start (ADI-016/TASK-014a), unlike
+# proposed_path_segments' own type-scoped history.
+_COMMON_EDITABLE_FIELDS = {
+    "body", "epistemic_status", "valid_from", "valid_until", "proposed_path_segments", "context"
+}
 
 EDITABLE_FIELDS_BY_TYPE = {
     "assertion": _COMMON_EDITABLE_FIELDS,
@@ -132,40 +136,72 @@ def proposal_path(vault_root: Path, domain: str, proposal_id: str) -> Path:
 
 
 def assertion_path(
-    vault_root: Path, domain: str, assertion_id: str, path_segments: list[str] | None = None
+    vault_root: Path,
+    domain: str,
+    assertion_id: str,
+    path_segments: list[str] | None = None,
+    context: str | None = None,
 ) -> Path:
     _validate_path_segments(path_segments)
+    if context is not None:
+        _validate_path_segments([context])
     base = vault_root / domain / "assertions"
+    if context is not None:
+        base = base / context
     for segment in path_segments or []:
         base = base / segment
     return base / assertion_id / f"{assertion_id}.md"
 
 
 def entity_path(
-    vault_root: Path, domain: str, entity_id: str, path_segments: list[str] | None = None
+    vault_root: Path,
+    domain: str,
+    entity_id: str,
+    path_segments: list[str] | None = None,
+    context: str | None = None,
 ) -> Path:
     _validate_path_segments(path_segments)
+    if context is not None:
+        _validate_path_segments([context])
     base = vault_root / domain / "entities"
+    if context is not None:
+        base = base / context
     for segment in path_segments or []:
         base = base / segment
     return base / entity_id / f"{entity_id}.md"
 
 
 def event_path(
-    vault_root: Path, domain: str, event_id: str, path_segments: list[str] | None = None
+    vault_root: Path,
+    domain: str,
+    event_id: str,
+    path_segments: list[str] | None = None,
+    context: str | None = None,
 ) -> Path:
     _validate_path_segments(path_segments)
+    if context is not None:
+        _validate_path_segments([context])
     base = vault_root / domain / "events"
+    if context is not None:
+        base = base / context
     for segment in path_segments or []:
         base = base / segment
     return base / event_id / f"{event_id}.md"
 
 
 def relationship_path(
-    vault_root: Path, domain: str, relationship_id: str, path_segments: list[str] | None = None
+    vault_root: Path,
+    domain: str,
+    relationship_id: str,
+    path_segments: list[str] | None = None,
+    context: str | None = None,
 ) -> Path:
     _validate_path_segments(path_segments)
+    if context is not None:
+        _validate_path_segments([context])
     base = vault_root / domain / "relationships"
+    if context is not None:
+        base = base / context
     for segment in path_segments or []:
         base = base / segment
     return base / relationship_id / f"{relationship_id}.md"
@@ -305,11 +341,14 @@ def write_assertion_file(
     frontmatter: dict[str, Any],
     body: str,
     path_segments: list[str] | None = None,
+    context: str | None = None,
 ) -> Path:
     _validate_frontmatter(frontmatter, REQUIRED_ASSERTION_FIELDS)
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
 
-    path = assertion_path(vault_root, domain, frontmatter["id"], path_segments=path_segments)
+    path = assertion_path(
+        vault_root, domain, frontmatter["id"], path_segments=path_segments, context=context
+    )
     _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
     return path
 
@@ -320,11 +359,14 @@ def write_entity_file(
     frontmatter: dict[str, Any],
     body: str,
     path_segments: list[str] | None = None,
+    context: str | None = None,
 ) -> Path:
     _validate_frontmatter(frontmatter, REQUIRED_ENTITY_FIELDS)
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
 
-    path = entity_path(vault_root, domain, frontmatter["id"], path_segments=path_segments)
+    path = entity_path(
+        vault_root, domain, frontmatter["id"], path_segments=path_segments, context=context
+    )
     _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
     return path
 
@@ -335,11 +377,14 @@ def write_event_file(
     frontmatter: dict[str, Any],
     body: str,
     path_segments: list[str] | None = None,
+    context: str | None = None,
 ) -> Path:
     _validate_frontmatter(frontmatter, REQUIRED_EVENT_FIELDS)
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
 
-    path = event_path(vault_root, domain, frontmatter["id"], path_segments=path_segments)
+    path = event_path(
+        vault_root, domain, frontmatter["id"], path_segments=path_segments, context=context
+    )
     _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
     return path
 
@@ -350,11 +395,14 @@ def write_relationship_file(
     frontmatter: dict[str, Any],
     body: str,
     path_segments: list[str] | None = None,
+    context: str | None = None,
 ) -> Path:
     _validate_frontmatter(frontmatter, REQUIRED_RELATIONSHIP_FIELDS)
     _validate_frontmatter(frontmatter["provenance"], REQUIRED_ASSERTION_PROVENANCE_FIELDS)
 
-    path = relationship_path(vault_root, domain, frontmatter["id"], path_segments=path_segments)
+    path = relationship_path(
+        vault_root, domain, frontmatter["id"], path_segments=path_segments, context=context
+    )
     _write_atomic_file(path, serialize_frontmatter(frontmatter, body))
     return path
 

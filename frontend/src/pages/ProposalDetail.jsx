@@ -14,6 +14,7 @@ import RejectReasonModal from "../components/RejectReasonModal.jsx";
 import TaskEventLog from "../components/TaskEventLog.jsx";
 import ProvenanceSection from "../components/ProvenanceSection.jsx";
 import FolderPathBuilder from "../components/FolderPathBuilder.jsx";
+import ContextValue from "../components/ContextValue.jsx";
 import EntityTypeBadge from "../components/EntityTypeBadge.jsx";
 import EventTemporalRange from "../components/EventTemporalRange.jsx";
 import RelationshipEndpoints from "../components/RelationshipEndpoints.jsx";
@@ -51,6 +52,7 @@ export default function ProposalDetail() {
   const [draftValidFrom, setDraftValidFrom] = useState("");
   const [draftValidUntil, setDraftValidUntil] = useState("");
   const [draftPathSegments, setDraftPathSegments] = useState([]);
+  const [draftContext, setDraftContext] = useState("");
   const [folderOptions, setFolderOptions] = useState([]);
   const [endpointLabels, setEndpointLabels] = useState({});
   const endpointCacheRef = useRef(new Map());
@@ -166,6 +168,7 @@ export default function ProposalDetail() {
     setDraftValidFrom(frontmatter.valid_from || "");
     setDraftValidUntil(frontmatter.valid_until || "");
     setDraftPathSegments(frontmatter.proposed_path_segments || []);
+    setDraftContext(frontmatter.context || "");
     setActionError(null);
     setEditing(true);
     listOrganizationFolders(domain, frontmatter.proposed_item_type)
@@ -187,6 +190,7 @@ export default function ProposalDetail() {
           valid_from: draftValidFrom || null,
           valid_until: draftValidUntil || null,
           proposed_path_segments: draftPathSegments,
+          context: draftContext || null,
         },
       });
       const refreshed = await getProposal(domain, proposalId);
@@ -418,6 +422,22 @@ export default function ProposalDetail() {
                     </div>
                   </>
                 )}
+                <div className="metadata-row">
+                  <div className="metadata-label">Contexte</div>
+                  <div className="metadata-value">
+                    {editing ? (
+                      <input
+                        type="text"
+                        className="metadata-edit-input"
+                        aria-label="Contexte"
+                        value={draftContext}
+                        onChange={(e) => setDraftContext(e.target.value)}
+                      />
+                    ) : (
+                      <ContextValue value={frontmatter.context} />
+                    )}
+                  </div>
+                </div>
                 <div className="metadata-row">
                   <div className="metadata-label">Dossier proposé</div>
                   <div className="metadata-value">

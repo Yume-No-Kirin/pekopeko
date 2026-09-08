@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from .errors import ConfigError
 from .schema import (
     DefaultConfig,
+    FolderWatchConfig,
     LLMProviderConfig,
     OllamaProviderSettings,
     PekopekoConfig,
@@ -106,6 +107,20 @@ def _validate_provider(active: str) -> str:
     return active
 
 
+def _validate_poll_interval_seconds(raw_value) -> int:
+    if isinstance(raw_value, bool) or not isinstance(raw_value, int):
+        raise ConfigError(f"folder_watch.poll_interval_seconds must be an integer, got {raw_value!r}")
+    if raw_value <= 0:
+        raise ConfigError(f"folder_watch.poll_interval_seconds must be a positive integer, got {raw_value!r}")
+    return raw_value
+
+
+def _validate_dirname(raw_value, label: str) -> str:
+    if not isinstance(raw_value, str) or not raw_value:
+        raise ConfigError(f"{label} must be a non-empty string, got {raw_value!r}")
+    return raw_value
+
+
 def _build_config(file_data: dict) -> PekopekoConfig:
     llm_provider_data = _require_mapping(file_data, "llm_provider")
     ollama_data = _require_mapping(llm_provider_data, "ollama", label="llm_provider.ollama")
@@ -142,7 +157,27 @@ def _build_config(file_data: dict) -> PekopekoConfig:
         domain=default_data.get("domain", default_defaults.domain),
     )
 
-    return PekopekoConfig(llm_provider=llm_provider, retrieval=retrieval, task_state=task_state, default=default)
+    folder_watch_data = _require_mapping(file_data, "folder_watch")
+    folder_watch_defaults = FolderWatchConfig()
+    folder_watch = FolderWatchConfig(
+        enabled=bool(folder_watch_data.get("enabled", folder_watch_defaults.enabled)),
+        poll_interval_seconds=_validate_poll_interval_seconds(
+            folder_watch_data.get("poll_interval_seconds", folder_watch_defaults.poll_interval_seconds)
+        ),
+        inbox_dirname=_validate_dirname(
+            folder_watch_data.get("inbox_dirname", folder_watch_defaults.inbox_dirname),
+            "folder_watch.inbox_dirname",
+        ),
+        processed_dirname=_validate_dirname(
+            folder_watch_data.get("processed_dirname", folder_watch_defaults.processed_dirname),
+            "folder_watch.processed_dirname",
+        ),
+    )
+
+    return PekopekoConfig(
+        llm_provider=llm_provider, retrieval=retrieval, task_state=task_state, default=default,
+        folder_watch=folder_watch,
+    )
 
 
 def _apply_env_overrides(cfg: PekopekoConfig) -> PekopekoConfig:
@@ -188,6 +223,10 @@ def _apply_env_overrides(cfg: PekopekoConfig) -> PekopekoConfig:
         retrieval=RetrievalConfig(index_dir=retrieval_index_dir),
         task_state=TaskStateConfig(dir=task_state_dir),
         default=cfg.default,
+        # No PEKOPEKO_* env override for folder_watch (file-only section) -
+        # passed through unchanged so the file-loaded value survives this
+        # reconstruction rather than reverting to FolderWatchConfig()'s defaults.
+        folder_watch=cfg.folder_watch,
     )
 
 

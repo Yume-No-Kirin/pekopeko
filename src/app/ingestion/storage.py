@@ -74,14 +74,23 @@ def _validate_frontmatter(frontmatter: Dict[str, Any], required_fields: list[str
         raise ValueError(f"Missing required frontmatter fields: {missing_fields}")
 
 
-def scan_existing_assertion_folders(vault_root: Path, domain: str) -> list[str]:
+def scan_existing_assertion_folders(
+    vault_root: Path, domain: str, context: Optional[str] = None
+) -> list[str]:
     """Full existing folder paths already used under <domain>/assertions/ (canonical,
     accepted items only) - context for a provider proposing a new, consistent path.
     Independent reimplementation of review/storage.py's scan_organization_folders
     (module-independence discipline, TASK-002) - returns full "/"-joined paths rather
     than depth-grouped segment names, since that's what a path-proposal prompt needs.
+
+    context (ADI-016/TASK-014a), when given, restricts the walk to
+    <domain>/assertions/<context>/ instead of the whole domain - returned paths are
+    relative to that subtree and never repeat the context prefix. context=None
+    preserves the whole-domain walk exactly.
     """
     assertions_dir = vault_root / domain / "assertions"
+    if context is not None:
+        assertions_dir = assertions_dir / context
     if not assertions_dir.exists():
         return []
     paths: list[str] = []
@@ -110,7 +119,9 @@ def _read_frontmatter(path: Path) -> Dict[str, Any]:
     return yaml.safe_load(parts[1]) or {}
 
 
-def scan_proposed_path_segments(vault_root: Path, domain: str) -> list[str]:
+def scan_proposed_path_segments(
+    vault_root: Path, domain: str, context: Optional[str] = None
+) -> list[str]:
     """Full path strings already proposed by not-yet-accepted Proposals
     (proposal_status PROPOSED or EDITED) under <domain>/proposals/ - context so a
     provider's new path proposal reuses the same folder a previously-ingested, still
@@ -123,6 +134,14 @@ def scan_proposed_path_segments(vault_root: Path, domain: str) -> list[str]:
     proposals - without this filter, this scan would leak entity/event/relationship
     folder paths into assertion path-proposal context, a cross-taxonomy contamination
     this function must not produce.
+
+    context (ADI-016/TASK-014a), when given, additionally restricts results to
+    proposals whose own "context" frontmatter field matches - proposals live flatly
+    (no context subfolders exist for them), so scoping here is a frontmatter filter,
+    not a directory restriction like the sibling scan function. context=None
+    preserves today's whole-domain behavior exactly (the `is not None` guard matters:
+    an unconditional equality check would silently exclude every proposal that now
+    carries a non-null context once TASK-014b starts populating it).
     """
     proposals_dir = vault_root / domain / "proposals"
     if not proposals_dir.exists():
@@ -136,6 +155,8 @@ def scan_proposed_path_segments(vault_root: Path, domain: str) -> list[str]:
         if frontmatter.get('proposal_status') not in ('PROPOSED', 'EDITED'):
             continue
         if frontmatter.get('proposed_item_type') != 'assertion':
+            continue
+        if context is not None and frontmatter.get('context') != context:
             continue
         segments = frontmatter.get('proposed_path_segments')
         if segments:
@@ -238,6 +259,7 @@ def write_proposal_file(
         'proposed_item_type': 'assertion',
         'epistemic_status': assertion.epistemic_status,
         'proposed_path_segments': assertion.proposed_path_segments,
+        'context': assertion.context,
         'created_at': current_time.isoformat(),
         'valid_from': current_time.isoformat(),
         'valid_until': None,

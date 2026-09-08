@@ -31,14 +31,15 @@ Phase : implémentation des tickets `TASK-XXX` (en cours).
   de première classe sur les 4 types d'item canoniques, amende ADI-012) confirmée par Cleo le
   2026-09-06, en rédigeant TASK-014a/TASK-014b — résout l'entrée `docs/OPEN-ISSUES.md` du même
   jour sur l'isolation Context/Universe, retirée du registre (voir sa propre section ci-dessous) —
-  voir leurs propres entrées ci-dessous et la section TASK-001e. Aucune décision d'architecture en
-  attente.
+  implémentée le 2026-09-08 par TASK-014a et TASK-014b (voir leurs propres entrées ci-dessous),
+  désormais `completed`. Aucune décision d'architecture en attente.
 - **Code** : `src/app/ingestion/` (TASK-001, ingestion `.md` → Assertions ; étendu par TASK-001a, provenance d'extraction enrichie, par TASK-001b, journal d'événements de tâche, par TASK-001c, échec explicite sur extraction à zéro résultat (ADI-011), par TASK-001d, détection de doublon basée sur le succès d'une tâche antérieure plutôt que sur la seule existence du fichier source, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/review/` (TASK-002, revue des propositions ; étendu par TASK-006, statut EDITED + historisation des Proposals, et par TASK-005, accept/reject entity/event/relationship + résolution des endpoints de relation), `src/app/extraction/` (TASK-003, extraction Entity/Event/Relationship ; étendu par TASK-001b, TASK-001c, TASK-001d, par TASK-003a, champs `id`/`type` sur les Proposals, et par TASK-007, paramètre `task_id`/`list_task_states`), `src/app/config/` (TASK-004, config locale — provider LLM actif, emplacement de l'index de retrieval, emplacement de l'état de tâche), `src/app/api/` (TASK-007, couche API HTTP REST — Flask, ADI-010 ; étendu par TASK-007a, pagination `?limit=`/`?offset=` sur les 3 endpoints de liste), tests sous `src/tests/`. `frontend/` (TASK-008, scaffold React + Dashboard/Settings — premier code frontend du dépôt ; étendu par TASK-009, écran Logs d'ingestion, par TASK-010, écran Validation, dont le bug de statut de groupe par `source_id` est corrigé par TASK-001d, par TASK-011, écran Détail de proposition — contenu/métadonnées/source/provenance/logs pour une seule proposition, navigation Précédent/Suivant, accepter/rejeter, et par TASK-013, mode édition de proposition — endpoint `POST .../edit` sur `review_bp` exposant le `review.pipeline.edit_proposal` de TASK-006, plus bouton "✎ Éditer"/Sauvegarder/Annuler dans `ProposalDetail.jsx` et fan-out `PROPOSED`+`EDITED` dans les files de `Validation.jsx`/`ProposalDetail.jsx`, et par TASK-014, organisation en dossiers — `assertion_path`/`write_assertion_file` (`review/storage.py`) gagnent un paramètre optionnel `path_segments`, `accept_proposal` le lit sur `proposed_path_segments`, nouvel endpoint `GET .../organization-folders`, composant `FolderPathBuilder.jsx` intégré en lecture seule dans `Validation.jsx` et éditable dans `ProposalDetail.jsx`, et par TASK-001e, chemin de dossier proposé par le LLM d'extraction pour chaque assertion — `ExtractedAssertion.proposed_path_segments`, suffixe optionnel `| <segments>` dans le prompt/parseur d'`ollama_provider.py`, écrit tel quel dans le frontmatter de la Proposal ; rendu obligatoire le même jour par ADI-014 (voir ci-dessous), qui ajoute un second appel Ollama dédié par assertion, avec retry puis repli `["uncategorized"]`, quand le suffixe optionnel est absent — ce qui s'est avéré être le cas 100 % du temps en conditions réelles), et par TASK-005a (2026-09-07), adoption d'ADI-012 par entity/event/relationship — `entity_path`/`event_path`/`relationship_path` et leurs writers gagnent le même paramètre `path_segments` qu'`assertion_path` avait déjà, `scan_organization_folders`/`GET .../organization-folders` deviennent scopés par type, `FolderPathBuilder` s'affiche et s'édite désormais pour les 4 types dans `Validation.jsx`/`ProposalDetail.jsx`, et le provider Ollama d'`extraction/` gagne la même machinerie de proposition de chemin qu'ADI-014/015 avait donnée à `ingestion/` (indépendamment réimplémentée, résolue une fois par note et par type plutôt que par item). Ces dix-huit tickets, plus TASK-005, TASK-003a et TASK-005a (voir ci-dessous), sont dans `specs/tasks/completed/`.
 - **Cahier de tests** (2026-09-02) : `specs/tests/test-plan.md`, tracé aux 18 UC de `specs/product/use-cases.md` et aux 8 tickets `completed`. Deux couches sous `src/tests/` : `acceptance/` (déterministe, appels directs aux pipelines, provider factice fixe — exécutée par défaut) et `e2e/` (serveur Flask réel + vrai Ollama local, marker `pytest -m e2e`, exclue par défaut via `pytest.ini`). **Deux écarts réels découverts et vérifiés contre un serveur réel** (documentés dans le cahier, section « Findings ») : (1) les propositions entity/event/relationship de `extraction/` (contrat `item_type`, pas de champ `id`) étaient invisibles pour tout `review/` — `list_proposals` les omettait silencieusement et `get_proposal`/`accept` renvoyaient `400 ValidationError` — pas seulement bloquées côté métier ; (2) l'AC10 de TASK-007 (« accept sur entity/event/relationship → 422 ») ne se déclenchait jamais avec une vraie proposition d'extraction (elle renvoyait `400` avant d'atteindre ce chemin) — le test existant qui la vérifiait construisait sa proposition avec le contrat d'`ingestion`/`review`, pas celui réel d'`extraction`. **Les deux sont désormais résolus** : (1) par TASK-003a (2026-09-05, réconcilie les deux contrats de champs) et (2) par TASK-005 (2026-09-05, l'AC10 originale de TASK-007 est supersédée — accept réussit désormais pour entity/event/relationship). Voir leurs propres sections ci-dessous. Problème préexistant signalé au passage (non corrigé, hors périmètre) : `pytest src/tests/` en un seul run échoue à la collecte sur plusieurs `_helpers.py`/`test_storage.py` de même nom sans `__init__.py` — voir la section dédiée du cahier.
-- **Suite** : neuf tickets `backlog` restent maintenant (brièvement neuf aussi le 2026-09-07 entre la
-  rédaction de TASK-005a et son implémentation le même jour, dans une session suivante — voir sa
-  propre puce plus bas, désormais `completed` — puis de nouveau neuf le même jour, une session plus
-  tard encore, avec la rédaction complète de TASK-009a, voir sa propre section ci-dessous) :
+- **Suite** : six tickets `backlog` restent maintenant (l'historique ci-dessous, jusqu'à neuf au
+  2026-09-07, reste tel quel pour la traçabilité ; TASK-001f, TASK-014a et TASK-014b en sont sortis
+  le 2026-09-08, implémentés dans la même session à la demande explicite de Cleo — voir leur propre
+  entrée plus bas — ramenant le compte à six : TASK-015, TASK-016, TASK-017, TASK-018, TASK-019,
+  TASK-009a). Récit historique au 2026-09-07 (neuf tickets alors) :
   (TASK-015, rédigé le 2026-09-06,
   première entrée de la section 2 de `BACKLOG-CLAUDE-V2.md` — opérations de masse et
   priorisation de la file de revue, toujours la **prochaine action d'implémentation** ; TASK-016
@@ -311,6 +312,104 @@ Phase : implémentation des tickets `TASK-XXX` (en cours).
   la non-conservation du média/HTML brut des sources distantes (UC-007/CAP-002/INV-016), la règle
   de stabilité mtime d'ADI-013 dans un dossier synchronisé, la file de revue à l'échelle
   (UC-011/CAP-CORE-013), et `sources/`/`_inbox/` face aux 5 dossiers d'ADI-004.
+- **TASK-014a et TASK-014b implémentés et vérifiés le 2026-09-08** (implémentation d'ADI-016, champ
+  `context`/univers — voir `specs/tasks/completed/TASK-014a-context-field-storage-and-scoped-scan.md`
+  et `specs/tasks/completed/TASK-014b-context-derivation-source-folder-and-llm-fallback.md`), à la
+  demande explicite de Cleo, hors de l'ordre strict du backlog (TASK-015 restait la prochaine action
+  officielle) — même précédent que TASK-016/017/018/019.
+  **TASK-001f absorbé dans cette même session** : son propre texte anticipait déjà que
+  `ingestion/watcher.py` serait « implémenté ici si TASK-001f n'a pas encore atterri » — c'était le
+  cas (aucun `watcher.py` n'existait dans le dépôt), confirmé explicitement avec Cleo avant de
+  procéder plutôt que supposé. Les trois fichiers de tickets sont déplacés vers `specs/tasks/completed/`
+  (`git mv`, historique préservé) ; `specs/tasks/backlog/` passe de neuf à six tickets restants
+  (TASK-015, TASK-016, TASK-017, TASK-018, TASK-019, TASK-009a). Aucun changement à la prochaine
+  action d'implémentation, qui reste **TASK-015**.
+  - **Backend** : `review/storage.py` (`assertion_path`/`entity_path`/`event_path`/
+    `relationship_path` et leurs `write_*_file` gagnent un paramètre optionnel `context`, inséré
+    avant les segments de taxonomie ; `_COMMON_EDITABLE_FIELDS` gagne `"context"`, cross-type dès le
+    départ contrairement à `proposed_path_segments`), `review/pipeline.py` (`accept_proposal` — les 4
+    branches lisent `frontmatter.get("context")`, l'écrivent dans `item_frontmatter` **et** le
+    passent à `write_*_file` — décision de conception confirmée explicitement avec Cleo : ADI-016
+    exige un champ frontmatter « queryable » comparé littéralement à `valid_until`, pas seulement un
+    paramètre affectant le chemin comme `proposed_path_segments`), `ingestion/storage.py`
+    (`scan_existing_assertion_folders`/`scan_proposed_path_segments` gagnent un `context` optionnel —
+    restriction par sous-arbre pour la première, par filtre frontmatter pour la seconde puisque les
+    proposals n'ont pas de sous-dossiers de contexte). `ingestion/pipeline.py`/`extraction/pipeline.py`
+    (le dict `context` passé à `provider.extract()` gagne `inbox_dirname`/`processed_dirname` depuis
+    `load_config().folder_watch`), `ingestion/providers/base.py`/`extraction/providers/base.py`
+    (`ExtractedAssertion`/`ExtractedEntity`/`ExtractedEvent`/`ExtractedRelationship` gagnent
+    `context: Optional[str] = None`), `ingestion/providers/ollama_provider.py` et
+    `extraction/providers/ollama_provider.py` (chacun gagne indépendamment
+    `_derive_source_context`/`_derive_llm_context`/`_resolve_context` — signal du dossier source en
+    priorité, repli LLM une seule fois par note sinon, jamais de valeur forcée non-nulle contrairement
+    à `FALLBACK_PATH_SEGMENTS`), `ingestion/storage.py::write_proposal_file` et
+    `extraction/storage.py` (les 3 `write_*_proposal_file` + `_base_proposal_frontmatter`) gagnent le
+    passage explicite de `context` de l'`Extracted*` vers le frontmatter de la Proposal écrite — écart
+    réel trouvé à l'implémentation, sans lequel `context` était calculé par le provider mais
+    n'atteignait jamais le disque. **Nouveau** `src/app/ingestion/watcher.py` (`scan_once`/
+    `start_folder_watcher`, TASK-001f) : parcours récursif de `_inbox/`, déplacement puis dispatch
+    (jamais l'inverse — l'ordre que TASK-001f avait dû corriger sur le papier est appliqué ici
+    directement, sans jamais avoir existé dans le mauvais sens), miroir de la sous-arborescence dans
+    `processed/`. `config/schema.py`/`config/loader.py` (nouveau `FolderWatchConfig` : `enabled`,
+    `poll_interval_seconds`, `inbox_dirname`, `processed_dirname` — section fichier seul, sans
+    variable d'env `PEKOPEKO_*`, même asymétrie qu'ADI-010 acceptait déjà ailleurs). `api/app.py`
+    (`create_app` démarre `start_folder_watcher` si `folder_watch.enabled` — construction du provider
+    elle-même gatée sur `enabled`, pas seulement le démarrage du watcher, pour qu'un watcher désactivé
+    ne paie jamais le coût — ni le risque d'échec, ex. `requests` manquant — d'une construction de
+    provider réelle à la construction de l'app).
+  - **Frontend** : nouveau `frontend/src/components/ContextValue.jsx` (chip en lecture seule,
+    `"—"` si vide, même convention que `FolderPathBuilder`) ; `ProposalDetail.jsx` (nouvelle ligne
+    « Contexte » dans la carte métadonnées, avant « Dossier proposé », `draftContext`, inclus dans
+    `field_updates` de Sauvegarder pour les 4 types) ; `Validation.jsx` (nouvelle colonne « Contexte »
+    en lecture seule dans `NoteRow`, 5ᵉ colonne du tableau, aucune affordance d'édition — même
+    précédent que TASK-013/014 pour `proposed_path_segments`).
+  - **Écart de conception signalé plutôt que deviné** : le texte du ticket TASK-014a décrivait le
+    changement d'`accept_proposal` comme « une seule ligne par branche » passant `context=` à
+    `write_*_file`, sans toucher `item_frontmatter` — exactement le patron déjà établi par
+    `proposed_path_segments` (jamais copié dans le frontmatter canonique). Mais ADI-016 dit
+    explicitement que `context` devient « a first-class frontmatter field... queryable », comparé
+    littéralement à `valid_until`. Les deux lectures divergent réellement ; tranché avec Cleo avant
+    d'implémenter (option « clé frontmatter + chemin » retenue) plutôt que choisi silencieusement.
+  - Vérifié par Claude selon la discipline du projet — même limite que tous les tickets précédents :
+    vérification faite par la même session que l'implémentation, pas par un second réviseur
+    indépendant. Tests rejoués package par package : `review` 181/181 (100 % couverture), `ingestion`
+    139/139 plus les 2 échecs préexistants déjà documentés par TASK-014/TASK-001e (reconfirmés non
+    liés via `git stash`/`git stash pop`), `extraction` 114/114 (100 %), `config` 46/46 (100 %), `api`
+    116/116 (94 %, écarts restants pré-existants hors périmètre) ; 113 tests frontend, `npx vite
+    build` réussi. Reproduction manuelle bout-en-bout réellement exécutée (script autonome, provider
+    factice sans réseau réel — aucun Ollama réel disponible dans cet environnement) : dépôt d'un
+    fichier à `_inbox/sport/suivi_calories.md`, `scan_once` direct, déplacement vers
+    `_inbox/processed/sport/`, tâche `ingest_source` en fond complétée, Proposal avec
+    `context: "sport"`, `accept_proposal` écrit le fichier canonique sous
+    `PERSONAL/assertions/sport/activites/<id>/<id>.md` avec `context: "sport"` dans son propre
+    frontmatter. Rapports complets dans la section « Verification record » de chacun des trois
+    tickets.
+
+- **2 échecs de tests backend préexistants corrigés, 2026-09-08** (session suivante à celle de
+  TASK-001f/TASK-014a/TASK-014b, à la demande de Cleo qui voulait un état à jour de la suite de
+  tests). Les deux échecs `src/tests/ingestion/test_pipeline.py::test_import_isolation` et
+  `src/tests/ingestion/test_comprehensive.py::test_acceptance_criteria_compliance`, signalés comme
+  préexistants et non liés depuis TASK-014 (2026-09-04) et reconfirmés via `git stash` à chaque
+  ticket suivant (voir leurs mentions ci-dessus), étaient des bugs de test, pas des régressions du
+  code applicatif : (1) `test_import_isolation` lisait `Path("app/ingestion/pipeline.py")`, un
+  chemin relatif supposant `cwd == src/`, qui ne résout plus rien dès que pytest est lancé depuis la
+  racine du dépôt (le mode d'exécution du cahier de tests) — corrigé en résolvant via
+  `Path(__file__).resolve().parents[2]`, comme le fait déjà `extraction/test_import_isolation.py`
+  avec son `_helpers.REPO_ROOT`. (2) `test_acceptance_criteria_compliance` réutilisait le même
+  `source_file` (donc le même `source_id` déterministe, `_generate_source_id(content)`) entre
+  plusieurs critères de son propre corps — la détection de doublon de TASK-001d (basée sur
+  l'existence d'une tâche antérieure `completed` pour ce `source_id`, pas seulement sur le fichier)
+  court-circuitait silencieusement les critères 4 (gestion d'erreur) et 6 (extensibilité provider),
+  qui n'appelaient donc jamais réellement `provider.extract()`. Corriger le critère 4 a fait
+  apparaître le même défaut au critère 6, puis un troisième bug latent, jamais atteint jusqu'ici :
+  le critère 7 ne lisait que `result.proposal_ids[0]` (toujours `epistemic_status: direct`) en
+  s'attendant à y trouver aussi `inferred`/`uncertain`, présents seulement dans les deux autres
+  propositions du critère 1. Les trois corrections sont dans le test uniquement (fichiers de contenu
+  distinct pour les critères 4/6, boucle sur les 3 `proposal_ids` pour le critère 7) — aucun
+  changement à `src/app/`. Suite complète rejouée package par package : backend 619/619
+  (`acceptance` 21, `api` 116, `config` 46, `extraction` 114, `ingestion` 141, `review` 181),
+  frontend 113/113 (`npm test`). Plus aucun échec connu dans la suite de tests au 2026-09-08.
+  Aucun changement à la prochaine action d'implémentation, qui reste TASK-015.
 
 ## Décisions d'architecture (ADI-001 à ADI-016, toutes `Accepted`)
 
@@ -1201,8 +1300,11 @@ implémenté et vérifié le 2026-09-04 dans cette même session.
 ## Prochaine action exacte
 
 **TASK-001, TASK-002, TASK-003, TASK-003a, TASK-004, TASK-001a, TASK-001b, TASK-001c, TASK-001d,
-TASK-001e, TASK-005, TASK-005a, TASK-006, TASK-007, TASK-007a, TASK-008, TASK-009, TASK-010,
-TASK-011, TASK-012, TASK-013 et TASK-014 sont tous `completed`** (TASK-005a le 2026-09-07, rédigé
+TASK-001e, TASK-001f, TASK-005, TASK-005a, TASK-006, TASK-007, TASK-007a, TASK-008, TASK-009,
+TASK-010, TASK-011, TASK-012, TASK-013, TASK-014, TASK-014a et TASK-014b sont tous `completed`**
+(TASK-001f/TASK-014a/TASK-014b le 2026-09-08, implémentés dans la même session à la demande
+explicite de Cleo, hors de l'ordre strict du backlog — TASK-001f absorbé dans l'implémentation de
+TASK-014b, voir leur propre entrée dans « État actuel » ; TASK-005a le 2026-09-07, rédigé
 et implémenté dans la même session, appliquant ADI-012 aux trois types entity/event/relationship —
 voir sa propre section dans « État actuel » ; TASK-012 le 2026-09-06, même session que
 TASK-005 — commit `7b0e794` — mais dont le statut ici et dans son propre fichier n'avait pas été
@@ -1214,15 +1316,13 @@ le 2026-09-03, TASK-001d le 2026-09-03, TASK-001c le 2026-09-03, TASK-010 le 202
 TASK-009 le 2026-09-03, TASK-008 le 2026-09-02, TASK-007a le 2026-09-02, TASK-007 le
 2026-09-01, TASK-006 le 2026-09-01, TASK-001a et TASK-001b le 2026-08-31, les quatre
 autres le 2026-08-30).
-**Cinq tickets restent rédigés (`backlog`), plus les quatre satellites TASK-001f, TASK-014a,
-TASK-014b et TASK-009a** — voir leurs sections ci-dessus (TASK-015, TASK-016, TASK-017, TASK-018 et
-TASK-019, plus TASK-001f, TASK-014a et TASK-014b — ces deux derniers rédigés le 2026-09-06 en
-implémentant ADI-016 — et TASK-009a, rédigé en ticket complet le 2026-09-07 ; **neuf au total**,
-compte vérifié contre `specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus — TASK-005a,
-qui aurait fait dix, est passé à `completed` le 2026-09-07 avant que TASK-009a ne soit rédigé).
-Aucun changement à la prochaine action d'implémentation : TASK-018/TASK-019/TASK-009a sont des
-tickets rédigés hors ordre à la demande de Cleo, pas une re-priorisation — TASK-015 reste
-devant dans l'ordre d'implémentation.
+**Six tickets restent rédigés (`backlog`)** — voir leurs sections ci-dessus (TASK-015, TASK-016,
+TASK-017, TASK-018, TASK-019 et TASK-009a ; **six au total**, compte vérifié contre
+`specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus — descendu de neuf à six le
+2026-09-08 quand TASK-001f/TASK-014a/TASK-014b sont passés à `completed`).
+Aucun changement à la prochaine action d'implémentation : TASK-018/TASK-019/TASK-009a (et
+TASK-001f/TASK-014a/TASK-014b avant eux) sont des tickets rédigés/implémentés hors ordre à la
+demande de Cleo, pas une re-priorisation — TASK-015 reste devant dans l'ordre d'implémentation.
 
 - **Le socle GUI (TASK-007 → TASK-012) est désormais entièrement `completed`** : la chaîne
   TASK-008 → TASK-009 → TASK-010 → TASK-011 (scaffold, Logs d'ingestion, Validation, Détail de

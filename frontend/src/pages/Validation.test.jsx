@@ -37,6 +37,7 @@ function makeDetail({
   filename = "notes.md",
   body = "Contenu de test",
   proposedPathSegments = [],
+  context = null,
   itemType = "assertion",
   entityType,
   startsAt,
@@ -51,6 +52,7 @@ function makeDetail({
       proposed_item_type: itemType,
       provenance: { source_id: sourceId, extraction_provider: "ollama" },
       proposed_path_segments: proposedPathSegments,
+      context,
       entity_type: entityType,
       starts_at: startsAt,
       ends_at: endsAt,
@@ -240,7 +242,7 @@ describe("Validation", () => {
 
     expect(screen.queryByText(/Tout accepter/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Tout rejeter/)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("columnheader")).toHaveLength(4);
+    expect(screen.getAllByRole("columnheader")).toHaveLength(5);
     expect(screen.getByRole("columnheader", { name: "Dossier proposé" })).toBeInTheDocument();
   });
 
@@ -688,6 +690,56 @@ describe("Validation", () => {
     await user.click(within(entityRow).getByRole("button", { name: /existing/ }));
     expect(within(entityRow).getByText("personnages")).toBeInTheDocument();
     expect(within(entityRow).queryByText("mythologie")).not.toBeInTheDocument();
+  });
+
+  it("TASK-014a AC13: NoteRow renders context read-only, for all 4 types, with no edit affordance", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomain: {
+        PERSONAL: [
+          makeSummary({ id: "p-assert", itemType: "assertion" }),
+          makeSummary({ id: "p-entity", itemType: "entity" }),
+        ],
+        FICTION: [
+          makeSummary({ id: "p-event", domain: "FICTION", itemType: "event" }),
+          makeSummary({ id: "p-rel", domain: "FICTION", itemType: "relationship" }),
+        ],
+      },
+      detailsById: {
+        "p-assert": makeDetail({
+          id: "p-assert", sourceId: "src-a", body: "Assertion body", itemType: "assertion", context: "tatouages",
+        }),
+        "p-entity": makeDetail({
+          id: "p-entity", sourceId: "src-a", body: "Entity body", itemType: "entity", entityType: "person",
+          context: "tatouages",
+        }),
+        "p-event": makeDetail({
+          id: "p-event", domain: "FICTION", sourceId: "src-b", body: "Event body", itemType: "event",
+          startsAt: "2026-08-01T10:00:00", endsAt: null, context: null,
+        }),
+        "p-rel": makeDetail({
+          id: "p-rel", domain: "FICTION", sourceId: "src-b", body: "Relationship body", itemType: "relationship",
+          relationshipType: "attended", endpoints: [], context: "autre-roman",
+        }),
+      },
+    });
+
+    renderValidation();
+
+    await screen.findByText("Assertion body");
+    expect(screen.getByRole("columnheader", { name: "Contexte" })).toBeInTheDocument();
+    expect(screen.getAllByText("tatouages")).toHaveLength(2);
+    expect(screen.getByText("autre-roman")).toBeInTheDocument();
+    const eventRow = screen.getByText("Event body").closest("tr");
+    expect(within(eventRow).getByText("—")).toBeInTheDocument();
+
+    // No edit affordance in the context cell of any row - it's plain text,
+    // not a button/input.
+    for (const text of ["Assertion body", "Entity body", "Event body", "Relationship body"]) {
+      const row = screen.getByText(text).closest("tr");
+      const contextCell = row.querySelector(".context-value").closest("td");
+      expect(within(contextCell).queryByRole("button")).not.toBeInTheDocument();
+      expect(within(contextCell).queryByRole("textbox")).not.toBeInTheDocument();
+    }
   });
 
   it("TASK-005a AC19: a failed organization-folders fetch for one domain/type leaves the rest of the screen rendering, with that row's options degraded to []", async () => {

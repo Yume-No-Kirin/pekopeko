@@ -252,3 +252,42 @@ def test_accept_proposal_rejects_invalid_path_segments_before_any_write(tmp_path
     assert proposal_file.read_text(encoding="utf-8") == original_content
     assertions_dir = tmp_path / "PERSONAL" / "assertions"
     assert not assertions_dir.exists() or list(assertions_dir.iterdir()) == []
+
+
+# TASK-014a: context field (ADI-016)
+
+def test_accept_proposal_with_context_writes_to_context_segmented_path(tmp_path, make_proposal_file):
+    """AC6: context in frontmatter writes the canonical file under the
+    context-segmented path."""
+    proposal_id, _ = make_proposal_file(domain="PERSONAL", context="tatouages")
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    expected = (
+        tmp_path / "PERSONAL" / "assertions" / "tatouages" / result.assertion_id / f"{result.assertion_id}.md"
+    )
+    assert result.assertion_path == expected
+    assert result.assertion_path.exists()
+
+
+def test_accept_proposal_with_context_sets_context_frontmatter_key(tmp_path, make_proposal_file):
+    """AC6: the accepted canonical file's own frontmatter carries the context
+    value (ADI-016's "first-class frontmatter field" requirement)."""
+    proposal_id, _ = make_proposal_file(domain="PERSONAL", context="tatouages")
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    assertion_frontmatter, _ = parse_frontmatter(result.assertion_path.read_text(encoding="utf-8"))
+    assert assertion_frontmatter["context"] == "tatouages"
+
+
+def test_accept_proposal_without_context_writes_plain_path_and_null_context(tmp_path, make_proposal_file):
+    """AC7: context absent or null writes the plain path, no regression."""
+    proposal_id, _ = make_proposal_file(domain="PERSONAL")
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    expected = tmp_path / "PERSONAL" / "assertions" / result.assertion_id / f"{result.assertion_id}.md"
+    assert result.assertion_path == expected
+    assertion_frontmatter, _ = parse_frontmatter(result.assertion_path.read_text(encoding="utf-8"))
+    assert assertion_frontmatter["context"] is None

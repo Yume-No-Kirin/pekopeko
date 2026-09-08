@@ -29,6 +29,10 @@ class ExtractedEntity:
     # Folder-path taxonomy segments (ADI-012 adoption, TASK-005a), resolved once
     # per source note per type by the provider - see OllamaProvider._ensure_path_segments.
     proposed_path_segments: list[str] = field(default_factory=list)
+    # Distinct from proposed_path_segments (ADI-016/TASK-014b) - a single,
+    # stable, cross-type identifier resolved once per source note, not per
+    # type/item. Optional[str], never forced non-null.
+    context: Optional[str] = None
 
 
 @dataclass
@@ -39,6 +43,7 @@ class ExtractedEvent:
     starts_at: Optional[str] = None
     ends_at: Optional[str] = None
     proposed_path_segments: list[str] = field(default_factory=list)
+    context: Optional[str] = None
 
 
 @dataclass
@@ -51,6 +56,7 @@ class ExtractedRelationship:
     # canonical item's stable id, passed through unchanged.
     endpoints: list[str] = field(default_factory=list)
     proposed_path_segments: list[str] = field(default_factory=list)
+    context: Optional[str] = None
 
 
 @dataclass

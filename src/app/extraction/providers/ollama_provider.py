@@ -13,6 +13,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 from .base import (
     VALID_EPISTEMIC_STATUSES,
@@ -127,6 +128,7 @@ class OllamaProvider(Provider):
                     f"model={self.config.model!r}, response_chars={len(extracted_text)})"
                 )
             self._ensure_path_segments(result, text, context)
+            self._resolve_context(result, text, context)
             return result
 
         except Exception as e:
@@ -266,6 +268,98 @@ present in the text. Now extract from the input text:
             segments = self._propose_path_with_retry(item_type, items, source_text, existing_folders)
             for item in items:
                 item.proposed_path_segments = list(segments)
+
+    def _resolve_context(self, result: ExtractionResult, source_text: str, context: dict) -> None:
+        """Populate `context` on every entity/event/relationship, mutating in
+        place - once per `extract()` call, across all three types together (not
+        once per type, unlike proposed_path_segments - ADI-016: a novel's code
+        name or a life-area doesn't vary between items extracted from the same
+        note, whatever their type).
+
+        Independent reimplementation of ingestion's OllamaProvider._resolve_context
+        (module-independence discipline, TASK-002/ADI-016) - no shared import."""
+        resolved = self._derive_source_context(context)
+        if resolved is None:
+            resolved = self._derive_llm_context(source_text)
+        for item in (*result.entities, *result.events, *result.relationships):
+            item.context = resolved
+
+    def _derive_source_context(self, context: dict) -> Optional[str]:
+        """First subfolder name under <inbox_dirname>/ that `source_path` sits in,
+        normalized - or None if there is no such subfolder (file directly in
+        inbox/ or inbox/processed/), source_path is outside the inbox tree
+        entirely, or any required context key is missing. Never raises
+        (INV-019) - a bad/foreign source_path is a safe degrade to None, not a
+        failure."""
+        source_path = context.get("source_path")
+        vault_root = context.get("vault_root")
+        domain = context.get("domain")
+        inbox_dirname = context.get("inbox_dirname")
+        processed_dirname = context.get("processed_dirname")
+        if not all([source_path, vault_root, domain, inbox_dirname, processed_dirname]):
+            return None
+        try:
+            inbox_dir = Path(vault_root).resolve() / domain / inbox_dirname
+            rel_parts = Path(source_path).resolve().relative_to(inbox_dir).parts
+        except (ValueError, OSError):
+            return None
+        if rel_parts and rel_parts[0] == processed_dirname:
+            rel_parts = rel_parts[1:]
+        if len(rel_parts) < 2:
+            return None
+        normalized = _normalize_path_string(rel_parts[0])
+        return "-".join(normalized) if normalized else None
+
+    def _derive_llm_context(self, source_text: str) -> Optional[str]:
+        """One-shot LLM fallback, retried up to PATH_PROPOSAL_MAX_ATTEMPTS times
+        (same attempt count as path proposal, unrelated semantics). Unlike
+        _propose_path_with_retry, exhausting retries or an ambiguous/empty
+        response resolves to None - never a forced non-empty value."""
+        for _ in range(PATH_PROPOSAL_MAX_ATTEMPTS):
+            try:
+                guess = self._propose_context(source_text)
+            except Exception:
+                continue
+            if guess:
+                return guess
+            return None
+        return None
+
+    def _propose_context(self, source_text: str) -> Optional[str]:
+        prompt = self._build_context_prompt(source_text)
+        response = self.requests.post(
+            f"{self.config.base_url}/api/generate",
+            json={
+                "model": self.config.model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": self.config.temperature}
+            },
+            timeout=self.config.timeout
+        )
+        response.raise_for_status()
+        raw = response.json().get("response", "").strip()
+        first_line = raw.splitlines()[0].strip() if raw else ""
+        if not first_line or first_line.lower() in ("none", "aucun", "aucune", "n/a"):
+            return None
+        normalized = _normalize_path_string(first_line)
+        return "-".join(normalized) if normalized else None
+
+    def _build_context_prompt(self, source_text: str) -> str:
+        return f"""You are organizing notes inside a personal knowledge vault.
+
+Note content:
+{source_text}
+
+Does this note's content clearly belong to a specific, distinct ongoing
+project or fictional universe (e.g. a particular novel, a named long-running
+project) rather than general, one-off domain content? If yes, respond with
+ONLY a short name for that project/universe (one or two lowercase French
+words, no accents, no punctuation). If no, or if you are unsure, respond with
+ONLY the word: none
+
+Example responses: "tatouages", "none"
+"""
 
     def _propose_path_with_retry(
         self, item_type: str, items: list, source_text: str, existing_folders: list[str]

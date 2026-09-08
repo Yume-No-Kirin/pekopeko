@@ -30,3 +30,7 @@ def test_defaults_when_no_file_and_no_env(tmp_path, monkeypatch):
     assert cfg.llm_provider.ollama.temperature == 0.7
     assert cfg.retrieval.index_dir == REPO_ROOT / ".pekopeko" / "retrieval_index"
     assert cfg.task_state.dir == REPO_ROOT / ".pekopeko" / "task_state"
+    assert cfg.folder_watch.enabled is False
+    assert cfg.folder_watch.poll_interval_seconds == 30
+    assert cfg.folder_watch.inbox_dirname == "_inbox"
+    assert cfg.folder_watch.processed_dirname == "processed"

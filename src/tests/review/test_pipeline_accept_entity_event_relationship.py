@@ -244,3 +244,44 @@ def test_accept_entity_proposal_writes_plain_path_when_proposed_path_segments_nu
     result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
 
     assert result.assertion_path == storage.entity_path(tmp_path, "PERSONAL", result.assertion_id)
+
+
+# TASK-014a: context field (ADI-016) - symmetric for entity/event/relationship
+
+@pytest.mark.parametrize(
+    "make_fixture_name,path_fn",
+    [
+        ("make_entity_proposal_file", storage.entity_path),
+        ("make_event_proposal_file", storage.event_path),
+        ("make_relationship_proposal_file", storage.relationship_path),
+    ],
+)
+def test_accept_writes_context_segmented_path_and_frontmatter(tmp_path, request, make_fixture_name, path_fn):
+    """AC6: context in frontmatter writes to the context-segmented path and is
+    reflected in the canonical file's own frontmatter, for entity/event/relationship."""
+    make_fixture = request.getfixturevalue(make_fixture_name)
+    proposal_id, _ = make_fixture(domain="PERSONAL", context="tatouages")
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    assert result.assertion_path == path_fn(tmp_path, "PERSONAL", result.assertion_id, context="tatouages")
+    assert result.assertion_path.exists()
+    item_frontmatter, _ = parse_frontmatter(result.assertion_path.read_text(encoding="utf-8"))
+    assert item_frontmatter["context"] == "tatouages"
+
+
+@pytest.mark.parametrize(
+    "make_fixture_name",
+    ["make_entity_proposal_file", "make_event_proposal_file", "make_relationship_proposal_file"],
+)
+def test_accept_writes_plain_path_and_null_context_when_context_absent(tmp_path, request, make_fixture_name):
+    """AC7: context absent writes the plain path, no regression, for
+    entity/event/relationship."""
+    make_fixture = request.getfixturevalue(make_fixture_name)
+    proposal_id, _ = make_fixture(domain="PERSONAL")
+
+    result = pipeline.accept_proposal(tmp_path, "PERSONAL", proposal_id, "reviewer-1")
+
+    assert result.assertion_path.parent.name == result.assertion_id
+    item_frontmatter, _ = parse_frontmatter(result.assertion_path.read_text(encoding="utf-8"))
+    assert item_frontmatter["context"] is None

@@ -536,3 +536,126 @@ def test_scan_organization_folders_entity_event_relationship_multi_depth_scan(tm
     ]
     assert storage.scan_organization_folders(tmp_path, "PERSONAL", item_type="event") == [["guerre"]]
     assert storage.scan_organization_folders(tmp_path, "PERSONAL", item_type="relationship") == [["famille"]]
+
+
+# TASK-014a: context field - path placement (ADI-016)
+
+def test_assertion_path_no_context_matches_current_behavior(tmp_path):
+    """AC1: context omitted or None produces byte-identical output to today."""
+    assert storage.assertion_path(tmp_path, "PERSONAL", "assert-1") == (
+        tmp_path / "PERSONAL" / "assertions" / "assert-1" / "assert-1.md"
+    )
+    assert storage.assertion_path(tmp_path, "PERSONAL", "assert-1", context=None) == (
+        tmp_path / "PERSONAL" / "assertions" / "assert-1" / "assert-1.md"
+    )
+
+
+def test_assertion_path_with_context_inserts_under_type_dir(tmp_path):
+    """AC2: context is a single path component directly under the type-plural folder."""
+    assert storage.assertion_path(tmp_path, "PERSONAL", "assert-1", context="tatouages") == (
+        tmp_path / "PERSONAL" / "assertions" / "tatouages" / "assert-1" / "assert-1.md"
+    )
+
+
+def test_assertion_path_context_precedes_taxonomy_segments(tmp_path):
+    """AC3: context comes before path_segments in the physical path."""
+    assert storage.assertion_path(
+        tmp_path, "PERSONAL", "assert-1", path_segments=["a", "b"], context="tatouages"
+    ) == (
+        tmp_path / "PERSONAL" / "assertions" / "tatouages" / "a" / "b" / "assert-1" / "assert-1.md"
+    )
+
+
+def test_entity_event_relationship_path_no_context_matches_current_behavior(tmp_path):
+    """AC4: same context=None regression for entity/event/relationship."""
+    assert storage.entity_path(tmp_path, "PERSONAL", "entity-1", context=None) == (
+        tmp_path / "PERSONAL" / "entities" / "entity-1" / "entity-1.md"
+    )
+    assert storage.event_path(tmp_path, "PERSONAL", "event-1", context=None) == (
+        tmp_path / "PERSONAL" / "events" / "event-1" / "event-1.md"
+    )
+    assert storage.relationship_path(tmp_path, "PERSONAL", "relationship-1", context=None) == (
+        tmp_path / "PERSONAL" / "relationships" / "relationship-1" / "relationship-1.md"
+    )
+
+
+def test_entity_event_relationship_path_with_context_inserts_under_type_dir(tmp_path):
+    """AC4: same context insertion behavior for entity/event/relationship."""
+    assert storage.entity_path(tmp_path, "PERSONAL", "entity-1", context="tatouages") == (
+        tmp_path / "PERSONAL" / "entities" / "tatouages" / "entity-1" / "entity-1.md"
+    )
+    assert storage.event_path(tmp_path, "PERSONAL", "event-1", context="tatouages") == (
+        tmp_path / "PERSONAL" / "events" / "tatouages" / "event-1" / "event-1.md"
+    )
+    assert storage.relationship_path(tmp_path, "PERSONAL", "relationship-1", context="tatouages") == (
+        tmp_path / "PERSONAL" / "relationships" / "tatouages" / "relationship-1" / "relationship-1.md"
+    )
+
+
+def test_path_helpers_reject_invalid_context(tmp_path):
+    """AC5: a context containing '/' or equal to '..' is rejected before any write,
+    same ValidationError convention as an invalid taxonomy segment."""
+    for path_fn, item_id in (
+        (storage.assertion_path, "assert-1"),
+        (storage.entity_path, "entity-1"),
+        (storage.event_path, "event-1"),
+        (storage.relationship_path, "relationship-1"),
+    ):
+        with pytest.raises(ValidationError):
+            path_fn(tmp_path, "PERSONAL", item_id, context="a/b")
+        with pytest.raises(ValidationError):
+            path_fn(tmp_path, "PERSONAL", item_id, context="..")
+
+
+def test_write_assertion_file_rejects_invalid_context_before_any_write(tmp_path):
+    frontmatter = {
+        "id": "assert-1", "type": "assertion", "domain": "PERSONAL",
+        "epistemic_status": "direct", "lifecycle_status": "ACTIVE",
+        "valid_from": "2026-01-01T00:00:00", "valid_until": None,
+        "created_at": "2026-01-01T00:00:00", "provenance": _base_provenance(),
+    }
+    with pytest.raises(ValidationError):
+        storage.write_assertion_file(tmp_path, "PERSONAL", frontmatter, "body", context="..")
+    assert not (tmp_path / "PERSONAL" / "assertions").exists()
+
+
+def test_write_entity_event_relationship_file_with_context_writes_to_context_path(tmp_path):
+    entity_frontmatter = {
+        "id": "entity-1", "type": "entity", "domain": "PERSONAL", "entity_type": "person",
+        "epistemic_status": "direct", "lifecycle_status": "ACTIVE", "valid_from": "2026-01-01T00:00:00",
+        "valid_until": None, "created_at": "2026-01-01T00:00:00", "provenance": _base_provenance(),
+    }
+    path = storage.write_entity_file(tmp_path, "PERSONAL", entity_frontmatter, "body", context="tatouages")
+    assert path == storage.entity_path(tmp_path, "PERSONAL", "entity-1", context="tatouages")
+    assert path.exists()
+
+    event_frontmatter = {
+        "id": "event-1", "type": "event", "domain": "PERSONAL", "starts_at": "2026-01-01T00:00:00",
+        "ends_at": None, "epistemic_status": "direct", "lifecycle_status": "ACTIVE",
+        "valid_from": "2026-01-01T00:00:00", "valid_until": None, "created_at": "2026-01-01T00:00:00",
+        "provenance": _base_provenance(),
+    }
+    path = storage.write_event_file(tmp_path, "PERSONAL", event_frontmatter, "body", context="tatouages")
+    assert path == storage.event_path(tmp_path, "PERSONAL", "event-1", context="tatouages")
+    assert path.exists()
+
+    relationship_frontmatter = {
+        "id": "relationship-1", "type": "relationship", "domain": "PERSONAL",
+        "relationship_type": "knows", "endpoints": ["entity-a", "entity-b"],
+        "epistemic_status": "direct", "lifecycle_status": "ACTIVE",
+        "valid_from": "2026-01-01T00:00:00", "valid_until": None, "created_at": "2026-01-01T00:00:00",
+        "provenance": _base_provenance(),
+    }
+    path = storage.write_relationship_file(
+        tmp_path, "PERSONAL", relationship_frontmatter, "body", context="tatouages"
+    )
+    assert path == storage.relationship_path(tmp_path, "PERSONAL", "relationship-1", context="tatouages")
+    assert path.exists()
+
+
+def test_common_editable_fields_includes_context_for_all_types():
+    assert "context" in storage._COMMON_EDITABLE_FIELDS
+    assert "context" in storage.EDITABLE_FIELDS_BY_TYPE["assertion"]
+    assert "context" in storage.EDITABLE_FIELDS_BY_TYPE["entity"]
+    assert "context" in storage.EDITABLE_FIELDS_BY_TYPE["event"]
+    assert "context" in storage.EDITABLE_FIELDS_BY_TYPE["relationship"]

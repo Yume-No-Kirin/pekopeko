@@ -53,6 +53,7 @@ def test_extract_parses_full_json_response():
         _mock_path_response("personnages"),
         _mock_path_response("evenements"),
         _mock_path_response("relations"),
+        _mock_path_response("none"),
     ]
 
     result = provider.extract("some source text", {"source_path": "test.md"})
@@ -64,7 +65,7 @@ def test_extract_parses_full_json_response():
     assert len(result.relationships) == 1
     assert result.relationships[0].endpoints == ["e1", "ev1"]
 
-    assert provider.requests.post.call_count == 4
+    assert provider.requests.post.call_count == 5
     first_call_kwargs = provider.requests.post.call_args_list[0].kwargs
     assert first_call_kwargs["json"]["model"] == "llama3"
     assert first_call_kwargs["timeout"] == 60
@@ -210,11 +211,12 @@ def test_extract_issues_exactly_one_path_proposal_call_per_non_empty_type():
         _mock_path_response("personnages"),
         _mock_path_response("evenements"),
         _mock_path_response("relations"),
+        _mock_path_response("none"),
     ]
 
     provider.extract("source text", {"source_path": "test.md"})
 
-    assert provider.requests.post.call_count == 4
+    assert provider.requests.post.call_count == 5
 
 
 def test_extract_same_type_shares_path_independent_types_resolved_independently():
@@ -235,6 +237,7 @@ def test_extract_same_type_shares_path_independent_types_resolved_independently(
         }),
         _mock_path_response("personnages"),
         _mock_path_response("evenements"),
+        _mock_path_response("none"),
     ]
 
     result = provider.extract("source text", {"source_path": "test.md"})
@@ -258,13 +261,15 @@ def test_extract_zero_items_of_a_type_triggers_no_path_proposal_call():
         }),
         _mock_path_response("personnages"),
         _mock_path_response("evenements"),
+        _mock_path_response("none"),
     ]
 
     result = provider.extract("source text", {"source_path": "test.md"})
 
     assert result.relationships == []
-    # 1 extraction call + 2 path-proposal calls (entity, event) - none for relationship.
-    assert provider.requests.post.call_count == 3
+    # 1 extraction call + 2 path-proposal calls (entity, event) - none for
+    # relationship - plus 1 trailing context-fallback call.
+    assert provider.requests.post.call_count == 4
 
 
 def test_path_proposal_falls_back_after_exhausting_retries():
@@ -282,12 +287,13 @@ def test_path_proposal_falls_back_after_exhausting_retries():
         _mock_path_response("de"),
         _mock_path_response("de"),
         _mock_path_response("de"),
+        _mock_path_response("none"),
     ]
 
     result = provider.extract("source text", {"source_path": "test.md"})
 
     assert result.entities[0].proposed_path_segments == FALLBACK_PATH_SEGMENTS
-    assert provider.requests.post.call_count == 1 + PATH_PROPOSAL_MAX_ATTEMPTS
+    assert provider.requests.post.call_count == 1 + PATH_PROPOSAL_MAX_ATTEMPTS + 1
 
 
 def test_path_proposal_swallows_errors_during_retry_then_falls_back():
@@ -302,6 +308,7 @@ def test_path_proposal_swallows_errors_during_retry_then_falls_back():
         ConnectionError("connection refused"),
         ConnectionError("connection refused"),
         ConnectionError("connection refused"),
+        _mock_path_response("none"),
     ]
 
     result = provider.extract("source text", {"source_path": "test.md"})
@@ -318,12 +325,13 @@ def test_path_proposal_retries_then_succeeds():
         }),
         _mock_path_response("de"),  # normalizes to [] - counts as a failed attempt
         _mock_path_response("personnages"),  # succeeds on the 2nd attempt
+        _mock_path_response("none"),
     ]
 
     result = provider.extract("source text", {"source_path": "test.md"})
 
     assert result.entities[0].proposed_path_segments == ["personnages"]
-    assert provider.requests.post.call_count == 3
+    assert provider.requests.post.call_count == 4
 
 
 def test_extract_merges_accepted_and_pending_folders_when_vault_root_and_domain_present(tmp_path):
@@ -347,6 +355,7 @@ def test_extract_merges_accepted_and_pending_folders_when_vault_root_and_domain_
             "entities": [{"local_id": "e1", "entity_type": "person", "text": "Ada", "epistemic_status": "direct"}],
         }),
         _mock_path_response("lieux"),
+        _mock_path_response("none"),
     ]
 
     provider.extract("source text", {"source_path": "test.md", "vault_root": str(vault_root), "domain": "PERSONAL"})
@@ -366,6 +375,7 @@ def test_extract_passes_source_text_and_item_texts_into_path_prompt():
             "entities": [{"local_id": "e1", "entity_type": "person", "text": "Ada Lovelace", "epistemic_status": "direct"}],
         }),
         _mock_path_response("personnages"),
+        _mock_path_response("none"),
     ]
 
     provider.extract("Full source note content here.", {"source_path": "test.md"})
@@ -374,6 +384,133 @@ def test_extract_passes_source_text_and_item_texts_into_path_prompt():
     assert "Full source note content here." in path_call_prompt
     assert "Ada Lovelace" in path_call_prompt
     assert "entities" in path_call_prompt
+
+
+# TASK-014b: context derivation (ADI-016) - independent reimplementation of
+# ingestion's own suite, no shared import.
+
+def _folder_watch_context(vault_root, domain, source_path, inbox_dirname="_inbox", processed_dirname="processed"):
+    return {
+        "source_path": str(source_path), "vault_root": str(vault_root), "domain": domain,
+        "inbox_dirname": inbox_dirname, "processed_dirname": processed_dirname,
+    }
+
+
+def test_derive_source_context_none_for_file_directly_in_inbox(tmp_path):
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "file.md")
+
+    assert provider._derive_source_context(context) is None
+
+
+def test_derive_source_context_returns_normalized_first_subfolder(tmp_path):
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "sport" / "file.md")
+
+    assert provider._derive_source_context(context) == "sport"
+
+
+def test_derive_source_context_none_outside_inbox_tree(tmp_path):
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(tmp_path, "PERSONAL", tmp_path / "elsewhere" / "file.md")
+
+    assert provider._derive_source_context(context) is None
+
+
+@pytest.mark.parametrize(
+    "missing_key",
+    ["source_path", "vault_root", "domain", "inbox_dirname", "processed_dirname"],
+)
+def test_derive_source_context_none_when_context_key_missing(tmp_path, missing_key):
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "sport" / "file.md")
+    del context[missing_key]
+
+    assert provider._derive_source_context(context) is None
+
+
+def test_derive_source_context_skips_processed_dirname_segment(tmp_path):
+    provider = OllamaProvider(OllamaProviderConfig())
+    context = _folder_watch_context(
+        tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "processed" / "sport" / "file.md"
+    )
+
+    assert provider._derive_source_context(context) == "sport"
+
+
+def test_extract_applies_folder_derived_context_to_every_item_across_all_types(tmp_path):
+    """Once per note, applied identically to every entity/event/relationship -
+    no LLM fallback call needed since the folder signal resolved."""
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    provider.requests.post.return_value = _mock_response({
+        "entities": [{"local_id": "e1", "entity_type": "person", "text": "Ada", "epistemic_status": "direct"}],
+        "events": [{"local_id": "ev1", "text": "A talk", "epistemic_status": "direct", "starts_at": None, "ends_at": None}],
+        "relationships": [{"text": "Ada gave the talk", "epistemic_status": "direct", "relationship_type": "gave", "endpoints": ["e1", "ev1"]}],
+    })
+
+    context = _folder_watch_context(tmp_path, "PERSONAL", tmp_path / "PERSONAL" / "_inbox" / "sport" / "file.md")
+    result = provider.extract("text", context)
+
+    assert result.entities[0].context == "sport"
+    assert result.events[0].context == "sport"
+    assert result.relationships[0].context == "sport"
+
+
+def test_extract_llm_fallback_called_once_per_extract_call_not_per_type(tmp_path):
+    """No folder signal (context={}) - the LLM fallback fires exactly once for
+    the whole call, not once per type/item."""
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    provider.requests.post.side_effect = [
+        _mock_response({
+            "entities": [{"local_id": "e1", "entity_type": "person", "text": "Ada", "epistemic_status": "direct"}],
+            "events": [{"local_id": "ev1", "text": "A talk", "epistemic_status": "direct", "starts_at": None, "ends_at": None}],
+        }),
+        _mock_path_response("personnages"),
+        _mock_path_response("evenements"),
+        _mock_path_response("tatouages"),
+    ]
+
+    result = provider.extract("text", {})
+
+    assert result.entities[0].context == "tatouages"
+    assert result.events[0].context == "tatouages"
+    assert provider.requests.post.call_count == 4
+
+
+def test_extract_llm_fallback_ambiguous_response_sets_none(tmp_path):
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    provider.requests.post.side_effect = [
+        _mock_response({
+            "entities": [{"local_id": "e1", "entity_type": "person", "text": "Ada", "epistemic_status": "direct"}],
+        }),
+        _mock_path_response("personnages"),
+        _mock_path_response("none"),
+    ]
+
+    result = provider.extract("text", {})
+
+    assert result.entities[0].context is None
+
+
+def test_extract_llm_fallback_exhausted_retries_sets_none_never_forced_value(tmp_path):
+    provider = OllamaProvider(OllamaProviderConfig())
+    provider.requests = Mock()
+    provider.requests.post.side_effect = [
+        _mock_response({
+            "entities": [{"local_id": "e1", "entity_type": "person", "text": "Ada", "epistemic_status": "direct"}],
+        }),
+        _mock_path_response("personnages"),
+        ConnectionError("boom"),
+        ConnectionError("boom"),
+        ConnectionError("boom"),
+    ]
+
+    result = provider.extract("text", {})
+
+    assert result.entities[0].context is None
 
 
 # _normalize_path_string: independently reimplemented from ingestion's, must

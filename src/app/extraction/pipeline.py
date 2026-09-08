@@ -120,9 +120,14 @@ def extract_source(
         extraction_provider = type(provider).__name__
         append_task_event(task_state, state_dir, "info", "Provider extraction call started",
                            {"provider": extraction_provider})
+        folder_watch = load_config().folder_watch
         try:
             extraction_result = provider.extract(
-                content, {"source_path": str(source_path), "vault_root": vault_root, "domain": domain}
+                content, {
+                    "source_path": str(source_path), "vault_root": vault_root, "domain": domain,
+                    "inbox_dirname": folder_watch.inbox_dirname,
+                    "processed_dirname": folder_watch.processed_dirname,
+                }
             )
         except Exception as e:
             append_task_event(task_state, state_dir, "warning", "Provider extraction call failed",

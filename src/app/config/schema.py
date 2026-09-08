@@ -43,8 +43,20 @@ class DefaultConfig:
 
 
 @dataclass
+class FolderWatchConfig:
+    """ADI-013: background _inbox/ polling. File-only section (no PEKOPEKO_*
+    env override, ADI-010's accepted asymmetry for options that don't need
+    process-level override)."""
+    enabled: bool = False
+    poll_interval_seconds: int = 30
+    inbox_dirname: str = "_inbox"
+    processed_dirname: str = "processed"
+
+
+@dataclass
 class PekopekoConfig:
     llm_provider: LLMProviderConfig = field(default_factory=LLMProviderConfig)
     retrieval: RetrievalConfig = field(default_factory=RetrievalConfig)
     task_state: TaskStateConfig = field(default_factory=TaskStateConfig)
     default: DefaultConfig = field(default_factory=DefaultConfig)
+    folder_watch: FolderWatchConfig = field(default_factory=FolderWatchConfig)

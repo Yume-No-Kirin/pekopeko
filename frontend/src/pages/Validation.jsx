@@ -15,6 +15,7 @@ import EpistemicStatusBadge from "../components/EpistemicStatusBadge.jsx";
 import SourceGroupHeader from "../components/SourceGroupHeader.jsx";
 import RejectReasonModal from "../components/RejectReasonModal.jsx";
 import FolderPathBuilder from "../components/FolderPathBuilder.jsx";
+import ContextValue from "../components/ContextValue.jsx";
 import EntityTypeBadge from "../components/EntityTypeBadge.jsx";
 import EventTemporalRange from "../components/EventTemporalRange.jsx";
 import RelationshipEndpoints from "../components/RelationshipEndpoints.jsx";
@@ -175,6 +176,9 @@ function NoteRow({ note, folderOptions, detailsById, onAccept, onReject, onPathC
           optionsByDepth={(folderOptions && folderOptions[itemType]) || []}
           onChange={(segments) => onPathChange(note.domain, note.id, segments)}
         />
+      </td>
+      <td>
+        <ContextValue value={note.detail.frontmatter.context} />
       </td>
       <td>
         <div className="note-actions">
@@ -396,13 +400,14 @@ export default function Validation() {
                   <th>Contenu de la note</th>
                   <th>Type</th>
                   <th>Dossier proposé</th>
+                  <th>Contexte</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {currentPageGroups.length === 0 && (
                   <tr>
-                    <td colSpan={4}>
+                    <td colSpan={5}>
                       <div className="empty-state">
                         <div className="empty-state-title">Aucune proposition</div>
                         <div className="empty-state-text">
@@ -414,7 +419,7 @@ export default function Validation() {
                 )}
                 {currentPageGroups.map((group) => (
                   <Fragment key={`${group.domain}:${group.sourceId}`}>
-                    <SourceGroupHeader group={group} columnCount={4} />
+                    <SourceGroupHeader group={group} columnCount={5} />
                     {group.notes.map((note) => (
                       <NoteRow
                         key={`${note.domain}-${note.id}`}

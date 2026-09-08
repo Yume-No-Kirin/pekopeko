@@ -350,3 +350,31 @@ def test_edit_proposal_field_update_proposed_path_segments_all_types(tmp_path, r
     assert live_frontmatter["proposed_path_segments"] == ["a", "b"]
     history_dir = storage.proposal_history_dir(tmp_path, "PERSONAL", proposal_id)
     assert len(list(history_dir.glob("*--v1.md"))) == 1
+
+
+# TASK-014a: context field (ADI-016) - editable via edit_proposal for all 4 types.
+
+@pytest.mark.parametrize(
+    "make_fixture_name",
+    [
+        "make_proposal_file",
+        "make_entity_proposal_file",
+        "make_event_proposal_file",
+        "make_relationship_proposal_file",
+    ],
+)
+def test_edit_proposal_field_update_context_all_types(tmp_path, request, make_fixture_name):
+    """AC8: context accepted via field_updates for every proposed_item_type; a
+    subsequent GET (read) reflects the new value and a history/ snapshot exists."""
+    make_fixture = request.getfixturevalue(make_fixture_name)
+    proposal_id, proposal_file = make_fixture(domain="PERSONAL")
+
+    pipeline.edit_proposal(
+        tmp_path, "PERSONAL", proposal_id, "editor-1",
+        field_updates={"context": "tatouages"},
+    )
+
+    live_frontmatter, _ = parse_frontmatter(proposal_file.read_text(encoding="utf-8"))
+    assert live_frontmatter["context"] == "tatouages"
+    history_dir = storage.proposal_history_dir(tmp_path, "PERSONAL", proposal_id)
+    assert len(list(history_dir.glob("*--v1.md"))) == 1

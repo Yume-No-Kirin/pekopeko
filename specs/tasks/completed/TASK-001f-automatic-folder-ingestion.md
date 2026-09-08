@@ -1,6 +1,21 @@
 # TASK-001f: Automatic Folder-Watch Ingestion Trigger
 
-- **Status**: backlog
+- **Status**: completed (implemented as part of TASK-014b, 2026-09-08 — see note below)
+
+## Completion note (2026-09-08)
+
+This ticket's own scope — `FolderWatchConfig`, `scan_once`, `start_folder_watcher`,
+`api/app.py` wiring, the move-before-dispatch ordering documented below — was implemented as part of
+**TASK-014b**, not in a separate session of its own. TASK-014b's own text anticipated this
+explicitly ("implemented here if TASK-001f hasn't landed yet, or amended here if it has") because it
+needs `scan_once`'s recursive inbox-scanning to exist for its own `context`-derivation feature to have
+anything to discover. Since this ticket was still 100% unbuilt when that session started (confirmed by
+direct search — no `watcher.py` existed anywhere in the repo), it was built there, correctly recursive
+from the start rather than flat-then-amended. All 13 of this ticket's own acceptance criteria are
+verified in **TASK-014b's own Verification record**
+(`specs/tasks/completed/TASK-014b-context-derivation-source-folder-and-llm-fallback.md`), under its
+"Embedded TASK-001f acceptance criteria" section — this file is retained for historical traceability
+of the original ADI-013 scoping, not as a separately-implemented artifact.
 
 ## Objective
 

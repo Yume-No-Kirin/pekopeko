@@ -9,6 +9,7 @@ from typing import Optional
 from flask import Flask, jsonify, request
 from werkzeug.exceptions import HTTPException
 
+from ..config import load_config
 from ..config.errors import ConfigError
 from ..extraction.errors import InvalidDomainError as ExtractionInvalidDomainError
 from ..extraction.errors import ValidationError as ExtractionValidationError
@@ -29,6 +30,8 @@ from .routes_extraction import extraction_bp
 from .routes_ingestion import ingestion_bp
 from .routes_review import review_bp
 from .settings import ApiSettings, load_settings
+from ..ingestion.providers.factory import build_configured_provider
+from ..ingestion.watcher import start_folder_watcher
 
 # Exception class -> HTTP status, per TASK-007's Error mapping table.
 ERROR_STATUS_MAP = {
@@ -55,12 +58,27 @@ def _error_response(error_type: str, message: str, status: int):
 
 def create_app(settings: Optional[ApiSettings] = None) -> Flask:
     app = Flask(__name__)
-    app.config["PEKOPEKO_SETTINGS"] = settings or load_settings()
+    resolved_settings = settings or load_settings()
+    app.config["PEKOPEKO_SETTINGS"] = resolved_settings
 
     app.register_blueprint(ingestion_bp)
     app.register_blueprint(extraction_bp)
     app.register_blueprint(review_bp)
     app.register_blueprint(config_bp)
+
+    # ADI-013/TASK-001f/TASK-014b: no-ops unless folder_watch.enabled is set
+    # in config.yaml. Provider construction (build_configured_provider) is
+    # itself gated on `enabled` here, not left to start_folder_watcher's own
+    # no-op check, so a disabled watcher never pays the cost of eagerly
+    # constructing a provider (or surfacing a provider-construction failure,
+    # e.g. a missing `requests` install) at app-factory time for a feature
+    # that isn't even turned on.
+    config = load_config()
+    if config.folder_watch.enabled:
+        start_folder_watcher(
+            config, resolved_settings.vault_root, build_configured_provider(config),
+            config.task_state.dir / "ingestion",
+        )
 
     @app.before_request
     def check_api_key():

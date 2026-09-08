@@ -89,3 +89,40 @@ def test_default_domain_falls_back_when_absent(tmp_path):
     cfg = load_config(path=config_file)
 
     assert cfg.default.domain == "PERSONAL"
+
+
+# TASK-014b/TASK-001f: folder_watch section (ADI-013)
+
+def test_folder_watch_explicit_section_overrides_any_subset_of_fields(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "folder_watch:\n  enabled: true\n  poll_interval_seconds: 5\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(path=config_file)
+
+    assert cfg.folder_watch.enabled is True
+    assert cfg.folder_watch.poll_interval_seconds == 5
+    # Omitted fields keep their built-in default.
+    assert cfg.folder_watch.inbox_dirname == "_inbox"
+    assert cfg.folder_watch.processed_dirname == "processed"
+
+
+def test_folder_watch_full_section_override(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "folder_watch:\n"
+        "  enabled: true\n"
+        "  poll_interval_seconds: 10\n"
+        "  inbox_dirname: incoming\n"
+        "  processed_dirname: done\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(path=config_file)
+
+    assert cfg.folder_watch.enabled is True
+    assert cfg.folder_watch.poll_interval_seconds == 10
+    assert cfg.folder_watch.inbox_dirname == "incoming"
+    assert cfg.folder_watch.processed_dirname == "done"
