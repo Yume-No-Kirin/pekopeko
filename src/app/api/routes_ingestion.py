@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request
+from werkzeug.utils import secure_filename
 
 from ..config import load_config
 from ..ingestion.pipeline import ingest_source
@@ -47,6 +48,39 @@ def start_ingestion(domain):
 
     run_in_background(
         ingest_source, _vault_root(), domain, Path(source_path), provider, state_dir, task_id
+    )
+
+    return jsonify({"task_id": task_id, "status": "pending"}), 202
+
+
+@ingestion_bp.route("/domains/<domain>/ingestions/upload", methods=["POST"])
+def upload_ingestion(domain):
+    if domain not in VALID_DOMAINS:
+        raise ValueError(f"Invalid domain '{domain}'. Must be one of {sorted(VALID_DOMAINS)}")
+
+    uploaded = request.files.get("file")
+    if uploaded is None or not uploaded.filename:
+        raise ValueError("file is required")
+    if not uploaded.filename.lower().endswith(".md"):
+        raise ValueError(f"Only .md files are supported, got '{uploaded.filename}'")
+
+    config = load_config()
+    state_dir = config.task_state.dir / "ingestion"
+    task_id = f"ingest-{uuid.uuid4()}"
+    provider = build_configured_provider(config)
+    vault_root = _vault_root()
+
+    filename = secure_filename(uploaded.filename)
+    inbox_dir = vault_root / domain / "_inbox"
+    inbox_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = inbox_dir / f"{task_id}-{filename}"
+    uploaded.save(dest_path)
+
+    task_state = create_task_state(str(dest_path), domain, state_dir, task_id=task_id)
+    update_task_state(task_state, state_dir)
+
+    run_in_background(
+        ingest_source, vault_root, domain, dest_path, provider, state_dir, task_id
     )
 
     return jsonify({"task_id": task_id, "status": "pending"}), 202

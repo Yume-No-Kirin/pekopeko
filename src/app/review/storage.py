@@ -335,6 +335,29 @@ def scan_organization_folders(
     return [sorted(depth_segments) for depth_segments in segments_by_depth]
 
 
+def scan_existing_contexts(vault_root: Path, domain: str) -> list[str]:
+    """Distinct non-null `context` frontmatter values across every Proposal under
+    <domain>/proposals/, regardless of proposal_status or proposed_item_type (ADI-016/
+    TASK-014a: context is cross-type; accept_proposal never deletes/moves the proposal file, so
+    proposals/ stays a complete, non-lossy source even for already-ACCEPTED/REJECTED proposals).
+    A malformed proposal file is skipped, not raised - same tolerance posture as
+    ingestion/storage.py::scan_proposed_path_segments. Returns [] if proposals/ doesn't exist.
+    """
+    proposals_dir = vault_root / domain / "proposals"
+    if not proposals_dir.exists():
+        return []
+    contexts: set[str] = set()
+    for proposal_file in proposals_dir.glob("*/*.md"):
+        try:
+            frontmatter, _ = parse_frontmatter(proposal_file.read_text(encoding="utf-8"))
+        except (OSError, ValidationError):
+            continue
+        context = frontmatter.get("context")
+        if context:
+            contexts.add(context)
+    return sorted(contexts)
+
+
 def write_assertion_file(
     vault_root: Path,
     domain: str,

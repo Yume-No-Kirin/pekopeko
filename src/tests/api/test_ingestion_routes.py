@@ -2,7 +2,12 @@
 Ingestion route tests: AC1 (async job contract, no real Ollama calls), AC2
 (invalid domain rejected before any state write), AC3 (domain-scoped list),
 AC4 (cross-domain task id returns 404).
+
+TASK-009a upload route tests (AC1-5 of that ticket) further down.
 """
+import io
+
+from src.app.ingestion.pipeline import ingest_source
 from src.app.ingestion.providers.base import ExtractedAssertion, ExtractionResult
 from src.app.ingestion.task_state import load_task_state
 
@@ -106,3 +111,85 @@ def test_get_ingestion_wrong_domain_returns_404(client, auth_headers, source_fil
 
     cross_domain = client.get(f"/domains/FICTION/ingestions/{task_id}", headers=auth_headers)
     assert cross_domain.status_code == 404
+
+
+# TASK-009a: POST .../ingestions/upload - real file upload into _inbox/, reusing
+# start_ingestion's own dispatch shape.
+
+def test_upload_ingestion_valid_md_returns_202_and_dispatches_ingest_source(
+    client, auth_headers, vault_root, state_dir, monkeypatch
+):
+    import src.app.api.routes_ingestion as routes_ingestion
+
+    captured = {}
+
+    def fake_run_in_background(fn, *args, **kwargs):
+        captured["fn"] = fn
+        captured["args"] = args
+
+    monkeypatch.setattr(routes_ingestion, "run_in_background", fake_run_in_background)
+    fake_provider = FakeIngestionProvider()
+    monkeypatch.setattr(routes_ingestion, "build_configured_provider", lambda cfg: fake_provider)
+
+    data = {"file": (io.BytesIO("# Test\n\nSome content.".encode("utf-8")), "notes.md")}
+    resp = client.post("/domains/PERSONAL/ingestions/upload", data=data, headers=auth_headers)
+
+    assert resp.status_code == 202
+    body = resp.get_json()
+    task_id = body["task_id"]
+    assert body["status"] == "pending"
+
+    written_files = list((vault_root / "PERSONAL" / "_inbox").glob("*.md"))
+    assert len(written_files) == 1
+    assert written_files[0].name == f"{task_id}-notes.md"
+    assert written_files[0].read_text(encoding="utf-8") == "# Test\n\nSome content."
+
+    assert captured["fn"] is ingest_source
+    assert captured["args"] == (
+        vault_root, "PERSONAL", written_files[0], fake_provider, state_dir / "ingestion", task_id
+    )
+
+
+def test_upload_ingestion_non_md_extension_returns_400_and_writes_nothing(client, auth_headers, vault_root):
+    data = {"file": (io.BytesIO(b"not markdown"), "notes.txt")}
+    resp = client.post("/domains/PERSONAL/ingestions/upload", data=data, headers=auth_headers)
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]["type"] == "ValueError"
+    assert not (vault_root / "PERSONAL" / "_inbox").exists()
+
+
+def test_upload_ingestion_missing_file_part_returns_400(client, auth_headers, vault_root):
+    resp = client.post("/domains/PERSONAL/ingestions/upload", data={}, headers=auth_headers)
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]["type"] == "ValueError"
+    assert not (vault_root / "PERSONAL" / "_inbox").exists()
+
+
+def test_upload_ingestion_invalid_domain_returns_400_before_any_write(client, auth_headers, vault_root):
+    data = {"file": (io.BytesIO(b"# Test"), "notes.md")}
+    resp = client.post("/domains/NOT_A_DOMAIN/ingestions/upload", data=data, headers=auth_headers)
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]["type"] == "ValueError"
+    assert not (vault_root / "NOT_A_DOMAIN").exists()
+
+
+def test_upload_ingestion_same_filename_twice_produces_two_distinct_files(
+    client, auth_headers, vault_root, monkeypatch
+):
+    import src.app.api.routes_ingestion as routes_ingestion
+
+    monkeypatch.setattr(routes_ingestion, "run_in_background", lambda fn, *args, **kwargs: None)
+    fake_provider = FakeIngestionProvider()
+    monkeypatch.setattr(routes_ingestion, "build_configured_provider", lambda cfg: fake_provider)
+
+    for _ in range(2):
+        data = {"file": (io.BytesIO(b"# Test"), "same.md")}
+        resp = client.post("/domains/PERSONAL/ingestions/upload", data=data, headers=auth_headers)
+        assert resp.status_code == 202
+
+    written_files = sorted((vault_root / "PERSONAL" / "_inbox").glob("*.md"))
+    assert len(written_files) == 2
+    assert written_files[0].name != written_files[1].name

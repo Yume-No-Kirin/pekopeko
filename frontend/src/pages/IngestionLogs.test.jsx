@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, act, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import IngestionLogs from "./IngestionLogs.jsx";
 
@@ -32,12 +32,47 @@ function makeTask(overrides = {}) {
 // Slices by offset/limit like the real paginated endpoints do, so tests
 // that page past a single fixture's length exercise realistic (possibly
 // empty) subsequent pages instead of the same items coming back twice.
-function makeFetchMock({ ingestionsByDomain = {}, extractionsByDomain = {} } = {}) {
-  return vi.fn((url) => {
+//
+// TASK-009a additions: contextsByDomain ({ DOMAIN: [contexts] }) backs the
+// modal's autocompletion fetch; uploadResult backs POST .../ingestions/upload;
+// ingestionStatusSequence backs the single-task GET .../ingestions/<taskId>
+// polled by IngestionLogs itself - one entry consumed per call, the last
+// entry repeats once exhausted (so a one-element array behaves as "always
+// this status").
+function makeFetchMock({
+  ingestionsByDomain = {},
+  extractionsByDomain = {},
+  contextsByDomain = {},
+  uploadResult = { task_id: "ingest-new", status: "pending" },
+  ingestionStatusSequence = [{ status: "completed", proposal_ids: [] }],
+} = {}) {
+  let singleIngestionCallCount = 0;
+  return vi.fn((url, options = {}) => {
     const parsed = new URL(url);
     const path = parsed.pathname;
+    const method = options.method || "GET";
     const offset = Number(parsed.searchParams.get("offset") || 0);
     const limit = Number(parsed.searchParams.get("limit") || 10);
+
+    if (method === "POST" && /\/ingestions\/upload$/.test(path)) {
+      return Promise.resolve(jsonResponse(202, uploadResult));
+    }
+
+    if (method === "POST" && /\/proposals\/[^/]+\/edit$/.test(path)) {
+      return Promise.resolve(jsonResponse(200, { proposal_id: path.split("/").at(-2), edited_by: "cleo" }));
+    }
+
+    const contextsMatch = path.match(/^\/domains\/([A-Z]+)\/contexts$/);
+    if (contextsMatch) {
+      return Promise.resolve(jsonResponse(200, { contexts: contextsByDomain[contextsMatch[1]] || [] }));
+    }
+
+    const singleIngestionMatch = path.match(/^\/domains\/([A-Z]+)\/ingestions\/([^/]+)$/);
+    if (method === "GET" && singleIngestionMatch) {
+      const idx = Math.min(singleIngestionCallCount, ingestionStatusSequence.length - 1);
+      singleIngestionCallCount += 1;
+      return Promise.resolve(jsonResponse(200, ingestionStatusSequence[idx]));
+    }
 
     const ingestMatch = path.match(/^\/domains\/([A-Z]+)\/ingestions$/);
     if (ingestMatch) {
@@ -57,6 +92,42 @@ function makeFetchMock({ ingestionsByDomain = {}, extractionsByDomain = {} } = {
 
     return Promise.resolve(jsonResponse(404, { error: { type: "NotFound", message: "unhandled in test" } }));
   });
+}
+
+async function openModalAndFillFile(user, { context } = {}) {
+  await user.click(screen.getByRole("button", { name: "+ Nouvelle ingestion" }));
+  const file = new File(["# Test\n\nContent."], "notes.md", { type: "text/markdown" });
+  await user.upload(screen.getByLabelText(/Fichier/), file);
+  if (context) {
+    await user.type(screen.getByLabelText(/Contexte/), context);
+  }
+}
+
+// Under fake timers, screen.findByRole/waitFor's own internal setTimeout-based
+// polling never fires unless the fake clock is advanced - rather than
+// interleave timer advancement with those async queries (fragile), the
+// AC13-15 tests below flush pending microtasks explicitly and then assert
+// with synchronous get*/query* calls.
+async function flushMicrotasks() {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+}
+
+// @testing-library/user-event's realistic interaction machinery hangs
+// indefinitely under vi.useFakeTimers() even with delay:null/advanceTimers
+// set (its internal pointer-event sequencing never resolves) - the AC13-15
+// tests below drive the same interactions with the lower-level, synchronous
+// fireEvent instead, wrapped in flushMicrotasks() so React's own effects and
+// the mocked fetch promises still get to resolve between steps.
+async function openModalAndFillFileSync({ context } = {}) {
+  fireEvent.click(screen.getByRole("button", { name: "+ Nouvelle ingestion" }));
+  await flushMicrotasks();
+  const file = new File(["# Test\n\nContent."], "notes.md", { type: "text/markdown" });
+  fireEvent.change(screen.getByLabelText(/Fichier/), { target: { files: [file] } });
+  if (context) {
+    fireEvent.change(screen.getByLabelText(/Contexte/), { target: { value: context } });
+  }
 }
 
 describe("IngestionLogs", () => {
@@ -289,6 +360,118 @@ describe("IngestionLogs", () => {
     expect(screen.getByText(/Chargement des tâches/)).toBeInTheDocument();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Missing or invalid X-API-Key header");
+  });
+
+  // TASK-009a: "+ Nouvelle ingestion" button, modal wiring, and post-completion
+  // context application via polling.
+
+  it("AC12: successful submit with no context closes the modal and refreshes the list", async () => {
+    global.fetch = makeFetchMock({ ingestionsByDomain: { PERSONAL: { items: [], total: 0 } } });
+    const user = userEvent.setup();
+    render(<IngestionLogs />);
+    await screen.findByRole("table");
+
+    await openModalAndFillFile(user);
+    expect(screen.getByText("Nouvelle ingestion")).toBeInTheDocument();
+
+    global.fetch.mockClear();
+    await user.click(screen.getByRole("button", { name: /Démarrer l'ingestion/ }));
+
+    await waitFor(() => expect(screen.queryByText("Nouvelle ingestion")).not.toBeInTheDocument());
+    expect(
+      global.fetch.mock.calls.some(([url]) => new URL(url).pathname === "/domains/PERSONAL/ingestions")
+    ).toBe(true);
+    // No context typed - no polling call for the new task should follow.
+    expect(
+      global.fetch.mock.calls.some(([url]) => new URL(url).pathname === "/domains/PERSONAL/ingestions/ingest-new")
+    ).toBe(false);
+  });
+
+  it("AC13: submitting with a context polls until completed, then edits every resulting proposal with that context", async () => {
+    vi.useFakeTimers();
+    global.fetch = makeFetchMock({
+      ingestionsByDomain: { PERSONAL: { items: [], total: 0 } },
+      uploadResult: { task_id: "ingest-ctx", status: "pending" },
+      ingestionStatusSequence: [{ status: "running" }, { status: "completed", proposal_ids: ["p1", "p2"] }],
+    });
+
+    render(<IngestionLogs />);
+    await flushMicrotasks();
+    await openModalAndFillFileSync({ context: "Mythologie japonaise" });
+
+    global.fetch.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: /Démarrer l'ingestion/ }));
+    await flushMicrotasks(); // handleSubmit resolves -> onSuccess -> 1st poll (running) -> setTimeout(2000) scheduled
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000); // 2nd poll: completed -> fans out edits
+    });
+
+    const editCalls = global.fetch.mock.calls.filter(([url]) => new URL(url).pathname.endsWith("/edit"));
+    expect(editCalls).toHaveLength(2);
+    const editPaths = editCalls.map(([url]) => new URL(url).pathname).sort();
+    expect(editPaths).toEqual(["/domains/PERSONAL/proposals/p1/edit", "/domains/PERSONAL/proposals/p2/edit"]);
+    for (const [, options] of editCalls) {
+      expect(JSON.parse(options.body).field_updates).toEqual({ context: "Mythologie japonaise" });
+    }
+
+    vi.useRealTimers();
+  });
+
+  it("AC14: gives up silently after the attempt cap if the task never reaches a terminal status", async () => {
+    vi.useFakeTimers();
+    global.fetch = makeFetchMock({
+      ingestionsByDomain: { PERSONAL: { items: [], total: 0 } },
+      uploadResult: { task_id: "ingest-stuck", status: "pending" },
+      ingestionStatusSequence: [{ status: "running" }],
+    });
+
+    render(<IngestionLogs />);
+    await flushMicrotasks();
+    await openModalAndFillFileSync({ context: "Mythologie japonaise" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Démarrer l'ingestion/ }));
+    await flushMicrotasks();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000 * 65); // past the 60-attempt cap
+    });
+
+    const pollCalls = global.fetch.mock.calls.filter(
+      ([url]) => new URL(url).pathname === "/domains/PERSONAL/ingestions/ingest-stuck"
+    );
+    expect(pollCalls).toHaveLength(60);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
+  it("AC15: unmounting mid-poll stops further getIngestion calls", async () => {
+    vi.useFakeTimers();
+    global.fetch = makeFetchMock({
+      ingestionsByDomain: { PERSONAL: { items: [], total: 0 } },
+      uploadResult: { task_id: "ingest-unmount", status: "pending" },
+      ingestionStatusSequence: [{ status: "running" }],
+    });
+
+    const { unmount } = render(<IngestionLogs />);
+    await flushMicrotasks();
+    await openModalAndFillFileSync({ context: "Mythologie japonaise" });
+    fireEvent.click(screen.getByRole("button", { name: /Démarrer l'ingestion/ }));
+    await flushMicrotasks();
+
+    const pollPath = "/domains/PERSONAL/ingestions/ingest-unmount";
+    const callsBeforeUnmount = global.fetch.mock.calls.filter(([url]) => new URL(url).pathname === pollPath).length;
+    expect(callsBeforeUnmount).toBeGreaterThanOrEqual(1);
+
+    unmount();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000 * 5);
+    });
+
+    const callsAfterUnmount = global.fetch.mock.calls.filter(([url]) => new URL(url).pathname === pollPath).length;
+    expect(callsAfterUnmount).toBe(callsBeforeUnmount);
+
+    vi.useRealTimers();
   });
 });
 

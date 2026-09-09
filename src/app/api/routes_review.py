@@ -83,3 +83,10 @@ def get_organization_folders(domain):
         )
     segments_by_depth = storage.scan_organization_folders(_vault_root(), domain, item_type=item_type)
     return jsonify(serialization.organization_folders_to_dict(segments_by_depth)), 200
+
+
+@review_bp.route("/domains/<domain>/contexts", methods=["GET"])
+def list_contexts(domain):
+    _check_domain(domain)
+    contexts = storage.scan_existing_contexts(_vault_root(), domain)
+    return jsonify(serialization.contexts_to_dict(contexts)), 200

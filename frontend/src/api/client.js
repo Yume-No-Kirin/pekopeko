@@ -49,6 +49,34 @@ export function post(path, body) {
   return request(path, { method: "POST", body });
 }
 
+export async function postForm(path, formData) {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "X-API-Key": API_KEY },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let errorType = "UnknownError";
+    let errorMessage = response.statusText;
+    try {
+      const data = await response.json();
+      if (data && data.error) {
+        errorType = data.error.type || errorType;
+        errorMessage = data.error.message || errorMessage;
+      }
+    } catch {
+      // Response body wasn't JSON - fall back to statusText above.
+    }
+    throw new ApiError(errorType, errorMessage, response.status);
+  }
+
+  if (response.status === 204) {
+    return null;
+  }
+  return response.json();
+}
+
 export function buildListUrl(path, { status, limit, offset } = {}) {
   const params = new URLSearchParams();
   if (status !== undefined && status !== null) params.set("status", status);

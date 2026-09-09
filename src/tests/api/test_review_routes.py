@@ -312,3 +312,30 @@ def test_get_organization_folders_relationship_multi_depth_scan(client, auth_hea
 
     assert resp.status_code == 200
     assert resp.get_json() == {"segments_by_depth": [["famille"]]}
+
+
+# TASK-009a: GET .../contexts - distinct context suggestions for the new-ingestion
+# modal's autocompletion, sourced from every Proposal regardless of status/type.
+
+def test_get_contexts_empty_domain_returns_empty_list(client, auth_headers):
+    resp = client.get("/domains/PERSONAL/contexts", headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.get_json() == {"contexts": []}
+
+
+def test_get_contexts_returns_distinct_values_across_statuses_and_types(client, auth_headers, make_proposal_file):
+    make_proposal_file(status="PROPOSED", proposed_item_type="assertion", context="Mythologie japonaise")
+    make_proposal_file(status="ACCEPTED", proposed_item_type="entity", entity_type="person", context="Livres")
+    make_proposal_file(status="REJECTED", proposed_item_type="event", starts_at="2026-01-01T00:00:00", ends_at=None, context="Mythologie japonaise")
+    make_proposal_file(status="EDITED", proposed_item_type="assertion", context=None)
+    make_proposal_file(status="PROPOSED", proposed_item_type="assertion")
+
+    resp = client.get("/domains/PERSONAL/contexts", headers=auth_headers)
+    assert resp.status_code == 200
+    assert resp.get_json() == {"contexts": ["Livres", "Mythologie japonaise"]}
+
+
+def test_get_contexts_invalid_domain_returns_400(client, auth_headers):
+    resp = client.get("/domains/NOT_A_DOMAIN/contexts", headers=auth_headers)
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]["type"] == "InvalidDomainError"

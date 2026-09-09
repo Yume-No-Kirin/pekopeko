@@ -1,11 +1,16 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { listIngestions, listExtractions } from "../api/tasks.js";
+import { listIngestions, listExtractions, getIngestion } from "../api/tasks.js";
+import { editProposal } from "../api/review.js";
 import { DOMAINS } from "../api/domains.js";
 import { PERIOD_OPTIONS, filterByPeriod } from "../utils/periodFilter.js";
 import TaskStatusBadge from "../components/TaskStatusBadge.jsx";
 import TaskEventLog from "../components/TaskEventLog.jsx";
+import NewIngestionModal from "../components/NewIngestionModal.jsx";
 
 const PAGE_SIZE = 10;
+const POLL_INTERVAL_MS = 2000;
+const POLL_MAX_ATTEMPTS = 60;
+const REVIEWER_ID = import.meta.env.VITE_REVIEWER_ID || "cleo";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "Tous les statuts" },
@@ -134,7 +139,18 @@ export default function IngestionLogs() {
   const [pageData, setPageData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [newIngestionOpen, setNewIngestionOpen] = useState(false);
   const poolRef = useRef(new Map());
+  const pollStateRef = useRef({ cancelled: false, timeoutId: null });
+
+  // Cancels any in-flight ingestion-completion poll (TASK-009a §9) on
+  // navigation away from this screen.
+  useEffect(() => {
+    return () => {
+      pollStateRef.current.cancelled = true;
+      if (pollStateRef.current.timeoutId) clearTimeout(pollStateRef.current.timeoutId);
+    };
+  }, []);
 
   // A new set of filters invalidates every source's accumulated pool - a
   // page change alone does not, it only needs the pool deepened further.
@@ -181,6 +197,41 @@ export default function IngestionLogs() {
     setExpandedTaskId((current) => (current === taskId ? null : taskId));
   }
 
+  // Polls a just-started ingestion task until it completes, then applies the
+  // user-typed context to every resulting proposal (TASK-009a §9) - gives up
+  // silently past the attempt cap or on failure, since the ingestion itself
+  // already succeeded either way; only the retroactive context is skipped.
+  function pollIngestionForContext(domain, taskId, context, attempt = 0) {
+    if (pollStateRef.current.cancelled) return;
+    getIngestion(domain, taskId)
+      .then((task) => {
+        if (pollStateRef.current.cancelled) return;
+        if (task.status === "completed") {
+          Promise.all(
+            (task.proposal_ids || []).map((proposalId) =>
+              editProposal(domain, proposalId, REVIEWER_ID, { fieldUpdates: { context } })
+            )
+          ).catch(() => {});
+          return;
+        }
+        if (task.status === "failed" || attempt + 1 >= POLL_MAX_ATTEMPTS) return;
+        pollStateRef.current.timeoutId = setTimeout(
+          () => pollIngestionForContext(domain, taskId, context, attempt + 1),
+          POLL_INTERVAL_MS
+        );
+      })
+      .catch(() => {});
+  }
+
+  function handleNewIngestionSuccess({ taskId, domain, context }) {
+    setNewIngestionOpen(false);
+    setRefreshKey((k) => k + 1);
+    if (context) {
+      pollStateRef.current.cancelled = false;
+      pollIngestionForContext(domain, taskId, context);
+    }
+  }
+
   const items = pageData ? pageData.items : [];
   const total = pageData ? pageData.total : 0;
   const displayedItems = filterByPeriod(items, periodFilter, (item) => item.started_at);
@@ -199,6 +250,9 @@ export default function IngestionLogs() {
         <div className="header-actions">
           <button type="button" className="btn" onClick={() => setRefreshKey((k) => k + 1)}>
             ↻ Rafraîchir
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => setNewIngestionOpen(true)}>
+            + Nouvelle ingestion
           </button>
         </div>
       </header>
@@ -322,6 +376,12 @@ export default function IngestionLogs() {
           </div>
         )}
       </div>
+
+      <NewIngestionModal
+        open={newIngestionOpen}
+        onCancel={() => setNewIngestionOpen(false)}
+        onSuccess={handleNewIngestionSuccess}
+      />
     </>
   );
 }

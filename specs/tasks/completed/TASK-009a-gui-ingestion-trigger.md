@@ -1,6 +1,6 @@
 # TASK-009a: GUI Ingestion Trigger — Upload, Domain, Optional Context
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -311,3 +311,88 @@ at least 80% coverage on every file touched.
 - Any change to `folder_watch`/TASK-001f, or to `ingest_source`'s/providers' signatures.
 - Retroactive context application via any mechanism other than the existing `edit_proposal` endpoint
   (e.g., no new backend endpoint to "set context for a whole ingestion task at once").
+
+## Verification record (2026-09-08)
+
+Verified by Claude in the same session as implementation — same disclosed limitation as every prior
+ticket in this project: not a second independent reviewer. Implemented out of strict backlog order at
+Cleo's explicit request (TASK-015 remained the officially next ticket) — same precedent as
+TASK-016/017/018/019 and TASK-001f/014a/014b before it.
+
+**Blocking dependency status confirmed before starting**: TASK-014a (`completed` 2026-09-08, earlier
+in this same day) already made `context` a recognized field — `review/storage.py`'s
+`_COMMON_EDITABLE_FIELDS` includes `"context"`, all four `*_path` helpers accept it, `accept_proposal`
+reads it per type branch, and `ProposalDetail.jsx` already has a working context editor. This ticket's
+context half was therefore immediately meaningful, not just independently testable as the ticket's own
+Dependencies section anticipated.
+
+**One correction to the ticket's own text, decided during implementation, not silently picked**: §1's
+prose says "400 ValidationError" for a non-`.md`/missing-file upload. `src/app/ingestion/` has no
+`errors.py` module and `start_ingestion` (the sibling route in the same file) raises a bare `ValueError`
+for its own validation — no AC pins the exact `error.type` string, and `api/errors.py::ValidationError`
+exists but is explicitly docstring-scoped to pagination parameters, so reusing it would have been a
+semantic misuse of an unrelated exception class. `upload_ingestion` raises plain `ValueError` instead,
+consistent with `start_ingestion`'s own convention in the same file.
+
+- `[PASS]` `pytest src/tests/api/` (backend): **124/124 pass**.
+- `[PASS]` `pytest src/tests/review/` (backend): **185/185 pass**.
+- `[PASS]` `pytest src/tests/ingestion/` (backend): **141/141 pass** (unchanged by this ticket; confirms
+  AC9, `ingest_source`'s signature, by the pre-existing regression test already covering it).
+- `[PASS]` `pytest --cov` on the three touched backend files
+  (`routes_ingestion.py`/`routes_review.py`/`serialization.py`/`review/storage.py`): **100% statement
+  coverage** on every one.
+- `[PASS]` `npx vitest run` (frontend): **125/125 pass** across 14 files, including the new
+  `NewIngestionModal.test.jsx` and the extended `client.test.js`/`IngestionLogs.test.jsx`.
+- `[PASS]` `npx vite build`: succeeds, no errors.
+- `[PASS]` Manual end-to-end reproduction against a real, isolated scratch vault, a live Flask server,
+  and a real local Ollama (`qwen2.5:7b`) — not narrated, actually executed and observed: uploaded a
+  real `.md` file via `curl` multipart POST, watched the real ingestion pipeline run to completion (4
+  proposals extracted), applied a `context` value to all four via `edit_proposal` (the same call
+  `IngestionLogs.jsx`'s polling logic makes), confirmed `GET .../contexts` returned it, confirmed the
+  on-disk Proposal frontmatter carried it, and confirmed `accept_proposal` relocated the resulting
+  canonical assertion file under a `context`-named top-level folder. Also verified live over HTTP: a
+  non-`.md` upload (400), an invalid domain (400), and two same-named uploads producing two distinct
+  `_inbox/` files (AC5).
+- `[LIMITATION]` No literal browser-driven click-through of `NewIngestionModal`/`IngestionLogs.jsx` —
+  this environment has no browser-automation tool available (checked for a project-specific `run`
+  skill and `chromium-cli`; neither exists here). The frontend behavior is instead verified via Vitest
+  + React Testing Library exercising real component rendering and (for the non-fake-timer tests) real
+  simulated user interaction (`@testing-library/user-event`) against a mocked backend, plus the fully
+  real backend reproduction above for the half that doesn't depend on browser rendering. Named
+  explicitly rather than silently claimed, per this project's own testing discipline.
+- `[NOTE]` `@testing-library/user-event`'s realistic-interaction driver hangs indefinitely under
+  `vi.useFakeTimers()` even with `delay:null`/`advanceTimers` set (confirmed by isolated repro before
+  writing the fix) — the three fake-timer polling tests in `IngestionLogs.test.jsx` (AC13/14/15) use
+  the lower-level `fireEvent` instead, which is unaffected. Worth knowing for any future test in this
+  suite that combines fake timers with simulated user interaction.
+
+Acceptance criteria checked one by one:
+
+- `[PASS]` AC1 valid `.md` upload → 202, file under `_inbox/<domain>/`, dispatched `ingest_source` call
+  matches (backend test + live manual reproduction).
+- `[PASS]` AC2 non-`.md` filename → 400, nothing written (backend test + live manual reproduction).
+- `[PASS]` AC3 no `file` part → 400 (backend test).
+- `[PASS]` AC4 invalid `domain` → 400 before any write (backend test + live manual reproduction).
+- `[PASS]` AC5 two same-named uploads → two distinct `_inbox/` files (backend test + live manual
+  reproduction).
+- `[PASS]` AC6 `GET .../contexts` on an empty domain → `{"contexts": []}` (backend + storage-unit
+  tests).
+- `[PASS]` AC7 distinct, non-null `context` values across every `proposal_status`/`proposed_item_type`,
+  sorted, no duplicates (backend + storage-unit tests).
+- `[PASS]` AC8 a malformed Proposal file is skipped by `scan_existing_contexts` without raising
+  (storage-unit test, mirrors `scan_proposed_path_segments`'s existing tolerance).
+- `[PASS]` AC9 `ingest_source`'s public signature unchanged (pre-existing regression test, untouched by
+  this ticket, still passing).
+- `[PASS]` AC10 `NewIngestionModal` disables submit with no file; a non-`.md` selection shows an inline
+  error and never calls `startIngestionUpload`.
+- `[PASS]` AC11 selecting/changing domain fetches/re-fetches `listContexts` for the right domain.
+- `[PASS]` AC12 submit with file+domain (no context) calls `startIngestionUpload` once; modal closes,
+  list refreshes.
+- `[PASS]` AC13 submit with a non-empty context polls `getIngestion` (fake timers) until `completed`,
+  then calls `editProposal` once per `proposal_id` with `field_updates.context` set — also confirmed
+  live end-to-end against the real backend.
+- `[PASS]` AC14 polling stops silently after the 60-attempt cap if no terminal status is reached; no
+  error shown.
+- `[PASS]` AC15 unmounting mid-poll stops further `getIngestion` calls.
+- `[PASS]` AC16 the button/modal exist only on `IngestionLogs.jsx`; full pre-existing frontend suite
+  (123 tests before this ticket's additions) still passes unmodified.

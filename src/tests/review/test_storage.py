@@ -538,6 +538,71 @@ def test_scan_organization_folders_entity_event_relationship_multi_depth_scan(tm
     assert storage.scan_organization_folders(tmp_path, "PERSONAL", item_type="relationship") == [["famille"]]
 
 
+# TASK-009a: scan_existing_contexts - distinct context suggestions for the new-ingestion
+# modal's autocompletion.
+
+def _write_proposal(tmp_path, domain, proposal_id, frontmatter, body="body text"):
+    path = tmp_path / domain / "proposals" / proposal_id / f"{proposal_id}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(storage.serialize_frontmatter(frontmatter, body), encoding="utf-8")
+    return path
+
+
+def test_scan_existing_contexts_empty_when_no_proposals_dir(tmp_path):
+    assert storage.scan_existing_contexts(tmp_path, "PERSONAL") == []
+
+
+def test_scan_existing_contexts_distinct_across_statuses_and_types(tmp_path):
+    _write_proposal(tmp_path, "PERSONAL", "prop-1", {
+        "id": "prop-1", "proposal_status": "PROPOSED", "proposed_item_type": "assertion",
+        "context": "Mythologie japonaise",
+    })
+    _write_proposal(tmp_path, "PERSONAL", "prop-2", {
+        "id": "prop-2", "proposal_status": "ACCEPTED", "proposed_item_type": "entity",
+        "context": "Livres",
+    })
+    _write_proposal(tmp_path, "PERSONAL", "prop-3", {
+        "id": "prop-3", "proposal_status": "REJECTED", "proposed_item_type": "event",
+        "context": "Mythologie japonaise",
+    })
+    _write_proposal(tmp_path, "PERSONAL", "prop-4", {
+        "id": "prop-4", "proposal_status": "EDITED", "proposed_item_type": "relationship",
+        "context": None,
+    })
+    _write_proposal(tmp_path, "PERSONAL", "prop-5", {
+        "id": "prop-5", "proposal_status": "PROPOSED", "proposed_item_type": "assertion",
+    })
+
+    assert storage.scan_existing_contexts(tmp_path, "PERSONAL") == ["Livres", "Mythologie japonaise"]
+
+
+def test_scan_existing_contexts_ignores_malformed_proposal_file(tmp_path):
+    good_path = _write_proposal(tmp_path, "PERSONAL", "prop-good", {
+        "id": "prop-good", "proposal_status": "PROPOSED", "proposed_item_type": "assertion",
+        "context": "Livres",
+    })
+
+    no_delimiter = tmp_path / "PERSONAL" / "proposals" / "prop-bad-1" / "prop-bad-1.md"
+    no_delimiter.parent.mkdir(parents=True, exist_ok=True)
+    no_delimiter.write_text("no frontmatter here at all", encoding="utf-8")
+
+    bad_yaml = tmp_path / "PERSONAL" / "proposals" / "prop-bad-2" / "prop-bad-2.md"
+    bad_yaml.parent.mkdir(parents=True, exist_ok=True)
+    bad_yaml.write_text("---\ncontext: [unclosed\n---\n\nbody", encoding="utf-8")
+
+    assert good_path.exists()
+    assert storage.scan_existing_contexts(tmp_path, "PERSONAL") == ["Livres"]
+
+
+def test_scan_existing_contexts_never_scans_canonical_folders(tmp_path):
+    """Constraints: scan_existing_contexts only globs proposals/*/*.md - a
+    context-looking directory under assertions/ or entities/ must never surface."""
+    (tmp_path / "PERSONAL" / "assertions" / "should-not-appear" / "assert-1").mkdir(parents=True)
+    (tmp_path / "PERSONAL" / "entities" / "also-not-here" / "entity-1").mkdir(parents=True)
+
+    assert storage.scan_existing_contexts(tmp_path, "PERSONAL") == []
+
+
 # TASK-014a: context field - path placement (ADI-016)
 
 def test_assertion_path_no_context_matches_current_behavior(tmp_path):

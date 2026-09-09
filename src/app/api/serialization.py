@@ -134,6 +134,10 @@ def organization_folders_to_dict(segments_by_depth) -> Dict[str, Any]:
     return {"segments_by_depth": segments_by_depth}
 
 
+def contexts_to_dict(contexts: list[str]) -> Dict[str, Any]:
+    return {"contexts": contexts}
+
+
 def config_to_dict(cfg) -> Dict[str, Any]:
     data = asdict(cfg)
     data["retrieval"]["index_dir"] = str(cfg.retrieval.index_dir)

@@ -30,3 +30,7 @@ export function editProposal(domain, id, reviewerId, { body, fieldUpdates } = {}
 export function listOrganizationFolders(domain, itemType) {
   return get(`/domains/${domain}/organization-folders?item_type=${encodeURIComponent(itemType)}`);
 }
+
+export function listContexts(domain) {
+  return get(`/domains/${domain}/contexts`);
+}
