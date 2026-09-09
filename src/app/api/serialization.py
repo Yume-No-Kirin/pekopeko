@@ -124,6 +124,20 @@ def reject_result_to_dict(result) -> Dict[str, Any]:
     return asdict(result)
 
 
+def batch_response(results: list) -> Dict[str, Any]:
+    """Wraps a list of per-item result dicts (each already carrying a
+    'status' of 'accepted'/'rejected'/'failed', built by the route via
+    accept_result_to_dict/reject_result_to_dict or an inline failure dict)
+    into the batch envelope, computing succeeded_count/failed_count.
+    `results` order is the caller's responsibility to preserve."""
+    failed_count = sum(1 for r in results if r["status"] == "failed")
+    return {
+        "results": results,
+        "succeeded_count": len(results) - failed_count,
+        "failed_count": failed_count,
+    }
+
+
 def edit_result_to_dict(result) -> Dict[str, Any]:
     data = asdict(result)
     data["archived_version_path"] = str(result.archived_version_path)

@@ -6,6 +6,8 @@ import {
   rejectProposal,
   editProposal,
   listOrganizationFolders,
+  acceptProposalsBatch,
+  rejectProposalsBatch,
 } from "./review.js";
 
 function jsonResponse(body) {
@@ -86,6 +88,29 @@ describe("review api wrapper", () => {
 
     const [, options] = global.fetch.mock.calls[0];
     expect(JSON.parse(options.body)).toEqual({ reviewer_id: "cleo", body: null, field_updates: null });
+  });
+
+  it("TASK-015: acceptProposalsBatch posts reviewer_id and proposal_ids to the accept-batch endpoint", async () => {
+    await acceptProposalsBatch("PERSONAL", ["p1", "p2"], "cleo");
+
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(new URL(url).pathname).toBe("/domains/PERSONAL/proposals/accept-batch");
+    expect(JSON.parse(options.body)).toEqual({ reviewer_id: "cleo", proposal_ids: ["p1", "p2"] });
+  });
+
+  it("TASK-015: rejectProposalsBatch posts reviewer_id, proposal_ids and reason (or null) to the reject-batch endpoint", async () => {
+    await rejectProposalsBatch("PERSONAL", ["p1", "p2"], "cleo", "not accurate");
+
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(new URL(url).pathname).toBe("/domains/PERSONAL/proposals/reject-batch");
+    expect(JSON.parse(options.body)).toEqual({ reviewer_id: "cleo", proposal_ids: ["p1", "p2"], reason: "not accurate" });
+  });
+
+  it("TASK-015: rejectProposalsBatch sends reason: null when no reason is given", async () => {
+    await rejectProposalsBatch("PERSONAL", ["p1"], "cleo", "");
+
+    const [, options] = global.fetch.mock.calls[0];
+    expect(JSON.parse(options.body)).toEqual({ reviewer_id: "cleo", proposal_ids: ["p1"], reason: null });
   });
 
   it("TASK-014 AC13: listOrganizationFolders GETs the organization-folders endpoint with item_type", async () => {

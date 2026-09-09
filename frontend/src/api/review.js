@@ -27,6 +27,21 @@ export function editProposal(domain, id, reviewerId, { body, fieldUpdates } = {}
   });
 }
 
+export function acceptProposalsBatch(domain, ids, reviewerId) {
+  return post(`/domains/${domain}/proposals/accept-batch`, {
+    reviewer_id: reviewerId,
+    proposal_ids: ids,
+  });
+}
+
+export function rejectProposalsBatch(domain, ids, reviewerId, reason) {
+  return post(`/domains/${domain}/proposals/reject-batch`, {
+    reviewer_id: reviewerId,
+    proposal_ids: ids,
+    reason: reason || null,
+  });
+}
+
 export function listOrganizationFolders(domain, itemType) {
   return get(`/domains/${domain}/organization-folders?item_type=${encodeURIComponent(itemType)}`);
 }

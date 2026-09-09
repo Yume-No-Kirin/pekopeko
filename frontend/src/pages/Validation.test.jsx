@@ -70,7 +70,9 @@ function makeDetail({
 // overrides proposalsByDomain when a test needs PROPOSED and EDITED to differ
 // (TASK-013 AC16); detailsById: { id: detail }; ingestionsByDomain: { DOMAIN: [taskState, ...] };
 // organizationFoldersByDomain: { DOMAIN: [[...], ...] } (segments_by_depth); editShouldFail
-// makes the /edit POST return a 400 instead of a success envelope.
+// makes the /edit POST return a 400 instead of a success envelope. acceptBatchFailIds/
+// rejectBatchFailIds (TASK-015): proposal_ids in a batch request that should come back
+// with status: "failed" instead of "accepted"/"rejected", simulating a partial failure.
 function makeFetchMock({
   proposalsByDomain = {},
   proposalsByDomainAndStatus = {},
@@ -78,6 +80,8 @@ function makeFetchMock({
   ingestionsByDomain = {},
   organizationFoldersByDomain = {},
   editShouldFail = false,
+  acceptBatchFailIds = [],
+  rejectBatchFailIds = [],
 } = {}) {
   return vi.fn((url, options = {}) => {
     const parsed = new URL(url);
@@ -130,6 +134,58 @@ function makeFetchMock({
         return Promise.resolve(jsonResponse(400, { error: { type: "ValidationError", message: "malformed" } }));
       }
       return Promise.resolve(jsonResponse(200, detail));
+    }
+
+    const acceptBatchMatch = path.match(/^\/domains\/([A-Z]+)\/proposals\/accept-batch$/);
+    if (acceptBatchMatch && method === "POST") {
+      const body = JSON.parse(options.body);
+      const results = body.proposal_ids.map((id) =>
+        acceptBatchFailIds.includes(id)
+          ? {
+              proposal_id: id,
+              status: "failed",
+              error: {
+                type: "UnresolvedRelationshipEndpointError",
+                message: "Endpoint(s) [...] are not yet ACCEPTED proposals",
+              },
+            }
+          : {
+              proposal_id: id,
+              assertion_id: "a1",
+              assertion_path: "/x",
+              reviewed_by: "test-reviewer",
+              reviewed_at: "2026-09-03T00:00:00",
+              status: "accepted",
+            }
+      );
+      const failed_count = results.filter((r) => r.status === "failed").length;
+      return Promise.resolve(
+        jsonResponse(200, { results, succeeded_count: results.length - failed_count, failed_count })
+      );
+    }
+
+    const rejectBatchMatch = path.match(/^\/domains\/([A-Z]+)\/proposals\/reject-batch$/);
+    if (rejectBatchMatch && method === "POST") {
+      const body = JSON.parse(options.body);
+      const results = body.proposal_ids.map((id) =>
+        rejectBatchFailIds.includes(id)
+          ? {
+              proposal_id: id,
+              status: "failed",
+              error: { type: "InvalidProposalStatusError", message: "not PROPOSED/EDITED" },
+            }
+          : {
+              proposal_id: id,
+              reviewed_by: "test-reviewer",
+              reviewed_at: "2026-09-03T00:00:00",
+              rejection_reason: body.reason,
+              status: "rejected",
+            }
+      );
+      const failed_count = results.filter((r) => r.status === "failed").length;
+      return Promise.resolve(
+        jsonResponse(200, { results, succeeded_count: results.length - failed_count, failed_count })
+      );
     }
 
     const acceptMatch = path.match(/^\/domains\/([A-Z]+)\/proposals\/([^/]+)\/accept$/);
@@ -226,12 +282,14 @@ describe("Validation", () => {
     renderValidation();
     await screen.findByText("Direct");
 
-    expect(screen.getByText("Inféré")).toBeInTheDocument();
-    expect(screen.getByText("Incertain")).toBeInTheDocument();
-    expect(screen.getByText("Contesté")).toBeInTheDocument();
+    // Scoped to the actual status badges (.epistemic-badge), not getByText,
+    // since TASK-015's Statut épistémique filter <select> now also renders
+    // "Inféré"/"Incertain"/"Contesté" as <option> text in the same DOM.
+    const badgeTexts = Array.from(document.querySelectorAll(".epistemic-badge")).map((el) => el.textContent);
+    expect(badgeTexts).toEqual(expect.arrayContaining(["Direct", "Inféré", "Incertain", "Contesté"]));
   });
 
-  it("AC3: renders no bulk-action button (TASK-014 AC19: folder-path column now present)", async () => {
+  it("AC3 (TASK-014 AC19: folder-path column now present; TASK-015: bulk-action buttons now present)", async () => {
     global.fetch = makeFetchMock({
       proposalsByDomain: { PERSONAL: [makeSummary({ id: "p1" })] },
       detailsById: { p1: makeDetail({ id: "p1", sourceId: "src-a" }) },
@@ -240,8 +298,8 @@ describe("Validation", () => {
     renderValidation();
     await screen.findByText(/notes\.md/);
 
-    expect(screen.queryByText(/Tout accepter/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Tout rejeter/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Tout accepter/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Tout rejeter/ })).toBeInTheDocument();
     expect(screen.getAllByRole("columnheader")).toHaveLength(5);
     expect(screen.getByRole("columnheader", { name: "Dossier proposé" })).toBeInTheDocument();
   });
@@ -332,7 +390,7 @@ describe("Validation", () => {
     await waitFor(() => expect(screen.queryByText("Contenu de test")).not.toBeInTheDocument());
   });
 
-  it("AC5: rejecting opens the shared reason modal; submitting calls POST reject with the entered reason", async () => {
+  it("AC5 (TASK-015 item 10: individual reject now funnels through reject-batch with a 1-item id list): rejecting opens the shared reason modal; submitting calls POST reject-batch with the entered reason", async () => {
     global.fetch = makeFetchMock({
       proposalsByDomain: { PERSONAL: [makeSummary({ id: "p1" })] },
       detailsById: { p1: makeDetail({ id: "p1", sourceId: "src-a", body: "Contenu de test" }) },
@@ -349,9 +407,13 @@ describe("Validation", () => {
     await user.click(screen.getByRole("button", { name: /Confirmer le rejet/ }));
 
     const rejectCall = await waitFor(() =>
-      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/reject"))
+      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/reject-batch"))
     );
-    expect(JSON.parse(rejectCall[1].body)).toEqual({ reviewer_id: "test-reviewer", reason: "Pas assez fiable" });
+    expect(JSON.parse(rejectCall[1].body)).toEqual({
+      reviewer_id: "test-reviewer",
+      proposal_ids: ["p1"],
+      reason: "Pas assez fiable",
+    });
   });
 
   it("AC5b: submitting the reject modal with a blank reason sends reason: null", async () => {
@@ -368,9 +430,13 @@ describe("Validation", () => {
     await user.click(screen.getByRole("button", { name: /Confirmer le rejet/ }));
 
     const rejectCall = await waitFor(() =>
-      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/reject"))
+      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/reject-batch"))
     );
-    expect(JSON.parse(rejectCall[1].body)).toEqual({ reviewer_id: "test-reviewer", reason: null });
+    expect(JSON.parse(rejectCall[1].body)).toEqual({
+      reviewer_id: "test-reviewer",
+      proposal_ids: ["p1"],
+      reason: null,
+    });
   });
 
   it("AC6: shows the joined ingestion task status badge when matched, renders cleanly with no badge when not matched", async () => {
@@ -765,6 +831,222 @@ describe("Validation", () => {
     const entityRow = screen.getByText("Entity body").closest("tr");
     expect(entityRow.querySelector(".folder-cell")).not.toBeEmptyDOMElement();
     expect(entityRow.querySelector(".folder-add-btn")).toBeInTheDocument();
+  });
+
+  it("TASK-015 AC1: 'Tout accepter' issues exactly one accept-batch call with all N visible ids, and the whole group disappears", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomain: {
+        PERSONAL: [makeSummary({ id: "p1" }), makeSummary({ id: "p2" }), makeSummary({ id: "p3" })],
+      },
+      detailsById: {
+        p1: makeDetail({ id: "p1", sourceId: "src-a", body: "Note 1" }),
+        p2: makeDetail({ id: "p2", sourceId: "src-a", body: "Note 2" }),
+        p3: makeDetail({ id: "p3", sourceId: "src-a", body: "Note 3" }),
+      },
+    });
+    const user = userEvent.setup();
+    renderValidation();
+    await screen.findByText(/notes\.md/);
+
+    global.fetch.mockClear();
+    await user.click(screen.getByRole("button", { name: /Tout accepter/ }));
+
+    const batchCalls = await waitFor(() => {
+      const calls = global.fetch.mock.calls.filter(([url]) => new URL(url).pathname.endsWith("/accept-batch"));
+      expect(calls.length).toBeGreaterThan(0);
+      return calls;
+    });
+    expect(batchCalls).toHaveLength(1);
+    expect(JSON.parse(batchCalls[0][1].body)).toEqual({ reviewer_id: "test-reviewer", proposal_ids: ["p1", "p2", "p3"] });
+
+    await waitFor(() => expect(screen.queryByText(/notes\.md/)).not.toBeInTheDocument());
+  });
+
+  it("TASK-015 AC2: a partial-failure accept-batch keeps the failed note visible, removes the rest, and surfaces one banner message per failure", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomain: { PERSONAL: [makeSummary({ id: "p1" }), makeSummary({ id: "p2" })] },
+      detailsById: {
+        p1: makeDetail({ id: "p1", sourceId: "src-a", body: "Note 1" }),
+        p2: makeDetail({ id: "p2", sourceId: "src-a", body: "Note 2" }),
+      },
+      acceptBatchFailIds: ["p1"],
+    });
+    const user = userEvent.setup();
+    renderValidation();
+    await screen.findByText("Note 1");
+
+    await user.click(screen.getByRole("button", { name: /Tout accepter/ }));
+
+    await waitFor(() => expect(screen.queryByText("Note 2")).not.toBeInTheDocument());
+    expect(screen.getByText("Note 1")).toBeInTheDocument();
+    expect(screen.getByText(/1\/2 notes traitées, 1 échouée/)).toBeInTheDocument();
+    expect(screen.getByText(/p1/)).toBeInTheDocument();
+  });
+
+  it("TASK-015 AC3: 'Tout rejeter' opens exactly one reason modal for the group; confirming sends every visible id plus the shared reason", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomain: {
+        PERSONAL: [makeSummary({ id: "p1" }), makeSummary({ id: "p2" }), makeSummary({ id: "p3" })],
+      },
+      detailsById: {
+        p1: makeDetail({ id: "p1", sourceId: "src-a", body: "Note 1" }),
+        p2: makeDetail({ id: "p2", sourceId: "src-a", body: "Note 2" }),
+        p3: makeDetail({ id: "p3", sourceId: "src-a", body: "Note 3" }),
+      },
+    });
+    const user = userEvent.setup();
+    renderValidation();
+    await screen.findByText(/notes\.md/);
+
+    await user.click(screen.getByRole("button", { name: /Tout rejeter/ }));
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+
+    await user.type(screen.getByLabelText(/Raison/), "Source peu fiable");
+    global.fetch.mockClear();
+    await user.click(screen.getByRole("button", { name: /Confirmer le rejet/ }));
+
+    const rejectCall = await waitFor(() =>
+      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/reject-batch"))
+    );
+    expect(JSON.parse(rejectCall[1].body)).toEqual({
+      reviewer_id: "test-reviewer",
+      proposal_ids: ["p1", "p2", "p3"],
+      reason: "Source peu fiable",
+    });
+  });
+
+  it("TASK-015 AC4: Type de proposition filter hides notes of other types and restores them when reset to Tous", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomain: {
+        PERSONAL: [makeSummary({ id: "p-assert" }), makeSummary({ id: "p-entity" })],
+      },
+      detailsById: {
+        "p-assert": makeDetail({ id: "p-assert", sourceId: "src-a", body: "Assertion body", itemType: "assertion" }),
+        "p-entity": makeDetail({
+          id: "p-entity", sourceId: "src-a", body: "Entity body", itemType: "entity", entityType: "person",
+        }),
+      },
+    });
+    const user = userEvent.setup();
+    renderValidation();
+    await screen.findByText("Assertion body");
+    expect(screen.getByText("Entity body")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Type de proposition"), "assertion");
+    expect(screen.getByText("Assertion body")).toBeInTheDocument();
+    expect(screen.queryByText("Entity body")).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Type de proposition"), "all");
+    expect(screen.getByText("Assertion body")).toBeInTheDocument();
+    expect(screen.getByText("Entity body")).toBeInTheDocument();
+  });
+
+  it("TASK-015 AC5: Statut épistémique filter composes with the Type filter (only the fully-matching note remains)", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomain: {
+        PERSONAL: [
+          makeSummary({ id: "p1", itemType: "assertion", epistemicStatus: "direct" }),
+          makeSummary({ id: "p2", itemType: "assertion", epistemicStatus: "inferred" }),
+          makeSummary({ id: "p3", itemType: "entity", epistemicStatus: "direct" }),
+        ],
+      },
+      detailsById: {
+        p1: makeDetail({ id: "p1", sourceId: "src-a", body: "N1 body", itemType: "assertion" }),
+        p2: makeDetail({ id: "p2", sourceId: "src-a", body: "N2 body", itemType: "assertion" }),
+        p3: makeDetail({ id: "p3", sourceId: "src-a", body: "N3 body", itemType: "entity", entityType: "person" }),
+      },
+    });
+    const user = userEvent.setup();
+    renderValidation();
+    await screen.findByText("N1 body");
+
+    await user.selectOptions(screen.getByLabelText("Type de proposition"), "assertion");
+    await user.selectOptions(screen.getByLabelText("Statut épistémique"), "direct");
+
+    expect(screen.getByText("N1 body")).toBeInTheDocument();
+    expect(screen.queryByText("N2 body")).not.toBeInTheDocument();
+    expect(screen.queryByText("N3 body")).not.toBeInTheDocument();
+  });
+
+  it("TASK-015 AC6: the sort control reorders groups by their most recent note's created_at, both directions", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomain: {
+        PERSONAL: [
+          makeSummary({ id: "n1", createdAt: "2026-01-01T00:00:00" }),
+          makeSummary({ id: "n2", createdAt: "2026-03-01T00:00:00" }),
+          makeSummary({ id: "n3", createdAt: "2026-02-01T00:00:00" }),
+        ],
+      },
+      detailsById: {
+        n1: makeDetail({ id: "n1", sourceId: "src-1", filename: "one.md", body: "Note 1" }),
+        n2: makeDetail({ id: "n2", sourceId: "src-2", filename: "two.md", body: "Note 2" }),
+        n3: makeDetail({ id: "n3", sourceId: "src-3", filename: "three.md", body: "Note 3" }),
+      },
+    });
+    const user = userEvent.setup();
+    renderValidation();
+    await screen.findByText(/two\.md/);
+
+    const filenamesInOrder = () =>
+      Array.from(document.querySelectorAll(".source-file")).map((el) => el.textContent);
+
+    expect(filenamesInOrder()).toEqual([
+      expect.stringContaining("two.md"),
+      expect.stringContaining("three.md"),
+      expect.stringContaining("one.md"),
+    ]);
+
+    await user.selectOptions(screen.getByLabelText("Tri"), "oldest");
+
+    expect(filenamesInOrder()).toEqual([
+      expect.stringContaining("one.md"),
+      expect.stringContaining("three.md"),
+      expect.stringContaining("two.md"),
+    ]);
+  });
+
+  it("TASK-015 AC7: a note filtered out by the Type filter is excluded from that group's next accept-batch call", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomain: {
+        PERSONAL: [makeSummary({ id: "p-assert" }), makeSummary({ id: "p-entity" })],
+      },
+      detailsById: {
+        "p-assert": makeDetail({ id: "p-assert", sourceId: "src-a", body: "Assertion body", itemType: "assertion" }),
+        "p-entity": makeDetail({
+          id: "p-entity", sourceId: "src-a", body: "Entity body", itemType: "entity", entityType: "person",
+        }),
+      },
+    });
+    const user = userEvent.setup();
+    renderValidation();
+    await screen.findByText("Assertion body");
+
+    await user.selectOptions(screen.getByLabelText("Type de proposition"), "assertion");
+    global.fetch.mockClear();
+    await user.click(screen.getByRole("button", { name: /Tout accepter/ }));
+
+    const batchCall = await waitFor(() =>
+      global.fetch.mock.calls.find(([url]) => new URL(url).pathname.endsWith("/accept-batch"))
+    );
+    expect(JSON.parse(batchCall[1].body).proposal_ids).toEqual(["p-assert"]);
+  });
+
+  it("TASK-015 AC9: individual accept still calls the pre-existing single-item /accept endpoint, never /accept-batch", async () => {
+    global.fetch = makeFetchMock({
+      proposalsByDomain: { PERSONAL: [makeSummary({ id: "p1" })] },
+      detailsById: { p1: makeDetail({ id: "p1", sourceId: "src-a", body: "Contenu de test" }) },
+    });
+    const user = userEvent.setup();
+    renderValidation();
+    await screen.findByText("Contenu de test");
+
+    global.fetch.mockClear();
+    await user.click(screen.getByRole("button", { name: /^✓ Accepter$/ }));
+
+    await waitFor(() => {
+      expect(global.fetch.mock.calls.some(([url]) => new URL(url).pathname.endsWith("/accept"))).toBe(true);
+    });
+    expect(global.fetch.mock.calls.some(([url]) => new URL(url).pathname.endsWith("/accept-batch"))).toBe(false);
   });
 });
 

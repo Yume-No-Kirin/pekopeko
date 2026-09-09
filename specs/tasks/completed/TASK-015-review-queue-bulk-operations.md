@@ -1,6 +1,6 @@
 # TASK-015: Review Queue Bulk Operations and Filter/Sort (V1)
 
-- **Status**: backlog
+- **Status**: completed
 
 ## Objective
 
@@ -290,3 +290,59 @@ alongside this ticket) — `Validation.jsx` already fetches, groups, and renders
 - Folder-path bulk edit (distinct from accept/reject; not addressed here).
 - Server-side filtering, sorting or counting on `list_proposals`, and anything else that would
   lift TASK-010's `limit=500`-per-domain fetch ceiling — see the last V1 scope decision above.
+
+## Verification record (2026-09-09)
+
+Implemented and verified by Claude (this session). One real discrepancy found while reading the
+current code before implementing (not assumed, not guessed): scope item 7 above claims the
+maquette's `.btn-small.accept-all`/`.reject-all` CSS was "already ported into index.css per
+TASK-010's implementation notes" — this was false. `frontend/src/index.css`'s own top-of-block
+comment explicitly said bulk accept-all/reject-all CSS was "deliberately not ported... pre-existing
+deferrals (TASK-013/TASK-015)", and no `.source-actions`/`.accept-all`/`.reject-all` rule existed
+anywhere in the file. Resolved by porting the maquette's CSS verbatim, scoped under
+`.source-actions .btn-small` rather than a bare `.btn-small` (the file already has an unrelated
+generic `.btn.btn-small`, used by `ProposalDetail.jsx`'s edit-mode Sauvegarder/Annuler buttons,
+that a bare-class addition would have collided with).
+
+**Backend**: `src/app/api/routes_review.py` gains `_validate_batch_request`, `accept_batch`,
+`reject_batch` (per-item `try/except review.errors.ReviewError`, never re-raised); one new
+`serialization.py::batch_response`. No file under `src/app/review/` touched
+(`git status --porcelain -- src/app/review/` empty, confirmed both before commit and again after
+the full manual reproduction below). New `src/tests/api/test_review_batch_routes.py` (20 tests,
+mirroring the existing per-operation test-file convention in `src/tests/review/`), plus one test
+added to `test_serialization.py`. Full package-by-package run: `acceptance` 21/21, `api` 137/137
+(100% coverage on `routes_review.py`/`serialization.py`), `config` 46/46, `extraction` 114/114,
+`ingestion` 141/141 (5 pre-existing warnings, unrelated), `review` 185/185 (unchanged count,
+confirms no file added/modified there).
+
+**Frontend**: `review.js` (2 new wrappers), `EpistemicStatusBadge.jsx` (exports
+`EPISTEMIC_STATUS_LABELS`, a small addition beyond this ticket's own file list, needed so the new
+Statut épistémique filter reuses the same 4 labels rather than duplicating them),
+`SourceGroupHeader.jsx` (action cell + new `SourceGroupHeader.test.jsx`, 6 tests — this component
+had no test file before), `Validation.jsx` (rejectTarget generalized to `{domain, ids}`, shared
+`applyBatchResponse`, two new filters + sort, batch-failure banner), `index.css`. Two pre-existing
+`Validation.test.jsx` tests required rewriting rather than only extending, both flagged in the plan
+before touching them: `AC3` (used to assert the bulk buttons were *absent*; now asserts presence)
+and `AC5`/`AC5b` (used to assert individual reject posted to `/reject`; now asserts `/reject-batch`
+with a 1-item `proposal_ids` array, per item 10's explicit generalization). 9 new tests cover
+AC1-AC7/AC9. Full frontend suite: 142/142 passing across 15 files, coverage 98.31% stmts/87.75%
+branch/86.36% funcs/98.31% lines (all ≥ the configured 80% gate); `npx vite build` succeeds.
+
+**Manual end-to-end reproduction, actually executed** (not narrated): a standalone script
+(outside pytest) built a real temp vault and drove `create_app`'s Flask test client through 5
+scenarios — (1) a 3-proposal batch (2 assertions + 1 entity) across one source: `accept-batch`
+returns `succeeded_count: 3`, all 3 proposal files flip to `ACCEPTED` on disk, 3 canonical files
+are written; (2) a batch with a relationship whose endpoint is a still-`PROPOSED` id: HTTP 200,
+that item's `error.type == "UnresolvedRelationshipEndpointError"`, its proposal file stays
+`PROPOSED` on disk (no partial write), the sibling assertion in the same batch still succeeds; (3)
+`reject-batch` with one shared reason: both results carry the identical `rejection_reason`; (4)
+missing `reviewer_id` and empty `proposal_ids` both return 400; (5) the pre-existing single-item
+`/accept` route's response still has no `results`/`succeeded_count` keys. All 18 checks passed.
+
+**Limits, named rather than masked**: verification was done directly in the repo tree, not an
+isolated copy outside it (same posture as TASK-005a/TASK-009a, not TASK-013/014's isolated-copy
+approach). No browser automation tool is available in this environment (same limitation TASK-009a
+recorded) — frontend button/modal/filter/sort behavior is verified via Vitest + React Testing
+Library (real component rendering, simulated interactions), not a real browser click. Verification
+was done by the same session that implemented the change, not an independent second reviewer, same
+limit as every prior ticket in this project.

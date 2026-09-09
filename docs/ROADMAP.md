@@ -462,6 +462,65 @@ Phase : implémentation des tickets `TASK-XXX` (en cours).
   - `specs/tasks/backlog/` passe de six à **cinq** tickets restants (TASK-015, TASK-016, TASK-017,
     TASK-018, TASK-019). Aucun changement à la prochaine action d'implémentation, qui reste TASK-015.
 
+- **TASK-015 implémenté et vérifié le 2026-09-09** (session suivante à celle de TASK-009a — voir
+  `specs/tasks/completed/TASK-015-review-queue-bulk-operations.md`, désormais `completed`), la
+  **prochaine action d'implémentation** depuis sa rédaction le 2026-09-06, implémentée maintenant
+  dans l'ordre strict du backlog. Ferme le dernier déféré explicite de `SourceGroupHeader.jsx`
+  depuis TASK-010 (bulk accept/reject par groupe source) et ajoute deux filtres client-side
+  (type de proposition, statut épistémique) plus un contrôle de tri sur `Validation.jsx`.
+  **Écart réel trouvé en lisant le code avant d'implémenter, signalé plutôt que deviné** : le
+  texte du ticket (point 7 de son Scope) affirmait que le CSS `.btn-small.accept-all`/
+  `.reject-all` de la maquette était « already ported into index.css per TASK-010's
+  implementation notes » — faux : le commentaire d'en-tête du bloc porté par TASK-010 dans
+  `index.css` disait explicitement le contraire (« Folder-path builder / bulk accept-all /
+  reject-all are deliberately not ported »), et aucune règle `.source-actions`/`.accept-all`/
+  `.reject-all` n'existait dans le fichier. Résolu en portant le CSS de la maquette, scopé sous
+  `.source-actions .btn-small` plutôt qu'un `.btn-small` nu (qui aurait percuté le `.btn.btn-small`
+  générique déjà utilisé par les boutons Sauvegarder/Annuler de `ProposalDetail.jsx`).
+  - **Backend** : `src/app/api/routes_review.py` gagne `accept_batch`/`reject_batch` (nouvelles
+    routes `POST .../proposals/accept-batch`/`reject-batch`, boucle + `try/except
+    review.errors.ReviewError` par item, jamais 400/409 sur un item individuel — seule une requête
+    structurellement invalide lève `ValidationError` avant traitement) et `serialization.py` gagne
+    `batch_response` (seul nouveau serializer, per le scope du ticket) — aucun fichier sous
+    `src/app/review/` touché, aucun changement à `ERROR_STATUS_MAP`. Nouveau
+    `src/tests/api/test_review_batch_routes.py` (20 tests, même convention par-opération que
+    `src/tests/review/`).
+  - **Frontend** : `review.js` (`acceptProposalsBatch`/`rejectProposalsBatch`),
+    `EpistemicStatusBadge.jsx` (exporte désormais `EPISTEMIC_STATUS_LABELS`, petit ajout hors de la
+    liste de fichiers du ticket, pour que le nouveau filtre Statut épistémique réutilise les mêmes
+    4 libellés sans les dupliquer), `SourceGroupHeader.jsx` (nouvelle cellule d'actions "✓ Tout
+    accepter"/"✕ Tout rejeter", nouveau `SourceGroupHeader.test.jsx` — ce composant n'avait aucun
+    test avant), `Validation.jsx` (`rejectTarget` généralisé en `{domain, ids}` partagé entre le
+    reject individuel (`ids: [id]`) et le reject de groupe, nouveau `applyBatchResponse` partagé
+    par les deux chemins batch, bannière d'échec listant un message par item en échec, deux
+    nouveaux filtres + tri composés dans le pipeline `visibleGroups` existant), `index.css`. Deux
+    tests pré-existants de `Validation.test.jsx` ont dû être réécrits (pas seulement étendus),
+    signalé dans le ticket avant d'y toucher : `AC3` (attendait l'absence des boutons de masse,
+    attend maintenant leur présence) et `AC5`/`AC5b` (attendaient un POST `/reject`, attendent
+    maintenant `/reject-batch` avec `proposal_ids: [id]`, conséquence directe du point 10 du
+    ticket généralisant le reject individuel sur l'endpoint batch).
+  - Vérifié par Claude selon la discipline du projet — même limite que tous les tickets
+    précédents : vérification faite par la même session que l'implémentation, dans l'arborescence
+    du dépôt directement (pas une copie isolée hors dépôt, même posture que TASK-005a/TASK-009a).
+    Tests rejoués package par package : `acceptance` 21/21, `api` 137/137 (100 % de couverture sur
+    `routes_review.py`/`serialization.py`), `config` 46/46, `extraction` 114/114, `ingestion`
+    141/141, `review` 185/185 (compte inchangé, confirme qu'aucun fichier n'y a été touché) ; 142
+    tests frontend (15 fichiers), couverture 98,31 % stmts/87,75 % branch/86,36 % funcs/98,31 %
+    lines, `npx vite build` réussi. **Reproduction manuelle bout-en-bout réellement exécutée**
+    (script autonome hors pytest, vrai vault temporaire, client de test Flask réel) : batch de 3
+    propositions (2 assertions + 1 entity) sur une source → `succeeded_count: 3`, 3 fichiers
+    canoniques écrits sur disque ; batch avec une relationship dont l'endpoint est encore
+    `PROPOSED` → HTTP 200, `error.type == "UnresolvedRelationshipEndpointError"`, la proposition
+    reste `PROPOSED` sur disque (pas d'écriture partielle), l'assertion sœur du même batch réussit ;
+    reject-batch à raison partagée → même `rejection_reason` sur les deux résultats ; requête
+    structurellement invalide → 400 ; route individuelle `/accept` inchangée (pas de clés
+    `results`/`succeeded_count`). 18/18 vérifications passées. Aucun outil d'automatisation de
+    navigateur disponible dans cet environnement (même limite que TASK-009a) — le comportement
+    frontend est vérifié via Vitest + React Testing Library, pas un clic réel dans un navigateur.
+    Rapport complet dans la section « Verification record » du ticket.
+  - `specs/tasks/backlog/` passe de cinq à **quatre** tickets restants (TASK-016, TASK-017,
+    TASK-018, TASK-019).
+
 ## Décisions d'architecture (ADI-001 à ADI-016, toutes `Accepted`)
 
 **Lecture requise avant de rédiger une nouvelle ADR :** `specs/product/vision.md`, `user-needs.md`, `scope.md`, `non-goals.md`, `product-model.md`, `use-cases.md` (cité comme justification derrière presque chaque exigence, et seul document porteur des signaux de volume), `specs/domain/knowledge-model.md`, `specs/domain/knowledge-invariants.md`, `specs/architecture/principles.md`, `specs/architecture/capabilities.md`, la section 23 (« Architectural Decision Inputs ») de `specs/architecture/technical-requirements.md`, et les ADR déjà écrites. Le format attendu est défini dans `specs/decisions/README.md`.
@@ -1352,9 +1411,10 @@ implémenté et vérifié le 2026-09-04 dans cette même session.
 
 **TASK-001, TASK-002, TASK-003, TASK-003a, TASK-004, TASK-001a, TASK-001b, TASK-001c, TASK-001d,
 TASK-001e, TASK-001f, TASK-005, TASK-005a, TASK-006, TASK-007, TASK-007a, TASK-008, TASK-009,
-TASK-010, TASK-011, TASK-012, TASK-013, TASK-014, TASK-014a, TASK-014b et TASK-009a sont tous
-`completed`**
-(TASK-001f/TASK-014a/TASK-014b le 2026-09-08, implémentés dans la même session à la demande
+TASK-010, TASK-011, TASK-012, TASK-013, TASK-014, TASK-014a, TASK-014b, TASK-009a et TASK-015
+sont tous `completed`**
+(TASK-015 le 2026-09-09, dans l'ordre strict du backlog — voir sa propre entrée dans « État
+actuel » ; TASK-001f/TASK-014a/TASK-014b le 2026-09-08, implémentés dans la même session à la demande
 explicite de Cleo, hors de l'ordre strict du backlog — TASK-001f absorbé dans l'implémentation de
 TASK-014b, voir leur propre entrée dans « État actuel » ; TASK-009a le 2026-09-08 également, dans une
 session encore suivante et également hors de l'ordre strict du backlog, à la demande explicite de
@@ -1370,14 +1430,16 @@ le 2026-09-03, TASK-001d le 2026-09-03, TASK-001c le 2026-09-03, TASK-010 le 202
 TASK-009 le 2026-09-03, TASK-008 le 2026-09-02, TASK-007a le 2026-09-02, TASK-007 le
 2026-09-01, TASK-006 le 2026-09-01, TASK-001a et TASK-001b le 2026-08-31, les quatre
 autres le 2026-08-30).
-**Cinq tickets restent rédigés (`backlog`)** — voir leurs sections ci-dessus (TASK-015, TASK-016,
-TASK-017, TASK-018, TASK-019 ; **cinq au total**, compte vérifié contre
+**Quatre tickets restent rédigés (`backlog`)** — voir leurs sections ci-dessus (TASK-016,
+TASK-017, TASK-018, TASK-019 ; **quatre au total**, compte vérifié contre
 `specs/tasks/backlog/`, cohérent avec « État actuel » ci-dessus — descendu de neuf à six le
-2026-09-08 quand TASK-001f/TASK-014a/TASK-014b sont passés à `completed`, puis de six à cinq le même
-jour quand TASK-009a l'est passé à son tour).
-Aucun changement à la prochaine action d'implémentation : TASK-018/TASK-019/TASK-009a (et
-TASK-001f/TASK-014a/TASK-014b avant eux) sont des tickets rédigés/implémentés hors ordre à la
-demande de Cleo, pas une re-priorisation — TASK-015 reste devant dans l'ordre d'implémentation.
+2026-09-08 quand TASK-001f/TASK-014a/TASK-014b sont passés à `completed`, de six à cinq le même
+jour quand TASK-009a l'est passé à son tour, puis de cinq à quatre le 2026-09-09 quand TASK-015
+l'est passé à son tour).
+TASK-015 était la prochaine action d'implémentation depuis sa rédaction le 2026-09-06 ; elle est
+maintenant `completed`, dans l'ordre strict du backlog (contrairement à TASK-018/TASK-019/
+TASK-009a et à TASK-001f/TASK-014a/TASK-014b avant eux, tous rédigés/implémentés hors ordre à la
+demande de Cleo).
 
 - **Le socle GUI (TASK-007 → TASK-012) est désormais entièrement `completed`** : la chaîne
   TASK-008 → TASK-009 → TASK-010 → TASK-011 (scaffold, Logs d'ingestion, Validation, Détail de
@@ -1386,19 +1448,26 @@ demande de Cleo, pas une re-priorisation — TASK-015 reste devant dans l'ordre 
 - TASK-013 (mode édition), TASK-014 (organisation en dossiers) et TASK-001e (chemin proposé
   par le LLM, rendu obligatoire par ADI-014) sont aussi tous `completed`.
 
-Prochaine action : **TASK-015** (opérations de masse et priorisation de la file de revue —
-`specs/tasks/backlog/TASK-015-review-queue-bulk-operations.md`, rédigé le 2026-09-06), première
-entrée de la section 2 (proposition de re-priorisation) de `BACKLOG-CLAUDE-V2.md` à être
-extraite et rédigée en ticket complet après TASK-013/TASK-014 : bulk accept/reject par groupe
-source (maquette `pekopeko-workflow.html`) plus filtres type de proposition/statut épistémique
-et un contrôle de tri, sur `Validation.jsx`, désormais scopé sur les 4 `proposed_item_type`
-puisque TASK-012 est `completed`.
-**TASK-016** (`specs/tasks/backlog/TASK-016-audio-video-ingestion-transcription.md`) et
-**TASK-017** (`specs/tasks/backlog/TASK-017-additional-source-readers.md`) ont été rédigés le
-2026-09-06, dans une session ultérieure à celle de TASK-015, **à la demande explicite de Cleo,
-hors de l'ordre strict du backlog** (TASK-015 n'est pas encore implémenté) — 2ᵉ et 3ᵉ entrées de
-la même section 2 de `BACKLOG-CLAUDE-V2.md`. Ceci ne change pas la prochaine action
-d'implémentation ci-dessus, qui reste TASK-015. Écrire ces deux tickets a fait surgir un vrai
+**TASK-015** (opérations de masse et priorisation de la file de revue —
+`specs/tasks/completed/TASK-015-review-queue-bulk-operations.md`, rédigé le 2026-09-06, implémenté
+et vérifié le 2026-09-09), première entrée de la section 2 (proposition de re-priorisation) de
+`BACKLOG-CLAUDE-V2.md` à être extraite et rédigée en ticket complet après TASK-013/TASK-014 : bulk
+accept/reject par groupe source (maquette `pekopeko-workflow.html`) plus filtres type de
+proposition/statut épistémique et un contrôle de tri, sur `Validation.jsx`, scopé sur les 4
+`proposed_item_type` puisque TASK-012 était déjà `completed`. Voir sa propre entrée dans « État
+actuel » pour le détail de l'implémentation et sa « Verification record » pour le rapport complet.
+Elle était la prochaine action d'implémentation depuis sa rédaction ; elle l'est restée jusqu'à
+son implémentation, dans l'ordre strict du backlog.
+
+Prochaine action : **TASK-016** (`specs/tasks/backlog/TASK-016-audio-video-ingestion-transcription.md`,
+ingestion audio/vidéo avec transcription YouTube/TikTok/Instagram, rédigé le 2026-09-06), maintenant
+que TASK-015 est `completed` — TASK-016 est le prochain ticket déjà rédigé dans l'ordre strict du
+backlog. **Ce n'est pas une décision actée avec Cleo** (contrairement au reste de cette entrée, qui
+documente des faits) : TASK-016 et **TASK-017** (`specs/tasks/backlog/TASK-017-additional-source-readers.md`,
+également rédigé le 2026-09-06) avaient été rédigés hors ordre à la demande explicite de Cleo alors
+que TASK-015 restait la priorité déclarée ; personne n'a encore reconfirmé l'ordre une fois
+TASK-015 effectivement terminé — signalé plutôt que décidé silencieusement. 2ᵉ et 3ᵉ entrées de la
+même section 2 de `BACKLOG-CLAUDE-V2.md`. Écrire ces deux tickets a fait surgir un vrai
 écart architectural que ni `BACKLOG-CLAUDE-V2.md` ni la note de contexte reçue en début de
 session n'avaient identifié : le protocole `SourceReader.read(path: Path) -> str` existant ne
 prend qu'un fichier local, alors que Cleo a confirmé — pour TASK-016 (vidéo/audio) et pour la

@@ -612,9 +612,9 @@ body {
 
 /* Ported from specs/ux-design/pekopeko-workflow.html's <style> block
    (TASK-010) - source group header, note rows, epistemic badges, mini
-   action buttons. Folder-path builder / bulk accept-all / reject-all are
-   deliberately not ported - pre-existing deferrals (TASK-013/TASK-015), not
-   used by this screen. */
+   action buttons. Folder-path builder was ported separately by TASK-014
+   (see its own comment below); bulk accept-all/reject-all is ported
+   separately by TASK-015 (see .source-actions below). */
 .btn-primary {
   background: #333;
   color: #fff;
@@ -660,6 +660,53 @@ body {
 .source-count {
   color: #666;
   font-weight: 400;
+}
+
+/* TASK-015: per-source-group bulk accept/reject buttons. Scoped under
+   .source-actions (not a bare .btn-small) so it doesn't collide with the
+   existing generic .btn.btn-small used by ProposalDetail.jsx's edit-mode
+   Sauvegarder/Annuler buttons. Values ported verbatim from
+   specs/ux-design/pekopeko-workflow.html's .source-actions/.btn-small
+   rules. */
+.source-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.source-actions .btn-small {
+  padding: 6px 14px;
+  font-size: 12px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.source-actions .btn-small:hover {
+  background: #f8f8f8;
+}
+
+.source-actions .btn-small.accept-all {
+  background: #2e7d32;
+  color: #fff;
+  border-color: #2e7d32;
+}
+
+.source-actions .btn-small.accept-all:hover {
+  background: #1b5e20;
+}
+
+.source-actions .btn-small.reject-all {
+  color: #c62828;
+  border-color: #c62828;
+}
+
+.source-actions .btn-small.reject-all:hover {
+  background: #c62828;
+  color: #fff;
 }
 
 .note-row {

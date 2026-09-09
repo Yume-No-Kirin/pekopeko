@@ -6,7 +6,7 @@ reimplementation, no change to review/'s public contract.
 from flask import Blueprint, current_app, jsonify, request
 
 from ..review import storage
-from ..review.errors import InvalidDomainError, ValidationError
+from ..review.errors import InvalidDomainError, ReviewError, ValidationError
 from ..review.pipeline import accept_proposal, edit_proposal, get_proposal, list_proposals, reject_proposal
 from . import serialization
 from .domains import VALID_DOMAINS
@@ -71,6 +71,63 @@ def edit(domain, proposal_id):
         body=body.get("body"), field_updates=body.get("field_updates"),
     )
     return jsonify(serialization.edit_result_to_dict(result)), 200
+
+
+def _validate_batch_request(body):
+    reviewer_id = body.get("reviewer_id")
+    if not reviewer_id:
+        raise ValidationError("reviewer_id is required")
+    proposal_ids = body.get("proposal_ids")
+    if not isinstance(proposal_ids, list) or len(proposal_ids) == 0:
+        raise ValidationError("proposal_ids must be a non-empty list")
+    return reviewer_id, proposal_ids
+
+
+@review_bp.route("/domains/<domain>/proposals/accept-batch", methods=["POST"])
+def accept_batch(domain):
+    _check_domain(domain)
+    body = request.get_json(silent=True) or {}
+    reviewer_id, proposal_ids = _validate_batch_request(body)
+
+    results = []
+    for proposal_id in proposal_ids:
+        try:
+            result = accept_proposal(_vault_root(), domain, proposal_id, reviewer_id)
+            item = serialization.accept_result_to_dict(result)
+            item["status"] = "accepted"
+        except ReviewError as exc:
+            item = {
+                "proposal_id": proposal_id,
+                "status": "failed",
+                "error": {"type": type(exc).__name__, "message": str(exc)},
+            }
+        results.append(item)
+
+    return jsonify(serialization.batch_response(results)), 200
+
+
+@review_bp.route("/domains/<domain>/proposals/reject-batch", methods=["POST"])
+def reject_batch(domain):
+    _check_domain(domain)
+    body = request.get_json(silent=True) or {}
+    reviewer_id, proposal_ids = _validate_batch_request(body)
+    reason = body.get("reason")
+
+    results = []
+    for proposal_id in proposal_ids:
+        try:
+            result = reject_proposal(_vault_root(), domain, proposal_id, reviewer_id, reason=reason)
+            item = serialization.reject_result_to_dict(result)
+            item["status"] = "rejected"
+        except ReviewError as exc:
+            item = {
+                "proposal_id": proposal_id,
+                "status": "failed",
+                "error": {"type": type(exc).__name__, "message": str(exc)},
+            }
+        results.append(item)
+
+    return jsonify(serialization.batch_response(results)), 200
 
 
 @review_bp.route("/domains/<domain>/organization-folders", methods=["GET"])

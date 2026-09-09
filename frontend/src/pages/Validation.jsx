@@ -7,11 +7,13 @@ import {
   rejectProposal,
   editProposal,
   listOrganizationFolders,
+  acceptProposalsBatch,
+  rejectProposalsBatch,
 } from "../api/review.js";
 import { listIngestions } from "../api/tasks.js";
 import { DOMAINS } from "../api/domains.js";
 import { PERIOD_OPTIONS, filterByPeriod } from "../utils/periodFilter.js";
-import EpistemicStatusBadge from "../components/EpistemicStatusBadge.jsx";
+import EpistemicStatusBadge, { EPISTEMIC_STATUS_LABELS } from "../components/EpistemicStatusBadge.jsx";
 import SourceGroupHeader from "../components/SourceGroupHeader.jsx";
 import RejectReasonModal from "../components/RejectReasonModal.jsx";
 import FolderPathBuilder from "../components/FolderPathBuilder.jsx";
@@ -22,6 +24,32 @@ import RelationshipEndpoints from "../components/RelationshipEndpoints.jsx";
 
 const REVIEWER_ID = import.meta.env.VITE_REVIEWER_ID || "cleo";
 const NOTES_PER_PAGE = 10;
+
+const PROPOSED_ITEM_TYPE_OPTIONS = [
+  { value: "all", label: "Tous" },
+  { value: "assertion", label: "Assertion" },
+  { value: "entity", label: "Entité" },
+  { value: "event", label: "Événement" },
+  { value: "relationship", label: "Relation" },
+];
+
+const EPISTEMIC_STATUS_OPTIONS = [
+  { value: "all", label: "Tous" },
+  ...Object.entries(EPISTEMIC_STATUS_LABELS).map(([value, label]) => ({ value, label })),
+];
+
+const SORT_OPTIONS = [
+  { value: "recent", label: "Plus récent d'abord" },
+  { value: "oldest", label: "Plus ancien d'abord" },
+];
+
+// Most recent created_at across a group's (already filtered) notes - the
+// sort control's own comparison key. -Infinity for an empty group so it
+// never crashes Math.max (packGroupsIntoPages/visibleGroups always drop
+// empty groups before this would matter, but keeping the helper total).
+function groupMostRecentCreatedAt(group) {
+  return group.notes.reduce((max, note) => Math.max(max, new Date(note.created_at).getTime()), -Infinity);
+}
 
 // Resolves a relationship endpoint id to a display label using only detail
 // data already fetched for other reasons (no new backend read endpoint,
@@ -200,6 +228,9 @@ function NoteRow({ note, folderOptions, detailsById, onAccept, onReject, onPathC
 export default function Validation() {
   const [domainFilter, setDomainFilter] = useState("all");
   const [periodFilter, setPeriodFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [epistemicFilter, setEpistemicFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("recent");
   const [page, setPage] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [groups, setGroups] = useState(null);
@@ -238,14 +269,34 @@ export default function Validation() {
     };
   }, [domainFilter, refreshKey]);
 
-  function updateGroupsAfterRemoval(domain, proposalId) {
+  function updateGroupsAfterRemoval(domain, proposalIds) {
+    const idsToRemove = new Set(Array.isArray(proposalIds) ? proposalIds : [proposalIds]);
     setGroups((current) =>
       current
         .map((group) => {
           if (group.domain !== domain) return group;
-          return { ...group, notes: group.notes.filter((note) => note.id !== proposalId) };
+          return { ...group, notes: group.notes.filter((note) => !idsToRemove.has(note.id)) };
         })
         .filter((group) => group.notes.length > 0)
+    );
+  }
+
+  // Shared by handleAcceptAll and handleRejectConfirm (batch endpoints - see
+  // api/review.js's acceptProposalsBatch/rejectProposalsBatch): removes every
+  // non-"failed" result's note from state, and - if at least one item failed
+  // - surfaces a dedicated banner listing one message per failure rather than
+  // silently dropping it (TASK-015 item 11). This actionError shape
+  // ({batch: true, ...}) is distinct from the plain Error object the
+  // non-batch action handlers below set, so the render below can branch on it.
+  function applyBatchResponse(domain, response) {
+    const succeededIds = response.results.filter((r) => r.status !== "failed").map((r) => r.proposal_id);
+    if (succeededIds.length > 0) updateGroupsAfterRemoval(domain, succeededIds);
+
+    const failures = response.results.filter((r) => r.status === "failed");
+    setActionError(
+      failures.length > 0
+        ? { batch: true, succeededCount: response.succeeded_count, failedCount: response.failed_count, failures }
+        : null
     );
   }
 
@@ -254,6 +305,16 @@ export default function Validation() {
     try {
       await acceptProposal(domain, id, REVIEWER_ID);
       updateGroupsAfterRemoval(domain, id);
+    } catch (err) {
+      setActionError(err);
+    }
+  }
+
+  async function handleAcceptAll(domain, ids) {
+    setActionError(null);
+    try {
+      const response = await acceptProposalsBatch(domain, ids, REVIEWER_ID);
+      applyBatchResponse(domain, response);
     } catch (err) {
       setActionError(err);
     }
@@ -288,8 +349,16 @@ export default function Validation() {
     }
   }
 
+  // rejectTarget is {domain, ids} for both paths: a single-note reject
+  // (ids: [id]) and a group-level "Tout rejeter" (ids: the group's full
+  // visible id list) - both share the one RejectReasonModal/handler below,
+  // generalized onto the batch endpoint (TASK-015 item 10).
   function handleRejectClick(domain, id) {
-    setRejectTarget({ domain, id });
+    setRejectTarget({ domain, ids: [id] });
+  }
+
+  function handleRejectAllClick(domain, ids) {
+    setRejectTarget({ domain, ids });
   }
 
   async function handleRejectConfirm(reason) {
@@ -297,8 +366,8 @@ export default function Validation() {
     setRejectTarget(null);
     setActionError(null);
     try {
-      await rejectProposal(target.domain, target.id, REVIEWER_ID, reason);
-      updateGroupsAfterRemoval(target.domain, target.id);
+      const response = await rejectProposalsBatch(target.domain, target.ids, REVIEWER_ID, reason);
+      applyBatchResponse(target.domain, response);
     } catch (err) {
       setActionError(err);
     }
@@ -309,10 +378,34 @@ export default function Validation() {
     setPage(0);
   }
 
+  function handleTypeFilterChange(e) {
+    setTypeFilter(e.target.value);
+    setPage(0);
+  }
+
+  function handleEpistemicFilterChange(e) {
+    setEpistemicFilter(e.target.value);
+    setPage(0);
+  }
+
+  function handleSortOrderChange(e) {
+    setSortOrder(e.target.value);
+    setPage(0);
+  }
+
   const visibleGroups = groups
     ? groups
-        .map((group) => ({ ...group, notes: filterByPeriod(group.notes, periodFilter, (note) => note.created_at) }))
+        .map((group) => ({
+          ...group,
+          notes: filterByPeriod(group.notes, periodFilter, (note) => note.created_at)
+            .filter((note) => typeFilter === "all" || note.detail.frontmatter.proposed_item_type === typeFilter)
+            .filter((note) => epistemicFilter === "all" || note.epistemic_status === epistemicFilter),
+        }))
         .filter((group) => group.notes.length > 0)
+        .sort((a, b) => {
+          const diff = groupMostRecentCreatedAt(b) - groupMostRecentCreatedAt(a);
+          return sortOrder === "recent" ? diff : -diff;
+        })
     : [];
 
   const pages = packGroupsIntoPages(visibleGroups, NOTES_PER_PAGE);
@@ -353,7 +446,20 @@ export default function Validation() {
           </div>
         )}
 
-        {actionError && (
+        {actionError && actionError.batch && (
+          <div className="validation-error" role="alert">
+            <div>
+              {`${actionError.succeededCount}/${actionError.succeededCount + actionError.failedCount} notes traitées, ${actionError.failedCount} échouée(s) :`}
+            </div>
+            <ul>
+              {actionError.failures.map((failure) => (
+                <li key={failure.proposal_id}>{`${failure.proposal_id} — ${failure.error.message}`}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {actionError && !actionError.batch && (
           <div className="validation-error" role="alert">
             Action impossible : {actionError.message}
           </div>
@@ -384,6 +490,48 @@ export default function Validation() {
               onChange={handlePeriodChange}
             >
               {PERIOD_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label" htmlFor="validation-type-filter">Type de proposition</label>
+            <select
+              id="validation-type-filter"
+              className="filter-select"
+              value={typeFilter}
+              onChange={handleTypeFilterChange}
+            >
+              {PROPOSED_ITEM_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label" htmlFor="validation-epistemic-filter">Statut épistémique</label>
+            <select
+              id="validation-epistemic-filter"
+              className="filter-select"
+              value={epistemicFilter}
+              onChange={handleEpistemicFilterChange}
+            >
+              {EPISTEMIC_STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label" htmlFor="validation-sort-order">Tri</label>
+            <select
+              id="validation-sort-order"
+              className="filter-select"
+              value={sortOrder}
+              onChange={handleSortOrderChange}
+            >
+              {SORT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
@@ -419,7 +567,12 @@ export default function Validation() {
                 )}
                 {currentPageGroups.map((group) => (
                   <Fragment key={`${group.domain}:${group.sourceId}`}>
-                    <SourceGroupHeader group={group} columnCount={5} />
+                    <SourceGroupHeader
+                      group={group}
+                      columnCount={5}
+                      onAcceptAll={handleAcceptAll}
+                      onRejectAll={handleRejectAllClick}
+                    />
                     {group.notes.map((note) => (
                       <NoteRow
                         key={`${note.domain}-${note.id}`}
