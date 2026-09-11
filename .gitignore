@@ -44,6 +44,8 @@ temp/
 # separate from src/config.yaml, which IS committed.
 .pekopeko/
 
+.vscode/
+
 src/config.yaml
 
 src/app/__pycache__/__init__.cpython-314.pyc
